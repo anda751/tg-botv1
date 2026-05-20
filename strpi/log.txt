@@ -1,0 +1,44 @@
+
+> my-strapi-project@0.1.0 start
+> strapi start
+
+[2026-05-20 15:23:15.171] [33mwarn[39m: [email]: The "sendmail" email provider is still supported, but for most production setups that use a dedicated SMTP relay, consider switching to @strapi/provider-email-nodemailer (set `provider` to `"nodemailer"` in your email plugin config). This message is only shown in non-production environments.
+[2026-05-20 15:23:16.292] [33mwarn[39m: admin.auth.options.expiresIn is deprecated and will be removed in Strapi 6. Please configure admin.auth.sessions.maxRefreshTokenLifespan and admin.auth.sessions.maxSessionLifespan.
+[2026-05-20 15:23:19.338] [32minfo[39m: [Bootstrap] All cron jobs registered
+
+ Project information
+
+[90m┌────────────────────[39m[90m┬──────────────────────────────────────────────────┐[39m
+[90m│[39m Time               [90m│[39m Wed May 20 2026 15:23:19 GMT+0700 (เวลาอินโดจีน) [90m│[39m
+[90m│[39m Launched in        [90m│[39m 11948 ms                                         [90m│[39m
+[90m│[39m Environment        [90m│[39m development                                      [90m│[39m
+[90m│[39m Process PID        [90m│[39m 14780                                            [90m│[39m
+[90m│[39m Version            [90m│[39m 5.46.0 (node v22.14.0)                           [90m│[39m
+[90m│[39m Edition            [90m│[39m Community                                        [90m│[39m
+[90m│[39m Database           [90m│[39m postgres                                         [90m│[39m
+[90m│[39m Database name      [90m│[39m postgres                                         [90m│[39m
+[90m│[39m Database schema    [90m│[39m public                                           [90m│[39m
+[90m└────────────────────[39m[90m┴──────────────────────────────────────────────────┘[39m
+
+ Actions available
+
+Welcome back!
+To manage your project 🚀, go to the administration panel at:
+http://localhost:1337/admin
+
+To access the server ⚡️, go to:
+http://localhost:1337
+
+[2026-05-20 15:23:19.457] [32minfo[39m: Strapi started successfully
+[2026-05-20 15:24:00.021] [32minfo[39m: [Cron] Deadline alert running...
+[2026-05-20 15:24:00.033] [32minfo[39m: [Cron] Morning summary running...
+[2026-05-20 15:24:00.042] [32minfo[39m: [Cron] Handover timeout running...
+[2026-05-20 15:24:00.637] [32minfo[39m: [Cron] Deadline alert checked
+[2026-05-20 15:25:00.021] [32minfo[39m: [Cron] Handover timeout running...
+[2026-05-20 15:25:00.045] [32minfo[39m: [Cron] Morning summary running...
+[2026-05-20 15:25:00.054] [32minfo[39m: [Cron] Deadline alert running...
+[2026-05-20 15:25:00.926] [32minfo[39m: [Cron] Deadline alert checked
+[2026-05-20 15:25:20.687] [32minfo[39m: Shutting down Strapi
+Terminate batch job (Y/N)? [2026-05-20 15:25:20.793] [32minfo[39m: Strapi has been shut down
+
+^C

@@ -1,0 +1,39 @@
+{
+  "kind": "collectionType",
+  "collectionName": "proof_images",
+  "info": {
+    "singularName": "proof-image",
+    "pluralName": "proof-images",
+    "displayName": "proof-image"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "image_url": {
+      "type": "string",
+      "required": true
+    },
+    "report_text": {
+      "type": "string",
+      "minLength": 5
+    },
+    "submitted_at": {
+      "type": "datetime",
+      "required": true
+    },
+    "task": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::task.task",
+      "inversedBy": "proof_images"
+    },
+    "submitted_by": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user",
+      "inversedBy": "proof_images"
+    }
+  }
+}

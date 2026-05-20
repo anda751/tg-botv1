@@ -1,0 +1,50 @@
+{
+  "kind": "collectionType",
+  "collectionName": "handover_requests",
+  "info": {
+    "singularName": "handover-request",
+    "pluralName": "handover-requests",
+    "displayName": "handover-request"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "reason": {
+      "type": "string",
+      "required": true
+    },
+    "status_handover": {
+      "type": "enumeration",
+      "default": "pending",
+      "enum": [
+        "pending",
+        "approved",
+        "cancelled",
+        "timeout"
+      ]
+    },
+    "expires_at": {
+      "type": "datetime",
+      "required": true
+    },
+    "task": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::task.task",
+      "inversedBy": "handover_requests"
+    },
+    "requested_by": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user",
+      "inversedBy": "handover_requests"
+    },
+    "picked_up_by": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user"
+    }
+  }
+}

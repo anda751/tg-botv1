@@ -1,0 +1,41 @@
+{
+  "kind": "collectionType",
+  "collectionName": "task_logs",
+  "info": {
+    "singularName": "task-log",
+    "pluralName": "task-logs",
+    "displayName": "task-log"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "action": {
+      "type": "enumeration",
+      "required": true,
+      "enum": [
+        "created",
+        "submitted",
+        "approved",
+        "rejected",
+        "handover",
+        "picked_up"
+      ]
+    },
+    "note": {
+      "type": "string"
+    },
+    "task": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::task.task",
+      "inversedBy": "task_log"
+    },
+    "actor": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user"
+    }
+  }
+}
