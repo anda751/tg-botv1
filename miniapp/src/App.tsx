@@ -28,11 +28,12 @@ export type AppUser = {
 
 axios.defaults.baseURL = import.meta.env.VITE_STRAPI_URL + '/api'
 
-type AppState = 'loading' | 'no_telegram' | 'not_registered' | 'ready'
+type AppState = 'loading' | 'no_telegram' | 'not_registered' | 'error' | 'ready'
 
 export default function App() {
   const [user, setUser] = useState<AppUser | null>(null)
   const [appState, setAppState] = useState<AppState>('loading')
+  const [errorMsg, setErrorMsg] = useState('')
 
   useEffect(() => {
     initTelegram()
@@ -58,9 +59,17 @@ export default function App() {
     } catch (err: any) {
       const status = err?.response?.status
       if (status === 404) {
+        // ยังไม่ได้สมัคร
         setAppState('not_registered')
+      } else if (status === 403) {
+        // สมัครแล้วแต่ยังไม่อนุมัติ — ตอนนี้ไม่ควรเกิดเพราะ is_approved: true แล้ว
+        // แต่ถ้าเกิดขึ้น ให้แสดง error แทนที่จะวนไปหน้า register
+        setErrorMsg('บัญชียังไม่ได้รับการอนุมัติ กรุณาติดต่อผู้ดูแลระบบ')
+        setAppState('error')
       } else {
-        setAppState('not_registered')
+        // 401, 500 หรือ error อื่น — แสดง error message
+        setErrorMsg(`เกิดข้อผิดพลาด (${status ?? 'unknown'}) กรุณาลองใหม่อีกครั้ง`)
+        setAppState('error')
       }
     }
   }
@@ -80,6 +89,24 @@ export default function App() {
 
   if (appState === 'not_registered') {
     return <Register onRegistered={() => initTelegram()} />
+  }
+
+  if (appState === 'error') {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center px-6">
+        <div className="text-center max-w-xs">
+          <div className="text-5xl mb-4">⚠️</div>
+          <p className="text-white font-semibold mb-2">เกิดข้อผิดพลาด</p>
+          <p className="text-slate-400 text-sm mb-6">{errorMsg}</p>
+          <button
+            onClick={initTelegram}
+            className="px-6 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600 active:bg-blue-700 transition"
+          >
+            ลองใหม่
+          </button>
+        </div>
+      </div>
+    )
   }
 
   if (!user) return <Loading />
