@@ -1,9 +1,7 @@
-// ไม่ใช้ factories เพราะไม่มี content type api::user.user
 export default {
 
   async register(ctx) {
     const { email, display_name, telegram_id, telegram_chat_id } = ctx.request.body;
-    const { strapi } = ctx;
 
     if (!email || !display_name || !telegram_id || !telegram_chat_id) {
       return ctx.badRequest('กรุณากรอกข้อมูลให้ครบ');
@@ -53,13 +51,12 @@ export default {
     });
 
     return ctx.send({
-      message: 'สมัครสมาชิกเรียบร้อย รอหัวหน้าอนุมัติ',
+      message: 'สมัครสมาชิกเรียบร้อย',
       userId: user.id,
     });
   },
 
   async approveUser(ctx) {
-    const { strapi } = ctx;
     const user = ctx.state.user;
     const { id } = ctx.params;
 
@@ -84,7 +81,6 @@ export default {
   },
 
   async rejectUser(ctx) {
-    const { strapi } = ctx;
     const user = ctx.state.user;
     const { id } = ctx.params;
     const { reason } = ctx.request.body;
@@ -108,7 +104,6 @@ export default {
   },
 
   async me(ctx) {
-    const { strapi } = ctx;
     const user = ctx.state.user;
 
     const fullUser = await strapi.entityService.findOne(
