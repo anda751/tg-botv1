@@ -29,7 +29,7 @@ export default {
     const user = await strapi.entityService.create('plugin::users-permissions.user', {
       data: {
         email,
-        username: `tg_${telegram_id}`,
+        username: email,  // ← เปลี่ยนจาก tg_${telegram_id} เป็น email
         display_name,
         telegram_id,
         telegram_chat_id,
