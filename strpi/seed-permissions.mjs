@@ -13,7 +13,7 @@
 
 import 'dotenv/config';
 
-const BASE   = (process.env.STRAPI_URL || 'http://localhost:1337').replace(/\/$/, '');
+const BASE   = (process.env.STRAPI_URL || 'https://tg-botv1-production.up.railway.app').replace(/\/$/, '');
 const EMAIL  = process.env.STRAPI_ADMIN_EMAIL;
 const PASS   = process.env.STRAPI_ADMIN_PASSWORD;
 
