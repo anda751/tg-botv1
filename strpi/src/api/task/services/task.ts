@@ -17,12 +17,13 @@ export default factories.createCoreService('api::task.task', ({ strapi }) => ({
     });
   },
 
-  async notifyManager({ taskId, taskName, submittedBy, reportText, imageUrl }: {
+  async notifyManager({ taskId, taskName, submittedBy, reportText, imageUrl, userId }: {
     taskId: string;
     taskName: string;
     submittedBy: string;
     reportText: string;
     imageUrl: string;
+    userId?: string;
   }) {
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     const managerChatId = process.env.TELEGRAM_MANAGER_CHAT_ID;
@@ -48,7 +49,14 @@ export default factories.createCoreService('api::task.task', ({ strapi }) => ({
       parse_mode: 'Markdown',
     };
 
-    if (taskId) {
+    if (userId) {
+      messageBody.reply_markup = {
+        inline_keyboard: [[
+          { text: '✅ อนุมัติพนักงาน', callback_data: `approve_user:${userId}` },
+          { text: '❌ ปฏิเสธ', callback_data: `reject_user:${userId}` },
+        ]],
+      };
+    } else if (taskId) {
       messageBody.reply_markup = {
         inline_keyboard: [[
           { text: '✅ อนุมัติ', callback_data: `approve:${taskId}` },

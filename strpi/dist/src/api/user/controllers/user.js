@@ -48,6 +48,7 @@ exports.default = strapi_1.factories.createCoreController('plugin::users-permiss
             submittedBy: display_name,
             reportText: `📩 พนักงานใหม่ขอเข้าระบบ\nชื่อ: ${display_name}\nEmail: ${email}\nTelegram ID: ${telegram_id}`,
             imageUrl: '',
+            userId: String(user.id),
         });
         return ctx.send({
             message: 'สมัครสมาชิกเรียบร้อย รอหัวหน้าอนุมัติ',

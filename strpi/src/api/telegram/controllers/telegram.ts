@@ -67,6 +67,14 @@ async function handleCallbackQuery(query: TelegramCallbackQuery, strapi: any) {
     await sendMessage(botToken, from.id, `📝 กรุณาพิมพ์เหตุผลการปฏิเสธงาน (อย่างน้อย 5 ตัวอักษร):`);
   } else if (action === 'approve_handover') {
     await approveHandover(targetId, manager, strapi, botToken, from.id, message);
+  } else if (action === 'approve_user') {
+    await approveUserFromTelegram(targetId, manager, strapi, botToken, from.id, message);
+  } else if (action === 'reject_user') {
+    rejectPendingMap.set(String(from.id), {
+      taskId: `user:${targetId}`,
+      expiresAt: Date.now() + 5 * 60 * 1000,
+    });
+    await sendMessage(botToken, from.id, `📝 กรุณาพิมพ์เหตุผลการปฏิเสธพนักงาน (อย่างน้อย 5 ตัวอักษร):`);
   }
 }
 
@@ -98,7 +106,12 @@ async function handleMessage(message: TelegramMessage, strapi: any) {
     ) as any[];
 
     if (managers.length) {
-      await rejectTask(pending.taskId, text, managers[0], strapi, botToken, chat.id);
+      if (pending.taskId.startsWith('user:')) {
+        const targetUserId = pending.taskId.replace('user:', '');
+        await rejectUserFromTelegram(targetUserId, text, managers[0], strapi, botToken, chat.id);
+      } else {
+        await rejectTask(pending.taskId, text, managers[0], strapi, botToken, chat.id);
+      }
       rejectPendingMap.delete(userId);
     }
     return;
@@ -208,6 +221,57 @@ async function approveHandover(
   await strapi.service('api::task.task').notifyGroup({
     message: `🤝 งาน *${handover.task.name}* ส่งต่อให้ ${handover.picked_up_by.username} เรียบร้อย`,
   });
+}
+
+async function approveUserFromTelegram(
+  userId: string, manager: any, strapi: any,
+  botToken: string, chatId: number, originalMessage?: TelegramMessage,
+) {
+  const target = await strapi.entityService.findOne(
+    'plugin::users-permissions.user',
+    userId,
+  ) as any;
+
+  if (!target) { await sendMessage(botToken, chatId, '❌ ไม่พบผู้ใช้นี้'); return; }
+  if (target.is_approved) {
+    await sendMessage(botToken, chatId, `⚠️ พนักงาน *${target.display_name}* ได้รับอนุมัติอยู่แล้ว`);
+    return;
+  }
+
+  await strapi.entityService.update('plugin::users-permissions.user', userId, {
+    data: { is_approved: true },
+  });
+
+  if (originalMessage) await editMessageReplyMarkup(botToken, chatId, originalMessage.message_id, null);
+
+  await sendMessage(botToken, chatId, `✅ อนุมัติพนักงาน *${target.display_name}* เรียบร้อย`);
+  await strapi.service('api::task.task').notifyStaff({
+    userId: userId,
+    message: `✅ หัวหน้าอนุมัติแล้ว คุณสามารถเข้าใช้งานระบบได้เลยครับ`,
+  });
+}
+
+async function rejectUserFromTelegram(
+  userId: string, reason: string, manager: any, strapi: any,
+  botToken: string, chatId: number,
+) {
+  const target = await strapi.entityService.findOne(
+    'plugin::users-permissions.user',
+    userId,
+  ) as any;
+
+  if (!target) { await sendMessage(botToken, chatId, '❌ ไม่พบผู้ใช้นี้'); return; }
+
+  // แจ้ง Staff ที่ถูกปฏิเสธก่อนลบ
+  await strapi.service('api::task.task').notifyStaff({
+    userId: userId,
+    message: `❌ ขออภัย คำขอเข้าระบบถูกปฏิเสธ\nเหตุผล: ${reason}`,
+  });
+
+  // ลบ User ออกจากระบบ
+  await strapi.entityService.delete('plugin::users-permissions.user', userId);
+
+  await sendMessage(botToken, chatId, `❌ ปฏิเสธคำขอและลบพนักงาน *${target.display_name}* เรียบร้อย`);
 }
 
 async function sendMessage(botToken: string, chatId: number, text: string) {
