@@ -10,6 +10,7 @@ export default {
       method: 'GET',
       path: '/profile/me',
       handler: 'user.me',
+      config: { auth: false },
     },
     {
       method: 'POST',
