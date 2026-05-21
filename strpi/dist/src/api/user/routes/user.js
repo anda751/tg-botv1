@@ -5,23 +5,23 @@ exports.default = {
         {
             method: 'POST',
             path: '/auth/telegram/register',
-            handler: 'api::user.user.register',
+            handler: 'user.register',
             config: { auth: false },
         },
         {
             method: 'GET',
-            path: '/users/me/profile',
-            handler: 'api::user.user.me',
+            path: '/profile/me',
+            handler: 'user.me',
         },
         {
             method: 'POST',
-            path: '/users/:id/approve',
-            handler: 'api::user.user.approveUser',
+            path: '/staff/:id/approve', // ← เปลี่ยนจาก /users/:id/approve
+            handler: 'user.approveUser',
         },
         {
             method: 'POST',
-            path: '/users/:id/reject',
-            handler: 'api::user.user.rejectUser',
+            path: '/staff/:id/reject', // ← เปลี่ยนจาก /users/:id/reject
+            handler: 'user.rejectUser',
         },
     ],
 };
