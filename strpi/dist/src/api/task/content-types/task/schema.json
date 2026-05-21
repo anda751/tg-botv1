@@ -1,0 +1,65 @@
+{
+    "kind": "collectionType",
+    "collectionName": "tasks",
+    "info": {
+        "singularName": "task",
+        "pluralName": "tasks",
+        "displayName": "task"
+    },
+    "options": {
+        "draftAndPublish": false
+    },
+    "pluginOptions": {},
+    "attributes": {
+        "name": {
+            "type": "string",
+            "minLength": 5,
+            "required": true
+        },
+        "status_task": {
+            "type": "enumeration",
+            "default": "in_progress",
+            "enum": [
+                "in_progress",
+                "under_review",
+                "waiting_pickup",
+                "done"
+            ]
+        },
+        "project": {
+            "type": "relation",
+            "relation": "manyToOne",
+            "target": "api::project.project",
+            "inversedBy": "tasks"
+        },
+        "current_owner": {
+            "type": "relation",
+            "relation": "manyToOne",
+            "target": "plugin::users-permissions.user"
+        },
+        "creator": {
+            "type": "relation",
+            "relation": "manyToOne",
+            "target": "plugin::users-permissions.user",
+            "inversedBy": "tasks"
+        },
+        "task_log": {
+            "type": "relation",
+            "relation": "oneToMany",
+            "target": "api::task-log.task-log",
+            "mappedBy": "task"
+        },
+        "proof_images": {
+            "type": "relation",
+            "relation": "oneToMany",
+            "target": "api::proof-image.proof-image",
+            "mappedBy": "task"
+        },
+        "handover_requests": {
+            "type": "relation",
+            "relation": "oneToMany",
+            "target": "api::handover-request.handover-request",
+            "mappedBy": "task"
+        }
+    }
+}

@@ -1,0 +1,47 @@
+{
+    "kind": "collectionType",
+    "collectionName": "projects",
+    "info": {
+        "singularName": "project",
+        "pluralName": "projects",
+        "displayName": "Project"
+    },
+    "options": {
+        "draftAndPublish": false
+    },
+    "pluginOptions": {},
+    "attributes": {
+        "name": {
+            "type": "string",
+            "required": true
+        },
+        "deadline": {
+            "type": "datetime",
+            "required": true
+        },
+        "status_project": {
+            "type": "enumeration",
+            "default": "active",
+            "enum": [
+                "active",
+                "closed"
+            ]
+        },
+        "creator": {
+            "type": "relation",
+            "relation": "manyToOne",
+            "target": "plugin::users-permissions.user"
+        },
+        "members": {
+            "type": "relation",
+            "relation": "manyToMany",
+            "target": "plugin::users-permissions.user"
+        },
+        "tasks": {
+            "type": "relation",
+            "relation": "oneToMany",
+            "target": "api::task.task",
+            "mappedBy": "project"
+        }
+    }
+}
