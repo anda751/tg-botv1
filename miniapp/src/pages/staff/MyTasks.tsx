@@ -87,11 +87,12 @@ export default function MyTasks() {
           </div>
         ) : (
           filtered.map(task => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              onAction={() => handleAction(task)}
-            />
+      <TaskCard
+        key={task.id}
+        task={task}
+        onAction={() => handleAction(task)}
+        onHandover={() => navigate(`/handover/${task.id}`)}  // ← เพิ่ม
+          />
           ))
         )}
       </div>
@@ -118,7 +119,11 @@ export default function MyTasks() {
   }
 }
 
-function TaskCard({ task, onAction }: { task: Task; onAction: () => void }) {
+function TaskCard({ task, onAction, onHandover }: { 
+  task: Task
+  onAction: () => void
+  onHandover: () => void  // ← เพิ่ม
+}) {
   const status = statusLabel[task.status_task]
 
   return (
@@ -144,7 +149,7 @@ function TaskCard({ task, onAction }: { task: Task; onAction: () => void }) {
               ส่งงาน
             </button>
             <button
-              onClick={() => {/* navigate handover */}}
+              onClick={onHandover}  // ← เปลี่ยน
               className="px-4 bg-gray-100 text-gray-600 text-sm py-2 rounded-lg"
             >
               ส่งต่อ
