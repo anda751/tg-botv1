@@ -12,13 +12,13 @@ exports.default = (config, { strapi }) => {
             '/api/auth/',
             '/api/telegram/webhook',
         ];
-        if (skipPaths.some(p => ctx.path.startsWith(p)))
+        if (skipPaths.some((p) => ctx.path.startsWith(p)))
             return next();
         if (ctx.state.isAuthenticatedRoute === false)
             return next();
         const botToken = process.env.TELEGRAM_BOT_TOKEN;
         if (!botToken) {
-            strapi.log.warn('[TelegramAuth] TELEGRAM_BOT_TOKEN not set — skipping');
+            strapi.log.warn('[TelegramAuth] TELEGRAM_BOT_TOKEN not set - skipping');
             return next();
         }
         const initData = ctx.headers['x-telegram-init-data'];
@@ -27,7 +27,6 @@ exports.default = (config, { strapi }) => {
         }
         const verifyResult = verifyTelegramInitData(initData, botToken);
         if (verifyResult === 'expired') {
-            // หมดอายุ — ส่ง 401 พิเศษให้ frontend รู้ว่าต้อง refresh ไม่ใช่ไปสมัครใหม่
             return ctx.unauthorized('Telegram initData expired');
         }
         if (!verifyResult) {
@@ -36,28 +35,65 @@ exports.default = (config, { strapi }) => {
         const parsed = parseTelegramInitData(initData);
         if (parsed === null || parsed === void 0 ? void 0 : parsed.user) {
             ctx.state.telegramUser = parsed.user;
-            const users = await strapi.entityService.findMany('plugin::users-permissions.user', { filters: { telegram_id: String(parsed.user.id) }, limit: 1 });
+            const requestedRole = normalizeRoleHeader(ctx.headers['x-role-app']);
+            const users = await strapi.entityService.findMany('plugin::users-permissions.user', {
+                filters: { telegram_id: String(parsed.user.id) },
+                sort: ['role_app:asc', 'id:asc'],
+                limit: -1,
+            });
             if (!users.length) {
-                // ไม่มี user → 404 เพื่อให้ frontend รู้ว่ายังไม่สมัคร
                 return ctx.notFound('Telegram user not registered');
             }
-            const user = users[0];
-            strapi.log.info(`[TelegramAuth] user found: id=${user.id} is_approved=${user.is_approved} role_app=${user.role_app}`);
-            if (!user.is_approved) {
-                return ctx.forbidden('บัญชียังไม่ได้รับการอนุมัติ');
+            const selectedUser = pickUserForRole(users, requestedRole);
+            if (!selectedUser) {
+                ctx.status = 409;
+                ctx.body = {
+                    error: {
+                        status: 409,
+                        name: 'RoleSelectionRequired',
+                        message: 'Multiple accounts found for this Telegram account',
+                        details: {
+                            availableRoles: getAvailableRoles(users),
+                        },
+                    },
+                };
+                return;
             }
-            ctx.state.user = user;
+            strapi.log.info(`[TelegramAuth] user found: id=${selectedUser.id} telegram_id=${selectedUser.telegram_id} is_approved=${selectedUser.is_approved} role_app=${selectedUser.role_app}`);
+            if (!selectedUser.is_approved) {
+                return ctx.forbidden('Account is not approved yet');
+            }
+            ctx.state.user = selectedUser;
         }
         return next();
     };
 };
+function normalizeRoleHeader(value) {
+    if (value === 'manager' || value === 'staff')
+        return value;
+    return undefined;
+}
+function getAvailableRoles(users) {
+    return users
+        .map((user) => user.role_app)
+        .filter((role) => role === 'manager' || role === 'staff');
+}
+function pickUserForRole(users, requestedRole) {
+    var _a;
+    if (requestedRole) {
+        return (_a = users.find((user) => user.role_app === requestedRole)) !== null && _a !== void 0 ? _a : null;
+    }
+    if (users.length === 1) {
+        return users[0];
+    }
+    return null;
+}
 function verifyTelegramInitData(initData, botToken) {
     try {
         const params = new URLSearchParams(initData);
         const hash = params.get('hash');
         if (!hash)
             return false;
-        // เช็ค expired ก่อน
         const authDate = Number(params.get('auth_date'));
         const now = Math.floor(Date.now() / 1000);
         if (now - authDate > 86400)

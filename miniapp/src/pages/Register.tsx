@@ -1,8 +1,5 @@
 import { useState } from 'react'
 import { userApi } from '../api'
-import axios from 'axios'
-
-  axios.defaults.baseURL = import.meta.env.VITE_STRAPI_URL + '/api'
 
 export default function Register({ onRegistered }: { onRegistered: () => void }) {
   const [form, setForm] = useState({ email: '', display_name: '' })
@@ -19,7 +16,6 @@ export default function Register({ onRegistered }: { onRegistered: () => void })
       return
     }
 
-    // อ่านจาก window.Telegram.WebApp ตรงๆ ไม่ผ่าน SDK
     const tg = (window as any).Telegram?.WebApp
     const telegramUser = tg?.initDataUnsafe?.user
     const telegramId = String(telegramUser?.id ?? '')
@@ -51,8 +47,8 @@ export default function Register({ onRegistered }: { onRegistered: () => void })
       <div className="min-h-screen flex items-center justify-center bg-slate-950">
         <div className="text-center">
           <div className="text-6xl mb-4">✅</div>
-          <p className="text-white text-lg font-semibold">ส่งคำขอแล้ว!</p>
-          <p className="text-slate-400 text-sm mt-1">รอหัวหน้าอนุมัติ...</p>
+          <p className="text-white text-lg font-semibold">สมัครเรียบร้อย!</p>
+          <p className="text-slate-400 text-sm mt-1">กำลังเข้าสู่ระบบ...</p>
         </div>
       </div>
     )
@@ -109,11 +105,11 @@ export default function Register({ onRegistered }: { onRegistered: () => void })
             disabled={status === 'loading'}
             className="w-full py-3.5 rounded-xl font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 active:scale-95 transition-transform disabled:opacity-60"
           >
-            {status === 'loading' ? 'กำลังส่ง...' : 'สมัครใช้งาน'}
+            {status === 'loading' ? 'กำลังสมัคร...' : 'สมัครใช้งาน'}
           </button>
 
           <p className="text-center text-xs text-slate-600">
-            หลังสมัครแล้ว รอหัวหน้าอนุมัติก่อนเข้าใช้งาน
+            สมัครแล้วเข้าใช้งานได้เลย
           </p>
         </div>
       </div>

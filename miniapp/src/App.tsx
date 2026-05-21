@@ -26,14 +26,17 @@ export type AppUser = {
   is_approved: boolean
 }
 
+type RoleApp = 'manager' | 'staff'
+
 axios.defaults.baseURL = import.meta.env.VITE_STRAPI_URL + '/api'
 
-type AppState = 'loading' | 'no_telegram' | 'not_registered' | 'error' | 'ready'
+type AppState = 'loading' | 'no_telegram' | 'not_registered' | 'role_select' | 'error' | 'ready'
 
 export default function App() {
   const [user, setUser] = useState<AppUser | null>(null)
   const [appState, setAppState] = useState<AppState>('loading')
   const [errorMsg, setErrorMsg] = useState('')
+  const [availableRoles, setAvailableRoles] = useState<RoleApp[]>([])
 
   useEffect(() => {
     initTelegram()
@@ -52,26 +55,41 @@ export default function App() {
 
     axios.defaults.headers.common['x-telegram-init-data'] = initDataRaw
 
+    const savedRole = localStorage.getItem('tg-role-app')
+    if (savedRole === 'manager' || savedRole === 'staff') {
+      axios.defaults.headers.common['x-role-app'] = savedRole
+    } else {
+      delete axios.defaults.headers.common['x-role-app']
+    }
+
     try {
       const { data } = await axios.get('/profile/me')
       setUser(data)
+      setAvailableRoles([])
       setAppState('ready')
     } catch (err: any) {
       const status = err?.response?.status
+      const roles = err?.response?.data?.error?.details?.availableRoles
+
       if (status === 404) {
-        // ยังไม่ได้สมัคร
         setAppState('not_registered')
+      } else if (status === 409 && Array.isArray(roles) && roles.length > 0) {
+        setAvailableRoles(roles)
+        setAppState('role_select')
       } else if (status === 403) {
-        // สมัครแล้วแต่ยังไม่อนุมัติ — ตอนนี้ไม่ควรเกิดเพราะ is_approved: true แล้ว
-        // แต่ถ้าเกิดขึ้น ให้แสดง error แทนที่จะวนไปหน้า register
         setErrorMsg('บัญชียังไม่ได้รับการอนุมัติ กรุณาติดต่อผู้ดูแลระบบ')
         setAppState('error')
       } else {
-        // 401, 500 หรือ error อื่น — แสดง error message
         setErrorMsg(`เกิดข้อผิดพลาด (${status ?? 'unknown'}) กรุณาลองใหม่อีกครั้ง`)
         setAppState('error')
       }
     }
+  }
+
+  async function selectRole(role: RoleApp) {
+    localStorage.setItem('tg-role-app', role)
+    axios.defaults.headers.common['x-role-app'] = role
+    await initTelegram()
   }
 
   if (appState === 'loading') return <Loading />
@@ -80,7 +98,7 @@ export default function App() {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center px-6">
         <div className="text-center">
-          <div className="text-5xl mb-4">✈️</div>
+          <div className="text-5xl mb-4">Telegram</div>
           <p className="text-white font-semibold">กรุณาเปิดผ่าน Telegram</p>
         </div>
       </div>
@@ -91,11 +109,35 @@ export default function App() {
     return <Register onRegistered={() => initTelegram()} />
   }
 
+  if (appState === 'role_select') {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center px-6">
+        <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-6">
+          <p className="text-white text-lg font-bold mb-2">เลือกบทบาทที่ต้องการเข้าใช้</p>
+          <p className="text-slate-400 text-sm mb-5">
+            Telegram account นี้ถูกใช้กับหลายบทบาท เลือกก่อนว่าจะเข้าเป็นหัวหน้าหรือพนักงาน
+          </p>
+          <div className="space-y-3">
+            {availableRoles.map((role) => (
+              <button
+                key={role}
+                onClick={() => selectRole(role)}
+                className="w-full py-3 rounded-xl text-sm font-semibold text-white bg-blue-600 active:bg-blue-700 transition"
+              >
+                {role === 'manager' ? 'เข้าเป็น Manager' : 'เข้าเป็น Staff'}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (appState === 'error') {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center px-6">
         <div className="text-center max-w-xs">
-          <div className="text-5xl mb-4">⚠️</div>
+          <div className="text-5xl mb-4">Warning</div>
           <p className="text-white font-semibold mb-2">เกิดข้อผิดพลาด</p>
           <p className="text-slate-400 text-sm mb-6">{errorMsg}</p>
           <button
