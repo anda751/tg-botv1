@@ -39,49 +39,29 @@ export default function App() {
     initTelegram()
   }, [])
 
-async function initTelegram() {
-  try {
-    if (import.meta.env.DEV) {
+  async function initTelegram() {
+    try {
+      const { initDataRaw } = retrieveLaunchParams()
+      if (!initDataRaw) throw new Error('No initData')
+
       axios.defaults.baseURL = import.meta.env.VITE_STRAPI_URL + '/api'
+      axios.defaults.headers.common['x-telegram-init-data'] = initDataRaw as string
 
-      // จำลอง user เพื่อทดสอบ เปลี่ยน role_app เป็น 'manager' หรือ 'staff' ได้
-      setUser({
-        id: 1,
-        display_name: 'ทดสอบ',
-        email: 'test@test.com',
-        telegram_id: '123456',
-        role_app: 'staff', // ← เปลี่ยนเป็น 'manager' เพื่อทดสอบ Dashboard
-        is_approved: true,
-      })
-
+      const { data } = await axios.get('/users/me/profile')
+      setUser(data)
+    } catch (err: any) {
+      if (err?.response?.status === 401 || err?.response?.status === 404) {
+        setUser(null)
+      }
+    } finally {
       setLoading(false)
-      return
     }
-
-    const { initDataRaw } = retrieveLaunchParams()
-    if (!initDataRaw) throw new Error('No initData')
-
-    // ลบ setInitData ออก ไม่ต้องเก็บ state
-    axios.defaults.baseURL = import.meta.env.VITE_STRAPI_URL + '/api'
-    axios.defaults.headers.common['x-telegram-init-data'] = initDataRaw as string
-
-    const { data } = await axios.get('/users/me/profile')
-    setUser(data)
-  } catch (err: any) {
-    if (err?.response?.status === 401) {
-      setUser(null)
-    }
-  } finally {
-    setLoading(false)
   }
-}
 
   if (loading) return <Loading />
 
-  // ยังไม่ได้ลงทะเบียน
   if (!user) return <Register onRegistered={() => initTelegram()} />
 
-  // ลงทะเบียนแล้วแต่รออนุมัติ
   if (!user.is_approved) return <PendingApproval />
 
   return (
