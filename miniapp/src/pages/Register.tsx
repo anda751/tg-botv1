@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { userApi } from '../api'
-import { retrieveLaunchParams } from '@telegram-apps/sdk'
 
 export default function Register({ onRegistered }: { onRegistered: () => void }) {
   const [form, setForm] = useState({ email: '', display_name: '' })
@@ -17,23 +16,15 @@ export default function Register({ onRegistered }: { onRegistered: () => void })
       return
     }
 
-    let telegramId = ''
-try {
-  const { initDataRaw } = retrieveLaunchParams()
+    // อ่านจาก window.Telegram.WebApp ตรงๆ ไม่ผ่าน SDK
+    const tg = (window as any).Telegram?.WebApp
+    const telegramUser = tg?.initDataUnsafe?.user
+    const telegramId = String(telegramUser?.id ?? '')
 
-  if (!initDataRaw) {
-    setError('ไม่พบข้อมูล Telegram กรุณาเปิดผ่าน Telegram')
-    return
-  }
-
-  const params = new URLSearchParams(initDataRaw as string) // ← ไม่มี ?? '' แล้ว
-  const userStr = params.get('user')
-  const telegramUser = userStr ? JSON.parse(userStr) : null
-  telegramId = String(telegramUser?.id ?? '')
-} catch {
-  setError('ไม่สามารถดึงข้อมูล Telegram ได้ กรุณาเปิดผ่าน Telegram')
-  return
-}
+    if (!telegramId) {
+      setError('ไม่พบข้อมูล Telegram กรุณาเปิดผ่าน Telegram')
+      return
+    }
 
     setError('')
     setStatus('loading')
