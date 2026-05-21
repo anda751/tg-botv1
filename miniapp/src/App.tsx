@@ -16,7 +16,6 @@ import Reports from './pages/manager/Reports'
 
 import Register from './pages/Register'
 import Loading from './components/Loading'
-import PendingApproval from './pages/PendingApproval'
 
 export type AppUser = {
   id: number
@@ -29,7 +28,7 @@ export type AppUser = {
 
 axios.defaults.baseURL = import.meta.env.VITE_STRAPI_URL + '/api'
 
-type AppState = 'loading' | 'no_telegram' | 'not_registered' | 'pending' | 'ready'
+type AppState = 'loading' | 'no_telegram' | 'not_registered' | 'ready'
 
 export default function App() {
   const [user, setUser] = useState<AppUser | null>(null)
@@ -55,17 +54,12 @@ export default function App() {
     try {
       const { data } = await axios.get('/users/me/profile')
       setUser(data)
-      setAppState(data.is_approved ? 'ready' : 'pending')
+      setAppState('ready')
     } catch (err: any) {
       const status = err?.response?.status
       if (status === 404) {
-        // ยังไม่ได้สมัคร
         setAppState('not_registered')
-      } else if (status === 403) {
-        // สมัครแล้วแต่ยังไม่อนุมัติ
-        setAppState('pending')
       } else {
-        // 401 หรือ error อื่น — initData มีปัญหา ไม่ใช่ไม่มี user
         setAppState('not_registered')
       }
     }
@@ -87,8 +81,6 @@ export default function App() {
   if (appState === 'not_registered') {
     return <Register onRegistered={() => initTelegram()} />
   }
-
-  if (appState === 'pending') return <PendingApproval />
 
   if (!user) return <Loading />
 
