@@ -41,19 +41,19 @@ export default factories.createCoreController('plugin::users-permissions.user', 
 
     // สร้าง User
     const user = await strapi.entityService.create('plugin::users-permissions.user', {
-      data: {
-        email,
-        username: telegram_id,
-        display_name,
-        telegram_id,
-        telegram_chat_id,
-        role_app: 'staff',
-        is_approved: false,
-        role: defaultRole.id,
-        confirmed: true,
-        blocked: false,
-      },
-    }) as any;
+    data: {
+    email,
+    username: `tg_${telegram_id}`,   // ← prefix "tg_" ป้องกันชนกัน
+    display_name,
+    telegram_id,                      // ← เก็บ id จริงไว้ที่นี่
+    telegram_chat_id,
+    role_app: 'staff',
+    is_approved: false,
+    role: defaultRole.id,
+    confirmed: true,
+    blocked: false,
+  },
+}) as any;
 
     // แจ้ง Manager ผ่าน DM
     await strapi.service('api::task.task').notifyManager({
