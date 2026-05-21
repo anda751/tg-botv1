@@ -1,23 +1,18 @@
 import crypto from 'crypto';
 
-/**
- * Telegram initData verification middleware
- * ใช้เฉพาะ route ที่ขึ้นต้นด้วย /api/ เท่านั้น
- * ข้าม /admin, /upload, และ route ที่ auth: false
- */
 export default (config, { strapi }) => {
   return async (ctx, next) => {
-    // ข้ามทุก route ที่ไม่ใช่ /api/
-    if (!ctx.path.startsWith('/api/')) {
-      return next();
-    }
+    if (!ctx.path.startsWith('/api/')) return next();
 
-    // ข้าม route ที่ config: { auth: false } เช่น register
-    if (ctx.state.isAuthenticatedRoute === false) {
-      return next();
-    }
+    // ข้าม auth routes และ webhook
+    const skipPaths = [
+      '/api/auth/',
+      '/api/telegram/webhook',
+    ];
+    if (skipPaths.some(p => ctx.path.startsWith(p))) return next();
 
-    // ถ้ายังไม่ได้ใส่ BOT_TOKEN (dev mode) — ข้ามไปก่อน แต่ warn
+    if (ctx.state.isAuthenticatedRoute === false) return next();
+
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     if (!botToken) {
       strapi.log.warn('[TelegramAuth] TELEGRAM_BOT_TOKEN not set — skipping verification');
@@ -34,7 +29,6 @@ export default (config, { strapi }) => {
       return ctx.unauthorized('Invalid Telegram initData');
     }
 
-    // Parse และแนบ telegram user เข้า ctx.state
     const parsed = parseTelegramInitData(initData);
     if (parsed?.user) {
       ctx.state.telegramUser = parsed.user;
