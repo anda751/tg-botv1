@@ -53,7 +53,7 @@ export default function App() {
     axios.defaults.headers.common['x-telegram-init-data'] = initDataRaw
 
     try {
-      const { data } = await axios.get('/users/me/profile')
+      const { data } = await axios.get('/profile/me')
       setUser(data)
       setAppState('ready')
     } catch (err: any) {
