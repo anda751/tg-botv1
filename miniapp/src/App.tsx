@@ -2,21 +2,18 @@ import { useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import axios from 'axios'
 
-// Staff Pages
 import MyTasks from './pages/staff/MyTasks'
 import CreateTask from './pages/staff/CreateTask'
 import SubmitTask from './pages/staff/SubmitTask'
 import HandoverTask from './pages/staff/HandoverTask'
 import PickupTask from './pages/staff/PickupTask'
 
-// Manager Pages
 import Dashboard from './pages/manager/Dashboard'
 import Projects from './pages/manager/Projects'
 import Tasks from './pages/manager/Tasks'
 import Staff from './pages/manager/Staff'
 import Reports from './pages/manager/Reports'
 
-// Shared
 import Register from './pages/Register'
 import Loading from './components/Loading'
 import PendingApproval from './pages/PendingApproval'
@@ -30,51 +27,70 @@ export type AppUser = {
   is_approved: boolean
 }
 
-// ตั้ง baseURL ครั้งเดียว
 axios.defaults.baseURL = import.meta.env.VITE_STRAPI_URL + '/api'
+
+type AppState = 'loading' | 'no_telegram' | 'not_registered' | 'pending' | 'ready'
 
 export default function App() {
   const [user, setUser] = useState<AppUser | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [appState, setAppState] = useState<AppState>('loading')
 
   useEffect(() => {
     initTelegram()
   }, [])
 
   async function initTelegram() {
+    setAppState('loading')
+
+    const tg = (window as any).Telegram?.WebApp
+    const initDataRaw = tg?.initData
+
+    if (!initDataRaw) {
+      setAppState('no_telegram')
+      return
+    }
+
+    axios.defaults.headers.common['x-telegram-init-data'] = initDataRaw
+
     try {
-      // ดึง initData จาก window.Telegram.WebApp
-      const tg = (window as any).Telegram?.WebApp
-      const initDataRaw = tg?.initData
-
-      if (!initDataRaw) {
-        // ไม่ได้เปิดใน Telegram
-        setUser(null)
-        setLoading(false)
-        return
-      }
-
-      // ตั้ง header สำหรับทุก request
-      axios.defaults.headers.common['x-telegram-init-data'] = initDataRaw
-
-      // เรียก /users/me/profile — ถ้า user มีอยู่แล้วจะ login อัตโนมัติ
       const { data } = await axios.get('/users/me/profile')
       setUser(data)
+      setAppState(data.is_approved ? 'ready' : 'pending')
     } catch (err: any) {
-      if (err?.response?.status === 401 || err?.response?.status === 404) {
-        // ยังไม่ได้สมัคร → ไปหน้า Register
-        setUser(null)
+      const status = err?.response?.status
+      if (status === 404) {
+        // ยังไม่ได้สมัคร
+        setAppState('not_registered')
+      } else if (status === 403) {
+        // สมัครแล้วแต่ยังไม่อนุมัติ
+        setAppState('pending')
+      } else {
+        // 401 หรือ error อื่น — initData มีปัญหา ไม่ใช่ไม่มี user
+        setAppState('not_registered')
       }
-    } finally {
-      setLoading(false)
     }
   }
 
-  if (loading) return <Loading />
+  if (appState === 'loading') return <Loading />
 
-  if (!user) return <Register onRegistered={() => initTelegram()} />
+  if (appState === 'no_telegram') {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center px-6">
+        <div className="text-center">
+          <div className="text-5xl mb-4">✈️</div>
+          <p className="text-white font-semibold">กรุณาเปิดผ่าน Telegram</p>
+        </div>
+      </div>
+    )
+  }
 
-  if (!user.is_approved) return <PendingApproval />
+  if (appState === 'not_registered') {
+    return <Register onRegistered={() => initTelegram()} />
+  }
+
+  if (appState === 'pending') return <PendingApproval />
+
+  if (!user) return <Loading />
 
   return (
     <BrowserRouter>
