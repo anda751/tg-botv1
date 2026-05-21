@@ -1,5 +1,8 @@
 import { useState } from 'react'
 import { userApi } from '../api'
+import axios from 'axios'
+
+  axios.defaults.baseURL = import.meta.env.VITE_STRAPI_URL + '/api'
 
 export default function Register({ onRegistered }: { onRegistered: () => void }) {
   const [form, setForm] = useState({ email: '', display_name: '' })
