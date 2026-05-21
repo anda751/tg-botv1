@@ -23,6 +23,7 @@ const config: Core.Config.Middlewares = [
         'Content-Type',
         'Authorization',
         'x-telegram-init-data',
+        'x-role-app',
       ],
       keepHeaderOnError: true,
     },

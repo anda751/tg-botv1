@@ -23,6 +23,7 @@ const config = [
                 'Content-Type',
                 'Authorization',
                 'x-telegram-init-data',
+                'x-role-app',
             ],
             keepHeaderOnError: true,
         },
