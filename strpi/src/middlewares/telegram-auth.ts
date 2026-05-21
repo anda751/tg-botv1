@@ -49,7 +49,7 @@ export default (config, { strapi }) => {
       }
 
       const user = users[0];
-
+      strapi.log.info(`[TelegramAuth] user found: id=${user.id} is_approved=${user.is_approved} role_app=${user.role_app}`);
       if (!user.is_approved) {
         return ctx.forbidden('บัญชียังไม่ได้รับการอนุมัติ');
       }
