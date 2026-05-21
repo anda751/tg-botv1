@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { userApi } from '../api'
+import { retrieveLaunchParams } from '@telegram-apps/sdk'
 
 export default function Register({ onRegistered }: { onRegistered: () => void }) {
   const [form, setForm] = useState({ email: '', display_name: '' })
@@ -15,14 +16,33 @@ export default function Register({ onRegistered }: { onRegistered: () => void })
       setError('กรุณากรอก Email ให้ถูกต้อง')
       return
     }
+
+    let telegramId = ''
+try {
+  const { initDataRaw } = retrieveLaunchParams()
+
+  if (!initDataRaw) {
+    setError('ไม่พบข้อมูล Telegram กรุณาเปิดผ่าน Telegram')
+    return
+  }
+
+  const params = new URLSearchParams(initDataRaw as string) // ← ไม่มี ?? '' แล้ว
+  const userStr = params.get('user')
+  const telegramUser = userStr ? JSON.parse(userStr) : null
+  telegramId = String(telegramUser?.id ?? '')
+} catch {
+  setError('ไม่สามารถดึงข้อมูล Telegram ได้ กรุณาเปิดผ่าน Telegram')
+  return
+}
+
     setError('')
     setStatus('loading')
     try {
       await userApi.register({
         email: form.email,
         display_name: form.display_name,
-        telegram_id: 'demo_id',
-        telegram_chat_id: 'demo_chat_id',
+        telegram_id: telegramId,
+        telegram_chat_id: telegramId,
       })
       setStatus('done')
       setTimeout(onRegistered, 1500)
