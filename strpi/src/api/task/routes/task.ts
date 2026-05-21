@@ -1,13 +1,13 @@
 export default {
   routes: [
     // Default CRUD routes
-    { method: 'GET',  path: '/tasks',     handler: 'task.find'   },
-    { method: 'GET',  path: '/tasks/:id', handler: 'task.findOne'},
-    { method: 'POST', path: '/tasks',     handler: 'task.create' },
+    { method: 'GET',  path: '/tasks',     handler: 'task.find',    config: { auth: false } },
+    { method: 'GET',  path: '/tasks/:id', handler: 'task.findOne', config: { auth: false } },
+    { method: 'POST', path: '/tasks',     handler: 'task.create',  config: { auth: false } },
 
     // Custom routes
-    { method: 'POST', path: '/tasks/:id/submit',  handler: 'task.submit'  },
-    { method: 'POST', path: '/tasks/:id/approve', handler: 'task.approve' },
-    { method: 'POST', path: '/tasks/:id/reject',  handler: 'task.reject'  },
+    { method: 'POST', path: '/tasks/:id/submit',  handler: 'task.submit',  config: { auth: false } },
+    { method: 'POST', path: '/tasks/:id/approve', handler: 'task.approve', config: { auth: false } },
+    { method: 'POST', path: '/tasks/:id/reject',  handler: 'task.reject',  config: { auth: false } },
   ],
 };
