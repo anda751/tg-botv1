@@ -1,8 +1,14 @@
 import { useState } from 'react'
 import { userApi } from '../api'
 
+type RoleApp = 'manager' | 'staff'
+
 export default function Register({ onRegistered }: { onRegistered: () => void }) {
-  const [form, setForm] = useState({ email: '', display_name: '' })
+  const [form, setForm] = useState({
+    email: '',
+    display_name: '',
+    role_app: 'staff' as RoleApp,
+  })
   const [status, setStatus] = useState<'idle' | 'loading' | 'done'>('idle')
   const [error, setError] = useState('')
 
@@ -33,9 +39,11 @@ export default function Register({ onRegistered }: { onRegistered: () => void })
         display_name: form.display_name,
         telegram_id: telegramId,
         telegram_chat_id: telegramId,
+        role_app: form.role_app,
       })
+      localStorage.setItem('tg-role-app', form.role_app)
       setStatus('done')
-      setTimeout(onRegistered, 1500)
+      setTimeout(onRegistered, 1200)
     } catch (err: any) {
       setError(err?.response?.data?.error?.message || 'เกิดข้อผิดพลาด')
       setStatus('idle')
@@ -45,10 +53,14 @@ export default function Register({ onRegistered }: { onRegistered: () => void })
   if (status === 'done') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-950">
-        <div className="text-center">
-          <div className="text-6xl mb-4">✅</div>
+        <div className="text-center max-w-xs px-6">
+          <div className="text-6xl mb-4">OK</div>
           <p className="text-white text-lg font-semibold">สมัครเรียบร้อย!</p>
-          <p className="text-slate-400 text-sm mt-1">กำลังเข้าสู่ระบบ...</p>
+          <p className="text-slate-400 text-sm mt-2">
+            {form.role_app === 'manager'
+              ? 'กำลังเข้าสู่ระบบ...'
+              : 'ส่งคำขอเรียบร้อย กำลังพาไปหน้ารออนุมัติ...'}
+          </p>
         </div>
       </div>
     )
@@ -61,7 +73,7 @@ export default function Register({ onRegistered }: { onRegistered: () => void })
       <div className="flex-1 flex flex-col items-center justify-center px-6">
         <div className="mb-8 text-center">
           <div className="w-20 h-20 rounded-2xl mx-auto mb-4 flex items-center justify-center text-4xl bg-gradient-to-br from-blue-600 to-indigo-600 shadow-lg shadow-blue-900/40">
-            📋
+            T
           </div>
           <h1 className="text-2xl font-bold text-white tracking-tight">Task Manager</h1>
           <p className="text-slate-500 text-sm mt-1">ระบบบริหารจัดการงาน</p>
@@ -70,13 +82,40 @@ export default function Register({ onRegistered }: { onRegistered: () => void })
         <div className="w-full max-w-sm space-y-4">
           <div>
             <label className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2 block">
+              บทบาท
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {(['staff', 'manager'] as RoleApp[]).map((role) => (
+                <button
+                  key={role}
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, role_app: role }))}
+                  className={`py-3 rounded-xl text-sm font-semibold border transition ${
+                    form.role_app === role
+                      ? 'bg-blue-600 border-blue-500 text-white'
+                      : 'bg-slate-900 border-slate-700 text-slate-400'
+                  }`}
+                >
+                  {role === 'staff' ? 'Staff' : 'Manager'}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-slate-600 mt-2">
+              {form.role_app === 'manager'
+                ? 'Manager เข้าใช้ได้ทันทีหลังสมัคร'
+                : 'Staff ต้องรอหัวหน้าอนุมัติก่อนเข้าใช้งาน'}
+            </p>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2 block">
               ชื่อ-นามสกุล
             </label>
             <input
               type="text"
               placeholder="กรอกชื่อของคุณ"
               value={form.display_name}
-              onChange={e => setForm(f => ({ ...f, display_name: e.target.value }))}
+              onChange={(e) => setForm((f) => ({ ...f, display_name: e.target.value }))}
               className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white placeholder-slate-600 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
             />
           </div>
@@ -89,7 +128,7 @@ export default function Register({ onRegistered }: { onRegistered: () => void })
               type="email"
               placeholder="your@email.com"
               value={form.email}
-              onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+              onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
               className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white placeholder-slate-600 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
             />
           </div>
@@ -105,11 +144,13 @@ export default function Register({ onRegistered }: { onRegistered: () => void })
             disabled={status === 'loading'}
             className="w-full py-3.5 rounded-xl font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 active:scale-95 transition-transform disabled:opacity-60"
           >
-            {status === 'loading' ? 'กำลังสมัคร...' : 'สมัครใช้งาน'}
+            {status === 'loading'
+              ? 'กำลังสมัคร...'
+              : `สมัครใช้งานเป็น ${form.role_app === 'manager' ? 'Manager' : 'Staff'}`}
           </button>
 
           <p className="text-center text-xs text-slate-600">
-            สมัครแล้วเข้าใช้งานได้เลย
+            Telegram เดียวกันสามารถมีหลายบทบาทได้แล้ว
           </p>
         </div>
       </div>

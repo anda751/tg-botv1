@@ -67,8 +67,7 @@
             "configurable": false
         },
         "telegram_id": {
-            "type": "string",
-            "unique": true
+            "type": "string"
         },
         "display_name": {
             "type": "string"

@@ -15,7 +15,9 @@ import Staff from './pages/manager/Staff'
 import Reports from './pages/manager/Reports'
 
 import Register from './pages/Register'
+import PendingApproval from './pages/PendingApproval'
 import Loading from './components/Loading'
+import RoleSwitcher from './components/RoleSwitcher'
 
 export type AppUser = {
   id: number
@@ -30,7 +32,14 @@ type RoleApp = 'manager' | 'staff'
 
 axios.defaults.baseURL = import.meta.env.VITE_STRAPI_URL + '/api'
 
-type AppState = 'loading' | 'no_telegram' | 'not_registered' | 'role_select' | 'error' | 'ready'
+type AppState =
+  | 'loading'
+  | 'no_telegram'
+  | 'not_registered'
+  | 'pending_approval'
+  | 'role_select'
+  | 'error'
+  | 'ready'
 
 export default function App() {
   const [user, setUser] = useState<AppUser | null>(null)
@@ -72,14 +81,17 @@ export default function App() {
       const roles = err?.response?.data?.error?.details?.availableRoles
 
       if (status === 404) {
+        setUser(null)
         setAppState('not_registered')
       } else if (status === 409 && Array.isArray(roles) && roles.length > 0) {
+        setUser(null)
         setAvailableRoles(roles)
         setAppState('role_select')
       } else if (status === 403) {
-        setErrorMsg('บัญชียังไม่ได้รับการอนุมัติ กรุณาติดต่อผู้ดูแลระบบ')
-        setAppState('error')
+        setUser(null)
+        setAppState('pending_approval')
       } else {
+        setUser(null)
         setErrorMsg(`เกิดข้อผิดพลาด (${status ?? 'unknown'}) กรุณาลองใหม่อีกครั้ง`)
         setAppState('error')
       }
@@ -89,6 +101,12 @@ export default function App() {
   async function selectRole(role: RoleApp) {
     localStorage.setItem('tg-role-app', role)
     axios.defaults.headers.common['x-role-app'] = role
+    await initTelegram()
+  }
+
+  async function switchRole() {
+    localStorage.removeItem('tg-role-app')
+    delete axios.defaults.headers.common['x-role-app']
     await initTelegram()
   }
 
@@ -107,6 +125,10 @@ export default function App() {
 
   if (appState === 'not_registered') {
     return <Register onRegistered={() => initTelegram()} />
+  }
+
+  if (appState === 'pending_approval') {
+    return <PendingApproval onRetry={initTelegram} onSwitchRole={switchRole} />
   }
 
   if (appState === 'role_select') {
@@ -155,6 +177,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <RoleSwitcher currentRole={user.role_app} onSwitchRole={switchRole} />
       <Routes>
         {user.role_app === 'manager' ? (
           <>

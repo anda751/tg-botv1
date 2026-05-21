@@ -77,9 +77,10 @@ export const userApi = {
     display_name: string
     telegram_id: string
     telegram_chat_id: string
+    role_app: 'manager' | 'staff'
   }) => axios.post('/auth/telegram/register', data),
 
-  me: () => axios.get('/profile/me'),        // ← เพิ่ม comma
+  me: () => axios.get('/profile/me'),
 
   approve: (userId: number) =>
     axios.post(`/staff/${userId}/approve`),
