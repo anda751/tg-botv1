@@ -36,7 +36,7 @@ export default {
         telegram_id,
         telegram_chat_id,
         role_app: 'staff',
-        is_approved: false,
+        is_approved: true,
         role: defaultRole.id,
         confirmed: true,
         blocked: false,
