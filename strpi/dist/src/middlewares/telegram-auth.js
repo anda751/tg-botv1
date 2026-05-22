@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const crypto_1 = __importDefault(require("crypto"));
 exports.default = (config, { strapi }) => {
     return async (ctx, next) => {
+        var _a, _b, _c, _d;
         if (!ctx.path.startsWith('/api/'))
             return next();
         const skipPaths = [
@@ -16,6 +17,35 @@ exports.default = (config, { strapi }) => {
             return next();
         if (ctx.state.isAuthenticatedRoute === false)
             return next();
+        const isTestMode = isTruthy(process.env.TEST_MODE);
+        if (isTestMode) {
+            const requestedRole = (_a = normalizeRoleHeader(ctx.headers['x-role-app'])) !== null && _a !== void 0 ? _a : 'staff';
+            const testUserIdHeader = String((_b = ctx.headers['x-test-user-id']) !== null && _b !== void 0 ? _b : '').trim();
+            const testUserId = Number(testUserIdHeader);
+            const hasValidTestUserId = testUserIdHeader !== '' && Number.isFinite(testUserId);
+            const users = await strapi.entityService.findMany('plugin::users-permissions.user', {
+                filters: {
+                    ...(hasValidTestUserId ? { id: testUserId } : {}),
+                    is_approved: true,
+                },
+                sort: ['id:asc'],
+                limit: -1,
+            });
+            if (!users.length) {
+                return ctx.unauthorized('TEST_MODE enabled but no approved users found');
+            }
+            const selectedUser = (_d = (_c = users.find((user) => user.role_app === requestedRole)) !== null && _c !== void 0 ? _c : users.find((user) => user.role_app === 'manager')) !== null && _d !== void 0 ? _d : users[0];
+            if (!selectedUser) {
+                return ctx.unauthorized('TEST_MODE could not select user');
+            }
+            ctx.state.user = selectedUser;
+            ctx.state.telegramUser = {
+                id: selectedUser.telegram_id || `test:${selectedUser.id}`,
+                first_name: selectedUser.display_name || selectedUser.username || 'Test User',
+            };
+            strapi.log.info(`[TelegramAuth][TEST_MODE] using user id=${selectedUser.id} role_app=${selectedUser.role_app}`);
+            return next();
+        }
         const botToken = process.env.TELEGRAM_BOT_TOKEN;
         if (!botToken) {
             strapi.log.warn('[TelegramAuth] TELEGRAM_BOT_TOKEN not set - skipping');
@@ -134,4 +164,10 @@ function parseTelegramInitData(initData) {
     catch {
         return null;
     }
+}
+function isTruthy(value) {
+    if (!value)
+        return false;
+    const normalized = value.trim().toLowerCase();
+    return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
 }
