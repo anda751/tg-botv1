@@ -26,17 +26,6 @@ export default factories.createCoreController('plugin::users-permissions.user', 
       return ctx.badRequest('ชื่อต้องมีอย่างน้อย 2 ตัวอักษร');
     }
 
-    const existing = (await strapi.entityService.findMany('plugin::users-permissions.user', {
-      filters: {
-        telegram_id: resolvedTelegramId,
-        role_app: selectedRole,
-      },
-      limit: 1,
-    })) as any[];
-    if (existing.length) {
-      return ctx.badRequest(`Telegram account นี้ลงทะเบียนเป็น ${selectedRole} แล้ว`);
-    }
-
     const existingEmail = (await strapi.entityService.findMany('plugin::users-permissions.user', {
       filters: {
         email: normalizedEmail,
