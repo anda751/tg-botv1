@@ -1,7 +1,6 @@
 import { factories } from '@strapi/strapi';
 
 export default factories.createCoreService('api::task.task', ({ strapi }) => ({
-
   async notifyGroup({ message }: { message: string }) {
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     const groupChatId = process.env.TELEGRAM_GROUP_CHAT_ID;
@@ -17,7 +16,14 @@ export default factories.createCoreService('api::task.task', ({ strapi }) => ({
     });
   },
 
-  async notifyManager({ taskId, taskName, submittedBy, reportText, imageUrl, userId }: {
+  async notifyManager({
+    taskId,
+    taskName,
+    submittedBy,
+    reportText,
+    imageUrl,
+    userId,
+  }: {
     taskId: string;
     taskName: string;
     submittedBy: string;
@@ -29,23 +35,29 @@ export default factories.createCoreService('api::task.task', ({ strapi }) => ({
     const managerChatId = process.env.TELEGRAM_MANAGER_CHAT_ID;
 
     if (imageUrl) {
-      await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: managerChatId,
-          photo: imageUrl,
-          caption: `📬 งานรอตรวจ: *${taskName}*\nโดย: ${submittedBy}\n\n📝 รายงาน:\n${reportText}`,
-          parse_mode: 'Markdown',
-        }),
-      });
+      try {
+        const photoResp = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: managerChatId,
+            photo: imageUrl,
+            // Plain caption avoids Markdown parser issues from user-generated text.
+            caption: `งานรอตรวจ: ${taskName}\nโดย: ${submittedBy}\n\nรายงาน:\n${reportText}`,
+          }),
+        });
+        const photoBody: any = await photoResp.json().catch(() => ({}));
+        if (!photoResp.ok || photoBody?.ok === false) {
+          strapi.log.warn(`[notifyManager] sendPhoto failed: ${JSON.stringify(photoBody)}`);
+        }
+      } catch (error: any) {
+        strapi.log.warn(`[notifyManager] sendPhoto error: ${error?.message ?? 'unknown error'}`);
+      }
     }
 
     const messageBody: any = {
       chat_id: managerChatId,
-      text: taskName
-        ? `📬 *${taskName}*\nจาก: ${submittedBy}\n\n${reportText}`
-        : reportText,
+      text: taskName ? `📬 *${taskName}*\nจาก: ${submittedBy}\n\n${reportText}` : reportText,
       parse_mode: 'Markdown',
     };
 
@@ -65,14 +77,22 @@ export default factories.createCoreService('api::task.task', ({ strapi }) => ({
       };
     }
 
-    await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+    const msgResp = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(messageBody),
     });
+    const msgBody: any = await msgResp.json().catch(() => ({}));
+    if (!msgResp.ok || msgBody?.ok === false) {
+      strapi.log.warn(`[notifyManager] sendMessage failed: ${JSON.stringify(msgBody)}`);
+    }
   },
 
-  async notifyManagerHandover({ handoverId, taskName, pickedUpBy }: {
+  async notifyManagerHandover({
+    handoverId,
+    taskName,
+    pickedUpBy,
+  }: {
     handoverId: string;
     taskName: string;
     pickedUpBy: string;
@@ -117,5 +137,4 @@ export default factories.createCoreService('api::task.task', ({ strapi }) => ({
       }),
     });
   },
-
 }));
