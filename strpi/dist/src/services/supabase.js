@@ -21,10 +21,12 @@ function getSupabase() {
     return _supabase;
 }
 async function uploadProofImage(file, filename, mimeType) {
-    const path = `tasks/${Date.now()}_${filename}`;
+    const safeFilename = sanitizeFilename(filename);
+    const contentType = normalizeMimeType(mimeType, safeFilename);
+    const path = `tasks/${Date.now()}_${safeFilename}`;
     const { error } = await getSupabase().storage
         .from(process.env.SUPABASE_BUCKET)
-        .upload(path, file, { contentType: mimeType });
+        .upload(path, file, { contentType });
     if (error)
         throw new Error(`Upload failed: ${error.message}`);
     return path;
@@ -39,3 +41,33 @@ async function getSignedUrl(path) {
     return data.signedUrl;
 }
 exports.getSignedUrl = getSignedUrl;
+function sanitizeFilename(filename) {
+    const base = (filename || 'proof')
+        .trim()
+        .replace(/[^\w.\-]+/g, '_')
+        .replace(/_+/g, '_');
+    return base || 'proof';
+}
+function normalizeMimeType(mimeType, filename) {
+    const raw = (mimeType || '').trim().toLowerCase();
+    const cleaned = raw.split(';')[0].trim();
+    if (/^[a-z0-9!#$&^_.+\-]+\/[a-z0-9!#$&^_.+\-]+$/.test(cleaned)) {
+        return cleaned;
+    }
+    const ext = filename.toLowerCase().split('.').pop() || '';
+    switch (ext) {
+        case 'jpg':
+        case 'jpeg':
+            return 'image/jpeg';
+        case 'png':
+            return 'image/png';
+        case 'gif':
+            return 'image/gif';
+        case 'webp':
+            return 'image/webp';
+        case 'heic':
+            return 'image/heic';
+        default:
+            return 'application/octet-stream';
+    }
+}
