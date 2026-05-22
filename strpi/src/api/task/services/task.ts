@@ -58,6 +58,19 @@ export default factories.createCoreService('api::task.task', ({ strapi }) => ({
         const photoBody: any = await photoResp.json().catch(() => ({}));
         if (!photoResp.ok || photoBody?.ok === false) {
           strapi.log.warn(`[notifyManager] sendPhoto failed: ${JSON.stringify(photoBody)}`);
+          // Fallback: some formats are rejected by sendPhoto; send as document instead.
+          const docForm: any = new FormDataCtor();
+          docForm.append('chat_id', String(managerChatId || ''));
+          docForm.append('caption', `งานรอตรวจ: ${taskName}\nโดย: ${submittedBy}\n\nรายงาน:\n${reportText}`);
+          docForm.append('document', new BlobCtor([imageBuffer], { type: safeType }), filename);
+          const docResp = await fetch(`https://api.telegram.org/bot${botToken}/sendDocument`, {
+            method: 'POST',
+            body: docForm,
+          });
+          const docBody: any = await docResp.json().catch(() => ({}));
+          if (!docResp.ok || docBody?.ok === false) {
+            strapi.log.warn(`[notifyManager] sendDocument fallback failed: ${JSON.stringify(docBody)}`);
+          }
         }
       } catch (error: any) {
         strapi.log.warn(`[notifyManager] sendPhoto error: ${error?.message ?? 'unknown error'}`);
