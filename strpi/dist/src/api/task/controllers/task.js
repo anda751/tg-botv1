@@ -90,7 +90,7 @@ exports.default = strapi_1.factories.createCoreController('api::task.task', ({ s
         if (!report_text || report_text.length < 5)
             return ctx.badRequest('รายงานต้องมีอย่างน้อย 5 ตัวอักษร');
         // อัปโหลดขึ้น Supabase Storage
-        const imagePath = await (0, supabase_1.uploadProofImage)(file.data, file.name, file.type);
+        const imagePath = await (0, supabase_1.uploadProofImage)(file.data, file.name || file.filename || file.originalFilename || 'proof', file.type);
         await strapi.entityService.create('api::proof-image.proof-image', {
             data: {
                 task: id,

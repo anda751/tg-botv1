@@ -100,7 +100,7 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
     // อัปโหลดขึ้น Supabase Storage
     const imagePath = await uploadProofImage(
       file.data,
-      file.name,
+      file.name || file.filename || file.originalFilename || 'proof',
       file.type,
     );
 

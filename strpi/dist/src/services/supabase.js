@@ -54,7 +54,7 @@ function normalizeMimeType(mimeType, filename) {
     if (/^[a-z0-9!#$&^_.+\-]+\/[a-z0-9!#$&^_.+\-]+$/.test(cleaned)) {
         return cleaned;
     }
-    const ext = filename.toLowerCase().split('.').pop() || '';
+    const ext = (filename || '').toLowerCase().split('.').pop() || '';
     switch (ext) {
         case 'jpg':
         case 'jpeg':

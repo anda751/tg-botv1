@@ -21,8 +21,8 @@ function getSupabase(): SupabaseClient {
 
 export async function uploadProofImage(
   file: Buffer,
-  filename: string,
-  mimeType: string,
+  filename: string | undefined,
+  mimeType: string | undefined,
 ): Promise<string> {
   const contentType = normalizeMimeType(mimeType, filename);
   const safeFilename = ensureFilenameWithExtension(
@@ -45,7 +45,7 @@ export async function getSignedUrl(path: string): Promise<string> {
   return data.signedUrl;
 }
 
-function sanitizeFilename(filename: string): string {
+function sanitizeFilename(filename: string | undefined): string {
   const base = (filename || 'proof')
     .trim()
     .replace(/[^\w.\-]+/g, '_')
@@ -53,14 +53,14 @@ function sanitizeFilename(filename: string): string {
   return base || 'proof';
 }
 
-function normalizeMimeType(mimeType: string | undefined, filename: string): string {
+function normalizeMimeType(mimeType: string | undefined, filename: string | undefined): string {
   const raw = (mimeType || '').trim().toLowerCase();
   const cleaned = raw.split(';')[0].trim();
   if (/^[a-z0-9!#$&^_.+\-]+\/[a-z0-9!#$&^_.+\-]+$/.test(cleaned)) {
     return cleaned;
   }
 
-  const ext = filename.toLowerCase().split('.').pop() || '';
+  const ext = (filename || '').toLowerCase().split('.').pop() || '';
   switch (ext) {
     case 'jpg':
     case 'jpeg':
