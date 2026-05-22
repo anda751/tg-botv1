@@ -31,6 +31,8 @@ export type AppUser = {
 type RoleApp = 'manager' | 'staff'
 
 axios.defaults.baseURL = import.meta.env.VITE_STRAPI_URL + '/api'
+const isFrontendTestMode = isTruthyEnv(import.meta.env.VITE_TEST_MODE)
+const testUserId = String(import.meta.env.VITE_TEST_USER_ID ?? '').trim()
 
 type AppState =
   | 'loading'
@@ -65,11 +67,22 @@ export default function App() {
     const initDataRaw = tg?.initData
 
     if (!initDataRaw) {
-      setAppState('no_telegram')
-      return
-    }
+      if (!isFrontendTestMode) {
+        setAppState('no_telegram')
+        return
+      }
 
-    axios.defaults.headers.common['x-telegram-init-data'] = initDataRaw
+      // Test mode fallback: allow local browser login without Telegram container.
+      axios.defaults.headers.common['x-telegram-init-data'] = 'test-mode'
+      if (testUserId) {
+        axios.defaults.headers.common['x-test-user-id'] = testUserId
+      } else {
+        delete axios.defaults.headers.common['x-test-user-id']
+      }
+    } else {
+      axios.defaults.headers.common['x-telegram-init-data'] = initDataRaw
+      delete axios.defaults.headers.common['x-test-user-id']
+    }
 
     const savedRole = localStorage.getItem('tg-role-app')
     if (savedRole === 'manager' || savedRole === 'staff') {
@@ -132,6 +145,7 @@ export default function App() {
     localStorage.setItem('tg-logged-out', '1')
     localStorage.removeItem('tg-role-app')
     delete axios.defaults.headers.common['x-role-app']
+    delete axios.defaults.headers.common['x-test-user-id']
     delete axios.defaults.headers.common['x-telegram-init-data']
     setUser(null)
     setAvailableRoles([])
@@ -258,4 +272,10 @@ export default function App() {
       </Routes>
     </BrowserRouter>
   )
+}
+
+function isTruthyEnv(value: unknown): boolean {
+  if (typeof value !== 'string') return false
+  const normalized = value.trim().toLowerCase()
+  return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on'
 }
