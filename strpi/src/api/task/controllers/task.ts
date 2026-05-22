@@ -104,10 +104,27 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
       file.type,
     );
 
+    let uploadedMediaId: number | null = null;
+    try {
+      const uploaded = await strapi.plugin('upload').service('upload').upload({
+        data: {
+          fileInfo: {
+            name: file.name || file.filename || file.originalFilename || 'proof',
+          },
+        },
+        files: file,
+      });
+      const media = Array.isArray(uploaded) ? uploaded[0] : uploaded;
+      uploadedMediaId = media?.id ?? null;
+    } catch {
+      uploadedMediaId = null;
+    }
+
     await strapi.entityService.create('api::proof-image.proof-image', {
       data: {
         task: id,
         image_url: imagePath,  // เก็บ path ไว้ใน DB
+        image_file: uploadedMediaId,
         report_text,
         submitted_by: user.id,
         submitted_at: new Date(),
@@ -140,6 +157,9 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
       submittedBy: user.username,
       reportText: report_text,
       imageUrl: signedImageUrl,
+      imageBuffer: file.data,
+      imageFilename: file.name || file.filename || file.originalFilename || 'proof',
+      imageMimeType: file.type,
     });
 
     return ctx.send({ message: 'ส่งงานเรียบร้อย รอหัวหน้าตรวจสอบ' });

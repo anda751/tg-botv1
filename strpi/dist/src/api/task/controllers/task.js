@@ -71,7 +71,7 @@ exports.default = strapi_1.factories.createCoreController('api::task.task', ({ s
     },
     // ===== ส่งงาน (Under Review) =====
     async submit(ctx) {
-        var _a;
+        var _a, _b;
         const user = ctx.state.user;
         const { id } = ctx.params;
         const { report_text } = ctx.request.body;
@@ -91,10 +91,27 @@ exports.default = strapi_1.factories.createCoreController('api::task.task', ({ s
             return ctx.badRequest('รายงานต้องมีอย่างน้อย 5 ตัวอักษร');
         // อัปโหลดขึ้น Supabase Storage
         const imagePath = await (0, supabase_1.uploadProofImage)(file.data, file.name || file.filename || file.originalFilename || 'proof', file.type);
+        let uploadedMediaId = null;
+        try {
+            const uploaded = await strapi.plugin('upload').service('upload').upload({
+                data: {
+                    fileInfo: {
+                        name: file.name || file.filename || file.originalFilename || 'proof',
+                    },
+                },
+                files: file,
+            });
+            const media = Array.isArray(uploaded) ? uploaded[0] : uploaded;
+            uploadedMediaId = (_b = media === null || media === void 0 ? void 0 : media.id) !== null && _b !== void 0 ? _b : null;
+        }
+        catch {
+            uploadedMediaId = null;
+        }
         await strapi.entityService.create('api::proof-image.proof-image', {
             data: {
                 task: id,
                 image_url: imagePath, // เก็บ path ไว้ใน DB
+                image_file: uploadedMediaId,
                 report_text,
                 submitted_by: user.id,
                 submitted_at: new Date(),
@@ -124,6 +141,9 @@ exports.default = strapi_1.factories.createCoreController('api::task.task', ({ s
             submittedBy: user.username,
             reportText: report_text,
             imageUrl: signedImageUrl,
+            imageBuffer: file.data,
+            imageFilename: file.name || file.filename || file.originalFilename || 'proof',
+            imageMimeType: file.type,
         });
         return ctx.send({ message: 'ส่งงานเรียบร้อย รอหัวหน้าตรวจสอบ' });
     },

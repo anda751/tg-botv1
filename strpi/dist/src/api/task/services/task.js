@@ -15,21 +15,23 @@ exports.default = strapi_1.factories.createCoreService('api::task.task', ({ stra
             }),
         });
     },
-    async notifyManager({ taskId, taskName, submittedBy, reportText, imageUrl, userId, }) {
-        var _a;
+    async notifyManager({ taskId, taskName, submittedBy, reportText, imageUrl, imageBuffer, imageFilename, imageMimeType, userId, }) {
+        var _a, _b;
         const botToken = process.env.TELEGRAM_BOT_TOKEN;
         const managerChatId = process.env.TELEGRAM_MANAGER_CHAT_ID;
-        if (imageUrl) {
+        if (imageBuffer === null || imageBuffer === void 0 ? void 0 : imageBuffer.length) {
             try {
+                const FormDataCtor = globalThis.FormData;
+                const BlobCtor = globalThis.Blob;
+                const form = new FormDataCtor();
+                const safeType = (imageMimeType || 'application/octet-stream').split(';')[0].trim();
+                const filename = imageFilename || 'proof.jpg';
+                form.append('chat_id', String(managerChatId || ''));
+                form.append('caption', `งานรอตรวจ: ${taskName}\nโดย: ${submittedBy}\n\nรายงาน:\n${reportText}`);
+                form.append('photo', new BlobCtor([imageBuffer], { type: safeType }), filename);
                 const photoResp = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        chat_id: managerChatId,
-                        photo: imageUrl,
-                        // Plain caption avoids Markdown parser issues from user-generated text.
-                        caption: `งานรอตรวจ: ${taskName}\nโดย: ${submittedBy}\n\nรายงาน:\n${reportText}`,
-                    }),
+                    body: form,
                 });
                 const photoBody = await photoResp.json().catch(() => ({}));
                 if (!photoResp.ok || (photoBody === null || photoBody === void 0 ? void 0 : photoBody.ok) === false) {
@@ -38,6 +40,26 @@ exports.default = strapi_1.factories.createCoreService('api::task.task', ({ stra
             }
             catch (error) {
                 strapi.log.warn(`[notifyManager] sendPhoto error: ${(_a = error === null || error === void 0 ? void 0 : error.message) !== null && _a !== void 0 ? _a : 'unknown error'}`);
+            }
+        }
+        else if (imageUrl) {
+            try {
+                const photoResp = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chat_id: managerChatId,
+                        photo: imageUrl,
+                        caption: `งานรอตรวจ: ${taskName}\nโดย: ${submittedBy}\n\nรายงาน:\n${reportText}`,
+                    }),
+                });
+                const photoBody = await photoResp.json().catch(() => ({}));
+                if (!photoResp.ok || (photoBody === null || photoBody === void 0 ? void 0 : photoBody.ok) === false) {
+                    strapi.log.warn(`[notifyManager] sendPhoto(url) failed: ${JSON.stringify(photoBody)}`);
+                }
+            }
+            catch (error) {
+                strapi.log.warn(`[notifyManager] sendPhoto(url) error: ${(_b = error === null || error === void 0 ? void 0 : error.message) !== null && _b !== void 0 ? _b : 'unknown error'}`);
             }
         }
         const messageBody = {

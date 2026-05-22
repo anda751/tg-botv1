@@ -15,6 +15,14 @@
             "type": "string",
             "required": true
         },
+        "image_file": {
+            "type": "media",
+            "multiple": false,
+            "required": false,
+            "allowedTypes": [
+                "images"
+            ]
+        },
         "report_text": {
             "type": "string",
             "minLength": 5

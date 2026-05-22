@@ -22,6 +22,9 @@ export default factories.createCoreService('api::task.task', ({ strapi }) => ({
     submittedBy,
     reportText,
     imageUrl,
+    imageBuffer,
+    imageFilename,
+    imageMimeType,
     userId,
   }: {
     taskId: string;
@@ -29,22 +32,28 @@ export default factories.createCoreService('api::task.task', ({ strapi }) => ({
     submittedBy: string;
     reportText: string;
     imageUrl: string;
+    imageBuffer?: Buffer;
+    imageFilename?: string;
+    imageMimeType?: string;
     userId?: string;
   }) {
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     const managerChatId = process.env.TELEGRAM_MANAGER_CHAT_ID;
 
-    if (imageUrl) {
+    if (imageBuffer?.length) {
       try {
+        const FormDataCtor = (globalThis as any).FormData;
+        const BlobCtor = (globalThis as any).Blob;
+        const form: any = new FormDataCtor();
+        const safeType = (imageMimeType || 'application/octet-stream').split(';')[0].trim();
+        const filename = imageFilename || 'proof.jpg';
+        form.append('chat_id', String(managerChatId || ''));
+        form.append('caption', `งานรอตรวจ: ${taskName}\nโดย: ${submittedBy}\n\nรายงาน:\n${reportText}`);
+        form.append('photo', new BlobCtor([imageBuffer], { type: safeType }), filename);
+
         const photoResp = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: managerChatId,
-            photo: imageUrl,
-            // Plain caption avoids Markdown parser issues from user-generated text.
-            caption: `งานรอตรวจ: ${taskName}\nโดย: ${submittedBy}\n\nรายงาน:\n${reportText}`,
-          }),
+          body: form,
         });
         const photoBody: any = await photoResp.json().catch(() => ({}));
         if (!photoResp.ok || photoBody?.ok === false) {
@@ -52,6 +61,24 @@ export default factories.createCoreService('api::task.task', ({ strapi }) => ({
         }
       } catch (error: any) {
         strapi.log.warn(`[notifyManager] sendPhoto error: ${error?.message ?? 'unknown error'}`);
+      }
+    } else if (imageUrl) {
+      try {
+        const photoResp = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: managerChatId,
+            photo: imageUrl,
+            caption: `งานรอตรวจ: ${taskName}\nโดย: ${submittedBy}\n\nรายงาน:\n${reportText}`,
+          }),
+        });
+        const photoBody: any = await photoResp.json().catch(() => ({}));
+        if (!photoResp.ok || photoBody?.ok === false) {
+          strapi.log.warn(`[notifyManager] sendPhoto(url) failed: ${JSON.stringify(photoBody)}`);
+        }
+      } catch (error: any) {
+        strapi.log.warn(`[notifyManager] sendPhoto(url) error: ${error?.message ?? 'unknown error'}`);
       }
     }
 
