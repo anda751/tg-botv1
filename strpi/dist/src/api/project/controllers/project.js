@@ -2,16 +2,27 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const strapi_1 = require("@strapi/strapi");
 exports.default = strapi_1.factories.createCoreController('api::project.project', ({ strapi }) => ({
+    async all(ctx) {
+        const projects = await strapi.entityService.findMany('api::project.project', {
+            populate: ['creator', 'members'],
+            sort: ['updatedAt:desc', 'id:desc'],
+        });
+        return ctx.send(projects);
+    },
     // ===== สร้างโปรเจกต์ (Manager) =====
     async create(ctx) {
         const user = ctx.state.user;
         if (user.role_app !== 'manager')
             return ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
         const { name, deadline } = ctx.request.body.data;
+        const deadlineDate = new Date(deadline);
+        if (Number.isNaN(deadlineDate.getTime()))
+            return ctx.badRequest('รูปแบบเดดไลน์ไม่ถูกต้อง');
         if (!name || !deadline)
             return ctx.badRequest('กรุณากรอกชื่อและเดดไลน์');
         ctx.request.body.data = {
             ...ctx.request.body.data,
+            deadline: deadlineDate.toISOString(),
             creator: user.id,
             status_project: 'active',
         };

@@ -27,7 +27,7 @@ export const taskApi = {
 export const projectApi = {
   getMyProjects: () => axios.get('/projects/my'),
 
-  getAll: () => axios.get('/projects', { params: { populate: 'creator,members' } }),
+  getAll: () => axios.get('/projects/all'),
 
   create: (data: { name: string; deadline: string }) =>
     axios.post('/projects', { data }),

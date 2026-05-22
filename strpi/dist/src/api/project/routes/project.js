@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = {
     routes: [
+        { method: 'GET', path: '/projects/all', handler: 'project.all', config: { auth: false } },
         { method: 'GET', path: '/projects', handler: 'project.find', config: { auth: false } },
         { method: 'GET', path: '/projects/my', handler: 'project.myProjects', config: { auth: false } },
         { method: 'GET', path: '/projects/:id', handler: 'project.findOne', config: { auth: false } },
