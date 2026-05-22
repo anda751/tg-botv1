@@ -16,6 +16,16 @@ exports.default = strapi_1.factories.createCoreController('api::task.task', ({ s
         });
         return ctx.send(tasks);
     },
+    async waitingPickup(ctx) {
+        const tasks = await strapi.entityService.findMany('api::task.task', {
+            filters: {
+                status_task: 'waiting_pickup',
+            },
+            populate: ['current_owner', 'task_log'],
+            sort: ['updatedAt:desc', 'id:desc'],
+        });
+        return ctx.send(tasks);
+    },
     // ===== สร้างงานใหม่ =====
     async create(ctx) {
         const user = ctx.state.user;

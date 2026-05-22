@@ -6,9 +6,7 @@ export const taskApi = {
     axios.get('/tasks/my'),
 
   getWaitingPickup: () =>
-    axios.get('/tasks', {
-      params: { 'filters[status_task]': 'waiting_pickup', populate: 'current_owner,task_log' },
-    }),
+    axios.get('/tasks/waiting-pickup'),
 
   create: (data: { name: string; project: number }) =>
     axios.post('/tasks', { data }),

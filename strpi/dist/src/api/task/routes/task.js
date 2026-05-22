@@ -5,6 +5,7 @@ exports.default = {
         // Default CRUD routes
         { method: 'GET', path: '/tasks', handler: 'task.find', config: { auth: false } },
         { method: 'GET', path: '/tasks/my', handler: 'task.my', config: { auth: false } },
+        { method: 'GET', path: '/tasks/waiting-pickup', handler: 'task.waitingPickup', config: { auth: false } },
         { method: 'GET', path: '/tasks/:id', handler: 'task.findOne', config: { auth: false } },
         { method: 'POST', path: '/tasks', handler: 'task.create', config: { auth: false } },
         // Custom routes
