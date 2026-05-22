@@ -3,32 +3,39 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const strapi_1 = require("@strapi/strapi");
 exports.default = strapi_1.factories.createCoreController('plugin::users-permissions.user', ({ strapi }) => ({
     async register(ctx) {
-        const { email, display_name, telegram_id, telegram_chat_id, role_app, } = ctx.request.body;
+        var _a, _b, _c;
+        const { email, display_name, telegram_id, telegram_chat_id, role_app } = ctx.request.body;
         const selectedRole = role_app === 'manager' ? 'manager' : 'staff';
         const requiresApproval = selectedRole === 'staff';
-        if (!email || !display_name || !telegram_id || !telegram_chat_id) {
+        const normalizedEmail = String(email !== null && email !== void 0 ? email : '').trim().toLowerCase();
+        const normalizedDisplayName = String(display_name !== null && display_name !== void 0 ? display_name : '').trim();
+        const telegramFromInitData = String((_c = (_b = (_a = ctx.state) === null || _a === void 0 ? void 0 : _a.telegramUser) === null || _b === void 0 ? void 0 : _b.id) !== null && _c !== void 0 ? _c : '').trim();
+        // Testing-friendly fallback: registration no longer requires Telegram ID in request body.
+        const resolvedTelegramId = String(telegram_id || telegramFromInitData || `test:${normalizedEmail}`).trim();
+        const resolvedTelegramChatId = String(telegram_chat_id || resolvedTelegramId).trim();
+        if (!normalizedEmail || !normalizedDisplayName) {
             return ctx.badRequest('กรุณากรอกข้อมูลให้ครบ');
         }
-        if (display_name.length < 2) {
+        if (normalizedDisplayName.length < 2) {
             return ctx.badRequest('ชื่อต้องมีอย่างน้อย 2 ตัวอักษร');
         }
-        const existing = await strapi.entityService.findMany('plugin::users-permissions.user', {
+        const existing = (await strapi.entityService.findMany('plugin::users-permissions.user', {
             filters: {
-                telegram_id,
+                telegram_id: resolvedTelegramId,
                 role_app: selectedRole,
             },
             limit: 1,
-        });
+        }));
         if (existing.length) {
             return ctx.badRequest(`Telegram account นี้ลงทะเบียนเป็น ${selectedRole} แล้ว`);
         }
-        const existingEmail = await strapi.entityService.findMany('plugin::users-permissions.user', {
+        const existingEmail = (await strapi.entityService.findMany('plugin::users-permissions.user', {
             filters: {
-                email,
+                email: normalizedEmail,
                 role_app: selectedRole,
             },
             limit: 1,
-        });
+        }));
         if (existingEmail.length) {
             return ctx.badRequest(`Email นี้ถูกใช้กับบทบาท ${selectedRole} แล้ว`);
         }
@@ -37,26 +44,26 @@ exports.default = strapi_1.factories.createCoreController('plugin::users-permiss
             .findOne({ where: { type: 'authenticated' } });
         if (!defaultRole)
             return ctx.internalServerError('ไม่พบ authenticated role');
-        const user = await strapi.entityService.create('plugin::users-permissions.user', {
+        const user = (await strapi.entityService.create('plugin::users-permissions.user', {
             data: {
-                email,
-                username: `${email}:${selectedRole}`,
-                display_name,
-                telegram_id,
-                telegram_chat_id,
+                email: normalizedEmail,
+                username: `${normalizedEmail}:${selectedRole}`,
+                display_name: normalizedDisplayName,
+                telegram_id: resolvedTelegramId,
+                telegram_chat_id: resolvedTelegramChatId,
                 role_app: selectedRole,
                 is_approved: !requiresApproval,
                 role: defaultRole.id,
                 confirmed: true,
                 blocked: false,
             },
-        });
+        }));
         if (requiresApproval) {
             await strapi.service('api::task.task').notifyManager({
                 taskId: '',
                 taskName: '',
-                submittedBy: display_name,
-                reportText: `📩 ผู้ใช้ใหม่รออนุมัติ\nชื่อ: ${display_name}\nEmail: ${email}\nRole: ${selectedRole}\nTelegram ID: ${telegram_id}`,
+                submittedBy: normalizedDisplayName,
+                reportText: `📩 ผู้ใช้ใหม่รออนุมัติ\nชื่อ: ${normalizedDisplayName}\nEmail: ${normalizedEmail}\nRole: ${selectedRole}\nTelegram ID: ${resolvedTelegramId}`,
                 imageUrl: '',
                 userId: String(user.id),
             });
@@ -73,7 +80,7 @@ exports.default = strapi_1.factories.createCoreController('plugin::users-permiss
         const { id } = ctx.params;
         if (currentUser.role_app !== 'manager')
             return ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
-        const target = await strapi.entityService.findOne('plugin::users-permissions.user', id);
+        const target = (await strapi.entityService.findOne('plugin::users-permissions.user', id));
         if (!target)
             return ctx.notFound('ไม่พบผู้ใช้นี้');
         if (target.is_approved)
@@ -95,7 +102,7 @@ exports.default = strapi_1.factories.createCoreController('plugin::users-permiss
             return ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
         if (!reason || reason.length < 5)
             return ctx.badRequest('กรุณาระบุเหตุผลอย่างน้อย 5 ตัวอักษร');
-        const target = await strapi.entityService.findOne('plugin::users-permissions.user', id);
+        const target = (await strapi.entityService.findOne('plugin::users-permissions.user', id));
         if (!target)
             return ctx.notFound('ไม่พบผู้ใช้นี้');
         await strapi.service('api::task.task').notifyStaff({
@@ -107,7 +114,7 @@ exports.default = strapi_1.factories.createCoreController('plugin::users-permiss
     },
     async me(ctx) {
         const currentUser = ctx.state.user;
-        const fullUser = await strapi.entityService.findOne('plugin::users-permissions.user', currentUser.id, { populate: [] });
+        const fullUser = (await strapi.entityService.findOne('plugin::users-permissions.user', currentUser.id, { populate: [] }));
         if (!fullUser)
             return ctx.notFound('ไม่พบผู้ใช้');
         return ctx.send({

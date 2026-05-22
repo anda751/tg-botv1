@@ -1,52 +1,48 @@
-import { useState } from 'react'
-import { userApi } from '../api'
+import { useState } from 'react';
+import { userApi } from '../api';
 
-type RoleApp = 'manager' | 'staff'
+type RoleApp = 'manager' | 'staff';
 
 export default function Register({ onRegistered }: { onRegistered: () => void }) {
   const [form, setForm] = useState({
     email: '',
     display_name: '',
     role_app: 'staff' as RoleApp,
-  })
-  const [status, setStatus] = useState<'idle' | 'loading' | 'done'>('idle')
-  const [error, setError] = useState('')
+  });
+  const [status, setStatus] = useState<'idle' | 'loading' | 'done'>('idle');
+  const [error, setError] = useState('');
 
   async function handleSubmit() {
-    if (form.display_name.length < 2) {
-      setError('ชื่อต้องมีอย่างน้อย 2 ตัวอักษร')
-      return
+    if (form.display_name.trim().length < 2) {
+      setError('ชื่อต้องมีอย่างน้อย 2 ตัวอักษร');
+      return;
     }
     if (!form.email.includes('@')) {
-      setError('กรุณากรอก Email ให้ถูกต้อง')
-      return
+      setError('กรุณากรอก Email ให้ถูกต้อง');
+      return;
     }
 
-    const tg = (window as any).Telegram?.WebApp
-    const telegramUser = tg?.initDataUnsafe?.user
-    const telegramId = String(telegramUser?.id ?? '')
+    const tg = (window as any).Telegram?.WebApp;
+    const telegramUser = tg?.initDataUnsafe?.user;
+    const fallbackId = `test:${form.email.trim().toLowerCase()}`;
+    const telegramId = String(telegramUser?.id ?? fallbackId);
 
-    if (!telegramId) {
-      setError('ไม่พบข้อมูล Telegram กรุณาเปิดผ่าน Telegram')
-      return
-    }
-
-    setError('')
-    setStatus('loading')
+    setError('');
+    setStatus('loading');
     try {
       await userApi.register({
-        email: form.email,
-        display_name: form.display_name,
+        email: form.email.trim().toLowerCase(),
+        display_name: form.display_name.trim(),
         telegram_id: telegramId,
         telegram_chat_id: telegramId,
         role_app: form.role_app,
-      })
-      localStorage.setItem('tg-role-app', form.role_app)
-      setStatus('done')
-      setTimeout(onRegistered, 1200)
+      });
+      localStorage.setItem('tg-role-app', form.role_app);
+      setStatus('done');
+      setTimeout(onRegistered, 1200);
     } catch (err: any) {
-      setError(err?.response?.data?.error?.message || 'เกิดข้อผิดพลาด')
-      setStatus('idle')
+      setError(err?.response?.data?.error?.message || 'เกิดข้อผิดพลาด');
+      setStatus('idle');
     }
   }
 
@@ -63,7 +59,7 @@ export default function Register({ onRegistered }: { onRegistered: () => void })
           </p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -155,5 +151,5 @@ export default function Register({ onRegistered }: { onRegistered: () => void })
         </div>
       </div>
     </div>
-  )
+  );
 }
