@@ -51,10 +51,12 @@ export default function Projects() {
   async function handleCreate() {
     if (!newName || newName.length < 2) { setCreateError('ชื่อต้องมีอย่างน้อย 2 ตัวอักษร'); return }
     if (!newDeadline) { setCreateError('กรุณาเลือกเดดไลน์'); return }
+    const deadlineDate = new Date(newDeadline)
+    if (Number.isNaN(deadlineDate.getTime())) { setCreateError('Invalid deadline format'); return }
     setCreateError('')
     setCreating(true)
     try {
-      await projectApi.create({ name: newName, deadline: newDeadline })
+      await projectApi.create({ name: newName.trim(), deadline: deadlineDate.toISOString() })
       setShowCreate(false)
       setNewName('')
       setNewDeadline('')
