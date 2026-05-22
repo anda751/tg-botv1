@@ -1,4 +1,5 @@
 import { factories } from '@strapi/strapi';
+import { promises as fs } from 'node:fs';
 import { getSignedUrl, uploadProofImage } from '../../../services/supabase';
 
 export default factories.createCoreController('api::task.task', ({ strapi }) => ({
@@ -98,8 +99,10 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
     if (!report_text || report_text.length < 5) return ctx.badRequest('รายงานต้องมีอย่างน้อย 5 ตัวอักษร');
 
     // อัปโหลดขึ้น Supabase Storage
+    const fileBuffer = await readUploadedFileBuffer(file);
+
     const imagePath = await uploadProofImage(
-      file.data,
+      fileBuffer,
       file.name || file.filename || file.originalFilename || 'proof',
       file.type,
     );
@@ -151,17 +154,13 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
       signedImageUrl = '';
     }
 
-    const imageBuffer = Buffer.isBuffer(file.data)
-      ? file.data
-      : Buffer.from(file.data);
-
     await strapi.service('api::task.task').notifyManager({
       taskId: id,
       taskName: task.name,
       submittedBy: user.username,
       reportText: report_text,
       imageUrl: signedImageUrl,
-      imageBuffer,
+      imageBuffer: fileBuffer,
       imageFilename: file.name || file.filename || file.originalFilename || 'proof',
       imageMimeType: file.type,
     });
@@ -238,4 +237,23 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
   },
 
 }));
+
+async function readUploadedFileBuffer(file: any): Promise<Buffer> {
+  if (!file) {
+    throw new Error('proof_image is missing');
+  }
+
+  if (Buffer.isBuffer(file.data)) return file.data;
+  if (Buffer.isBuffer(file.buffer)) return file.buffer;
+
+  if (file.data !== undefined && file.data !== null) return Buffer.from(file.data);
+  if (file.buffer !== undefined && file.buffer !== null) return Buffer.from(file.buffer);
+
+  const filePath = file.filepath || file.path || file.tempFilePath;
+  if (typeof filePath === 'string' && filePath.length > 0) {
+    return fs.readFile(filePath);
+  }
+
+  throw new Error('Cannot read uploaded proof image buffer');
+}
 

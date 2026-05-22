@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const strapi_1 = require("@strapi/strapi");
+const node_fs_1 = require("node:fs");
 const supabase_1 = require("../../../services/supabase");
 exports.default = strapi_1.factories.createCoreController('api::task.task', ({ strapi }) => ({
     async my(ctx) {
@@ -90,7 +91,8 @@ exports.default = strapi_1.factories.createCoreController('api::task.task', ({ s
         if (!report_text || report_text.length < 5)
             return ctx.badRequest('รายงานต้องมีอย่างน้อย 5 ตัวอักษร');
         // อัปโหลดขึ้น Supabase Storage
-        const imagePath = await (0, supabase_1.uploadProofImage)(file.data, file.name || file.filename || file.originalFilename || 'proof', file.type);
+        const fileBuffer = await readUploadedFileBuffer(file);
+        const imagePath = await (0, supabase_1.uploadProofImage)(fileBuffer, file.name || file.filename || file.originalFilename || 'proof', file.type);
         let uploadedMediaId = null;
         try {
             const uploaded = await strapi.plugin('upload').service('upload').upload({
@@ -135,16 +137,13 @@ exports.default = strapi_1.factories.createCoreController('api::task.task', ({ s
         catch {
             signedImageUrl = '';
         }
-        const imageBuffer = Buffer.isBuffer(file.data)
-            ? file.data
-            : Buffer.from(file.data);
         await strapi.service('api::task.task').notifyManager({
             taskId: id,
             taskName: task.name,
             submittedBy: user.username,
             reportText: report_text,
             imageUrl: signedImageUrl,
-            imageBuffer,
+            imageBuffer: fileBuffer,
             imageFilename: file.name || file.filename || file.originalFilename || 'proof',
             imageMimeType: file.type,
         });
@@ -210,3 +209,21 @@ exports.default = strapi_1.factories.createCoreController('api::task.task', ({ s
         return ctx.send({ message: 'ส่งกลับงานเรียบร้อย' });
     },
 }));
+async function readUploadedFileBuffer(file) {
+    if (!file) {
+        throw new Error('proof_image is missing');
+    }
+    if (Buffer.isBuffer(file.data))
+        return file.data;
+    if (Buffer.isBuffer(file.buffer))
+        return file.buffer;
+    if (file.data !== undefined && file.data !== null)
+        return Buffer.from(file.data);
+    if (file.buffer !== undefined && file.buffer !== null)
+        return Buffer.from(file.buffer);
+    const filePath = file.filepath || file.path || file.tempFilePath;
+    if (typeof filePath === 'string' && filePath.length > 0) {
+        return node_fs_1.promises.readFile(filePath);
+    }
+    throw new Error('Cannot read uploaded proof image buffer');
+}
