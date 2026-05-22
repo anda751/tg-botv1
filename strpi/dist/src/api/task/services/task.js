@@ -16,10 +16,12 @@ exports.default = strapi_1.factories.createCoreService('api::task.task', ({ stra
         });
     },
     async notifyManager({ taskId, taskName, submittedBy, reportText, imageUrl, imageBuffer, imageFilename, imageMimeType, userId, }) {
-        var _a, _b;
+        var _a, _b, _c, _d;
         const botToken = process.env.TELEGRAM_BOT_TOKEN;
         const managerChatId = process.env.TELEGRAM_MANAGER_CHAT_ID;
-        if (imageBuffer === null || imageBuffer === void 0 ? void 0 : imageBuffer.length) {
+        const hasImageBuffer = !!imageBuffer && (((_a = imageBuffer.length) !== null && _a !== void 0 ? _a : 0) > 0 ||
+            ((_b = imageBuffer.byteLength) !== null && _b !== void 0 ? _b : 0) > 0);
+        if (hasImageBuffer) {
             try {
                 const FormDataCtor = globalThis.FormData;
                 const BlobCtor = globalThis.Blob;
@@ -52,7 +54,7 @@ exports.default = strapi_1.factories.createCoreService('api::task.task', ({ stra
                 }
             }
             catch (error) {
-                strapi.log.warn(`[notifyManager] sendPhoto error: ${(_a = error === null || error === void 0 ? void 0 : error.message) !== null && _a !== void 0 ? _a : 'unknown error'}`);
+                strapi.log.warn(`[notifyManager] sendPhoto error: ${(_c = error === null || error === void 0 ? void 0 : error.message) !== null && _c !== void 0 ? _c : 'unknown error'}`);
             }
         }
         else if (imageUrl) {
@@ -72,7 +74,7 @@ exports.default = strapi_1.factories.createCoreService('api::task.task', ({ stra
                 }
             }
             catch (error) {
-                strapi.log.warn(`[notifyManager] sendPhoto(url) error: ${(_b = error === null || error === void 0 ? void 0 : error.message) !== null && _b !== void 0 ? _b : 'unknown error'}`);
+                strapi.log.warn(`[notifyManager] sendPhoto(url) error: ${(_d = error === null || error === void 0 ? void 0 : error.message) !== null && _d !== void 0 ? _d : 'unknown error'}`);
             }
         }
         const messageBody = {

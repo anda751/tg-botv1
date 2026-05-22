@@ -135,13 +135,16 @@ exports.default = strapi_1.factories.createCoreController('api::task.task', ({ s
         catch {
             signedImageUrl = '';
         }
+        const imageBuffer = Buffer.isBuffer(file.data)
+            ? file.data
+            : Buffer.from(file.data);
         await strapi.service('api::task.task').notifyManager({
             taskId: id,
             taskName: task.name,
             submittedBy: user.username,
             reportText: report_text,
             imageUrl: signedImageUrl,
-            imageBuffer: file.data,
+            imageBuffer,
             imageFilename: file.name || file.filename || file.originalFilename || 'proof',
             imageMimeType: file.type,
         });

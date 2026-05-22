@@ -40,7 +40,12 @@ export default factories.createCoreService('api::task.task', ({ strapi }) => ({
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     const managerChatId = process.env.TELEGRAM_MANAGER_CHAT_ID;
 
-    if (imageBuffer?.length) {
+    const hasImageBuffer = !!imageBuffer && (
+      ((imageBuffer as any).length ?? 0) > 0 ||
+      ((imageBuffer as any).byteLength ?? 0) > 0
+    );
+
+    if (hasImageBuffer) {
       try {
         const FormDataCtor = (globalThis as any).FormData;
         const BlobCtor = (globalThis as any).Blob;
