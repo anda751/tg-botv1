@@ -34,6 +34,7 @@ axios.defaults.baseURL = import.meta.env.VITE_STRAPI_URL + '/api'
 
 type AppState =
   | 'loading'
+  | 'logged_out'
   | 'no_telegram'
   | 'not_registered'
   | 'pending_approval'
@@ -53,6 +54,12 @@ export default function App() {
 
   async function initTelegram() {
     setAppState('loading')
+
+    if (localStorage.getItem('tg-logged-out') === '1') {
+      setUser(null)
+      setAppState('logged_out')
+      return
+    }
 
     const tg = (window as any).Telegram?.WebApp
     const initDataRaw = tg?.initData
@@ -99,18 +106,54 @@ export default function App() {
   }
 
   async function selectRole(role: RoleApp) {
+    localStorage.removeItem('tg-logged-out')
     localStorage.setItem('tg-role-app', role)
     axios.defaults.headers.common['x-role-app'] = role
     await initTelegram()
   }
 
   async function switchRole() {
+    localStorage.removeItem('tg-logged-out')
     localStorage.removeItem('tg-role-app')
     delete axios.defaults.headers.common['x-role-app']
     await initTelegram()
   }
 
+  async function logout() {
+    localStorage.setItem('tg-logged-out', '1')
+    localStorage.removeItem('tg-role-app')
+    delete axios.defaults.headers.common['x-role-app']
+    delete axios.defaults.headers.common['x-telegram-init-data']
+    setUser(null)
+    setAvailableRoles([])
+    setAppState('logged_out')
+  }
+
+  async function resumeLogin() {
+    localStorage.removeItem('tg-logged-out')
+    await initTelegram()
+  }
+
   if (appState === 'loading') return <Loading />
+
+  if (appState === 'logged_out') {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center px-6">
+        <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-6 text-center">
+          <h1 className="text-white text-lg font-bold mb-2">Sign out แล้ว</h1>
+          <p className="text-slate-400 text-sm mb-5">
+            กดปุ่มด้านล่างเพื่อเข้าสู่ระบบอีกครั้ง
+          </p>
+          <button
+            onClick={resumeLogin}
+            className="w-full py-3 rounded-xl text-sm font-semibold text-white bg-blue-600 active:bg-blue-700 transition"
+          >
+            เข้าสู่ระบบอีกครั้ง
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   if (appState === 'no_telegram') {
     return (
@@ -177,7 +220,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <RoleSwitcher currentRole={user.role_app} onSwitchRole={switchRole} />
+      <RoleSwitcher currentRole={user.role_app} onSwitchRole={switchRole} onLogout={logout} />
       <Routes>
         {user.role_app === 'manager' ? (
           <>
