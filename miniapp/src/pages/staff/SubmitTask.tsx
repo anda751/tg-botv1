@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { taskApi } from '../../api'
-import axios from 'axios'
 
 type Task = { id: number; name: string; project?: { name: string } }
 
 export default function SubmitTask() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { taskId } = useParams()
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -18,11 +18,32 @@ export default function SubmitTask() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    axios
-      .get(`/tasks/${taskId}`, { params: { populate: 'project' } })
-      .then(({ data }) => setTask(data.data ?? data))
+    const navTask = (location.state as any)?.task as Task | undefined
+    const idNum = Number(taskId)
+
+    if (!Number.isFinite(idNum) || idNum <= 0) {
+      navigate('/')
+      return
+    }
+
+    if (navTask && navTask.id === idNum) {
+      setTask(navTask)
+      return
+    }
+
+    taskApi
+      .getMyTasks()
+      .then(({ data }) => {
+        const list = Array.isArray(data) ? data : (data.data ?? [])
+        const found = list.find((t: any) => Number(t.id) === idNum)
+        if (!found) {
+          navigate('/')
+          return
+        }
+        setTask(found)
+      })
       .catch(() => navigate('/'))
-  }, [taskId])
+  }, [taskId, location.state, navigate])
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]

@@ -91,7 +91,7 @@ export default function MyTasks() {
         key={task.id}
         task={task}
         onAction={() => handleAction(task)}
-        onHandover={() => navigate(`/handover/${task.id}`)}  // ← เพิ่ม
+        onHandover={() => navigate(`/handover/${task.id}`, { state: { task } })}  // ? ?????
           />
           ))
         )}
@@ -112,7 +112,7 @@ export default function MyTasks() {
 
   function handleAction(task: Task) {
     if (task.status_task === 'in_progress') {
-      navigate(`/submit/${task.id}`)
+      navigate(`/submit/${task.id}`, { state: { task } })
     } else if (task.status_task === 'under_review') {
       // รอหัวหน้าตรวจ ทำอะไรไม่ได้
     }
@@ -170,3 +170,4 @@ function TaskCard({ task, onAction, onHandover }: {
     </div>
   )
 }
+
