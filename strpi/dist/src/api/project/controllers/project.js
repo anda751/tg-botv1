@@ -22,18 +22,20 @@ exports.default = strapi_1.factories.createCoreController('api::project.project'
         const deadlineDate = new Date(deadline);
         if (Number.isNaN(deadlineDate.getTime()))
             return ctx.badRequest('รูปแบบเดดไลน์ไม่ถูกต้อง');
-        ctx.request.body.data = {
-            ...bodyData,
-            name,
-            deadline: deadlineDate.toISOString(),
-            creator: user.id,
-            status_project: 'active',
-        };
-        const response = await super.create(ctx);
+        const created = await strapi.entityService.create('api::project.project', {
+            data: {
+                ...bodyData,
+                name,
+                deadline: deadlineDate.toISOString(),
+                creator: user.id,
+                status_project: 'active',
+            },
+            populate: ['creator', 'members'],
+        });
         await strapi.service('api::task.task').notifyGroup({
             message: `📁 โปรเจกต์ใหม่: *${name}*\nเดดไลน์: ${deadlineDate.toLocaleDateString('th-TH')}\nสร้างโดย: ${user.username}`,
         });
-        return response;
+        return ctx.send(created);
     },
     async closeProject(ctx) {
         const user = ctx.state.user;
