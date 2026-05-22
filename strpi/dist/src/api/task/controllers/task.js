@@ -28,30 +28,46 @@ exports.default = strapi_1.factories.createCoreController('api::task.task', ({ s
     },
     // ===== สร้างงานใหม่ =====
     async create(ctx) {
+        var _a, _b;
         const user = ctx.state.user;
-        const { name, project } = ctx.request.body.data;
-        if (!/[a-zA-Zก-๙]/.test(name)) {
-            return ctx.badRequest('ชื่องานต้องมีตัวอักษรภาษาไทยหรืออังกฤษอย่างน้อย 1 ตัว');
+        const bodyData = (_b = (_a = ctx.request.body) === null || _a === void 0 ? void 0 : _a.data) !== null && _b !== void 0 ? _b : {};
+        const name = typeof bodyData.name === 'string' ? bodyData.name.trim() : '';
+        const projectValue = bodyData.project;
+        if (!/[A-Za-z0-9\u0E00-\u0E7F]/.test(name)) {
+            return ctx.badRequest('Task name must include at least one letter or number');
         }
-        ctx.request.body.data = {
-            ...ctx.request.body.data,
-            current_owner: user.id,
-            creator: user.id,
-            status_task: 'in_progress',
-        };
-        const response = await super.create(ctx);
+        if (name.length < 5) {
+            return ctx.badRequest('Task name must be at least 5 characters');
+        }
+        const projectId = projectValue === null || projectValue === undefined || projectValue === ''
+            ? null
+            : Number(projectValue);
+        if (projectId !== null && Number.isNaN(projectId)) {
+            return ctx.badRequest('Invalid project format');
+        }
+        const created = await strapi.entityService.create('api::task.task', {
+            data: {
+                ...bodyData,
+                name,
+                project: projectId,
+                current_owner: user.id,
+                creator: user.id,
+                status_task: 'in_progress',
+            },
+            populate: ['project', 'current_owner'],
+        });
         await strapi.entityService.create('api::task-log.task-log', {
             data: {
-                task: response.data.id,
+                task: created.id,
                 action: 'created',
                 actor: user.id,
-                note: `สร้างงาน: ${name}`,
+                note: `Task created: ${name}`,
             },
         });
         await strapi.service('api::task.task').notifyGroup({
-            message: `📋 งานใหม่: *${name}*\nผู้รับผิดชอบ: ${user.username}`,
+            message: `📋 New task: *${name}*\nOwner: ${user.username}`,
         });
-        return response;
+        return ctx.send(created);
     },
     // ===== ส่งงาน (Under Review) =====
     async submit(ctx) {
