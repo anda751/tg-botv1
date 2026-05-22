@@ -21,8 +21,8 @@ function getSupabase() {
     return _supabase;
 }
 async function uploadProofImage(file, filename, mimeType) {
-    const safeFilename = sanitizeFilename(filename);
-    const contentType = normalizeMimeType(mimeType, safeFilename);
+    const contentType = normalizeMimeType(mimeType, filename);
+    const safeFilename = ensureFilenameWithExtension(sanitizeFilename(filename), extensionFromMime(contentType));
     const path = `tasks/${Date.now()}_${safeFilename}`;
     const { error } = await getSupabase().storage
         .from(process.env.SUPABASE_BUCKET)
@@ -70,4 +70,26 @@ function normalizeMimeType(mimeType, filename) {
         default:
             return 'application/octet-stream';
     }
+}
+function extensionFromMime(mimeType) {
+    switch (mimeType) {
+        case 'image/jpeg':
+            return 'jpg';
+        case 'image/png':
+            return 'png';
+        case 'image/gif':
+            return 'gif';
+        case 'image/webp':
+            return 'webp';
+        case 'image/heic':
+            return 'heic';
+        default:
+            return 'bin';
+    }
+}
+function ensureFilenameWithExtension(filename, fallbackExt) {
+    const hasExt = /\.[A-Za-z0-9]+$/.test(filename);
+    if (hasExt)
+        return filename;
+    return `${filename}.${fallbackExt}`;
 }

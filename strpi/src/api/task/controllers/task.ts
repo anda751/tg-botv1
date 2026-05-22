@@ -1,5 +1,5 @@
 import { factories } from '@strapi/strapi';
-import { uploadProofImage } from '../../../services/supabase';
+import { getSignedUrl, uploadProofImage } from '../../../services/supabase';
 
 export default factories.createCoreController('api::task.task', ({ strapi }) => ({
   async my(ctx) {
@@ -127,12 +127,19 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
       },
     });
 
+    let signedImageUrl = '';
+    try {
+      signedImageUrl = await getSignedUrl(imagePath);
+    } catch {
+      signedImageUrl = '';
+    }
+
     await strapi.service('api::task.task').notifyManager({
       taskId: id,
       taskName: task.name,
       submittedBy: user.username,
       reportText: report_text,
-      imageUrl: imagePath,
+      imageUrl: signedImageUrl,
     });
 
     return ctx.send({ message: 'ส่งงานเรียบร้อย รอหัวหน้าตรวจสอบ' });

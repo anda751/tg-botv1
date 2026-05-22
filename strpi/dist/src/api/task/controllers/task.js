@@ -111,12 +111,19 @@ exports.default = strapi_1.factories.createCoreController('api::task.task', ({ s
                 note: report_text,
             },
         });
+        let signedImageUrl = '';
+        try {
+            signedImageUrl = await (0, supabase_1.getSignedUrl)(imagePath);
+        }
+        catch {
+            signedImageUrl = '';
+        }
         await strapi.service('api::task.task').notifyManager({
             taskId: id,
             taskName: task.name,
             submittedBy: user.username,
             reportText: report_text,
-            imageUrl: imagePath,
+            imageUrl: signedImageUrl,
         });
         return ctx.send({ message: 'ส่งงานเรียบร้อย รอหัวหน้าตรวจสอบ' });
     },
