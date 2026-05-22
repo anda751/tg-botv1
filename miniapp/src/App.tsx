@@ -119,6 +119,15 @@ export default function App() {
     await initTelegram()
   }
 
+  function addRole() {
+    localStorage.removeItem('tg-logged-out')
+    localStorage.removeItem('tg-role-app')
+    delete axios.defaults.headers.common['x-role-app']
+    setUser(null)
+    setAvailableRoles([])
+    setAppState('not_registered')
+  }
+
   async function logout() {
     localStorage.setItem('tg-logged-out', '1')
     localStorage.removeItem('tg-role-app')
@@ -220,7 +229,12 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <RoleSwitcher currentRole={user.role_app} onSwitchRole={switchRole} onLogout={logout} />
+      <RoleSwitcher
+        currentRole={user.role_app}
+        onSwitchRole={switchRole}
+        onAddRole={addRole}
+        onLogout={logout}
+      />
       <Routes>
         {user.role_app === 'manager' ? (
           <>

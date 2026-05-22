@@ -1,10 +1,12 @@
 export default function RoleSwitcher({
   currentRole,
   onSwitchRole,
+  onAddRole,
   onLogout,
 }: {
   currentRole: 'manager' | 'staff'
   onSwitchRole: () => void
+  onAddRole: () => void
   onLogout: () => void
 }) {
   return (
@@ -14,6 +16,12 @@ export default function RoleSwitcher({
         className="px-4 py-2 rounded-full text-xs font-semibold text-white bg-slate-900/90 border border-slate-700 shadow-lg backdrop-blur active:bg-slate-800 transition"
       >
         {currentRole === 'manager' ? 'Manager' : 'Staff'} · สลับบทบาท
+      </button>
+      <button
+        onClick={onAddRole}
+        className="px-4 py-2 rounded-full text-xs font-semibold text-blue-100 bg-blue-900/90 border border-blue-700 shadow-lg backdrop-blur active:bg-blue-800 transition"
+      >
+        เพิ่มบทบาท
       </button>
       <button
         onClick={onLogout}
