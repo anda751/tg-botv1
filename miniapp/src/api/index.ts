@@ -3,9 +3,7 @@ import axios from 'axios'
 // ===== Tasks =====
 export const taskApi = {
   getMyTasks: () =>
-    axios.get('/tasks', {
-      params: { 'filters[current_owner]': true, populate: 'project,current_owner' },
-    }),
+    axios.get('/tasks/my'),
 
   getWaitingPickup: () =>
     axios.get('/tasks', {

@@ -2,6 +2,22 @@ import { factories } from '@strapi/strapi';
 import { uploadProofImage } from '../../../services/supabase';
 
 export default factories.createCoreController('api::task.task', ({ strapi }) => ({
+  async my(ctx) {
+    const user = ctx.state.user;
+
+    const tasks = await strapi.entityService.findMany('api::task.task', {
+      filters: {
+        current_owner: {
+          id: user.id,
+        },
+      },
+      populate: ['project', 'current_owner'],
+      sort: ['updatedAt:desc', 'id:desc'],
+    });
+
+    return ctx.send(tasks);
+  },
+
   // ===== สร้างงานใหม่ =====
   async create(ctx) {
     const user = ctx.state.user;

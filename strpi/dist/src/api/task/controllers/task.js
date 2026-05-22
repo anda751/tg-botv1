@@ -3,6 +3,19 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const strapi_1 = require("@strapi/strapi");
 const supabase_1 = require("../../../services/supabase");
 exports.default = strapi_1.factories.createCoreController('api::task.task', ({ strapi }) => ({
+    async my(ctx) {
+        const user = ctx.state.user;
+        const tasks = await strapi.entityService.findMany('api::task.task', {
+            filters: {
+                current_owner: {
+                    id: user.id,
+                },
+            },
+            populate: ['project', 'current_owner'],
+            sort: ['updatedAt:desc', 'id:desc'],
+        });
+        return ctx.send(tasks);
+    },
     // ===== สร้างงานใหม่ =====
     async create(ctx) {
         const user = ctx.state.user;
