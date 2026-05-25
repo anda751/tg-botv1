@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import ManagerNav from '../../components/ManagerNav';
 import { projectApi } from '../../api';
 
@@ -13,7 +13,6 @@ type Project = {
 type JoinRequest = {
   id: number
   note?: string
-  status_request: 'pending' | 'approved' | 'rejected'
   project?: { id: number; name: string }
   requested_by?: { id: number; display_name: string; username: string }
 }
@@ -28,6 +27,7 @@ export default function Projects() {
   const [newName, setNewName] = useState('');
   const [newDeadline, setNewDeadline] = useState('');
   const [error, setError] = useState('');
+  const [filter, setFilter] = useState<'active' | 'closed' | 'all'>('active');
 
   useEffect(() => {
     loadAll();
@@ -54,9 +54,10 @@ export default function Projects() {
 
   async function handleCreate() {
     if (!newName.trim() || !newDeadline) {
-      setError('Please provide project name and deadline');
+      setError('กรอกชื่อโปรเจคและกำหนดส่ง');
       return;
     }
+
     setCreating(true);
     setError('');
     try {
@@ -68,19 +69,19 @@ export default function Projects() {
       setNewDeadline('');
       await loadAll();
     } catch (err: any) {
-      setError(err?.response?.data?.error?.message || 'Create project failed');
+      setError(err?.response?.data?.error?.message || 'สร้างโปรเจคไม่สำเร็จ');
     } finally {
       setCreating(false);
     }
   }
 
   async function handleCloseProject(projectId: number) {
-    if (!confirm('Close this project?')) return;
+    if (!confirm('ปิดโปรเจคนี้?')) return;
     try {
       await projectApi.close(projectId);
       await loadAll();
     } catch (err: any) {
-      alert(err?.response?.data?.error?.message || 'Close project failed');
+      alert(err?.response?.data?.error?.message || 'ปิดโปรเจคไม่สำเร็จ');
     }
   }
 
@@ -90,24 +91,32 @@ export default function Projects() {
       await projectApi.approveJoinRequest(requestId);
       await loadAll();
     } catch (err: any) {
-      alert(err?.response?.data?.error?.message || 'Approve failed');
+      alert(err?.response?.data?.error?.message || 'อนุมัติไม่สำเร็จ');
     } finally {
       setApprovingId(null);
     }
   }
 
   async function handleRejectRequest(requestId: number) {
-    const reason = prompt('Reason for rejection (optional):') ?? '';
+    const reason = prompt('เหตุผลการปฏิเสธ (ไม่บังคับ)') ?? '';
     setRejectingId(requestId);
     try {
       await projectApi.rejectJoinRequest(requestId, reason);
       await loadAll();
     } catch (err: any) {
-      alert(err?.response?.data?.error?.message || 'Reject failed');
+      alert(err?.response?.data?.error?.message || 'ปฏิเสธไม่สำเร็จ');
     } finally {
       setRejectingId(null);
     }
   }
+
+  const visibleProjects = useMemo(() => {
+    if (filter === 'all') return projects;
+    return projects.filter((p) => p.status_project === filter);
+  }, [projects, filter]);
+
+  const activeCount = projects.filter((p) => p.status_project === 'active').length;
+  const closedCount = projects.filter((p) => p.status_project === 'closed').length;
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col">
@@ -115,11 +124,12 @@ export default function Projects() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-xl font-bold text-white">Projects</h1>
-            <p className="text-xs text-slate-400 mt-0.5">Manage projects and join requests</p>
+            <p className="text-xs text-slate-400 mt-0.5">จัดการโปรเจคและคำขอเข้าร่วม</p>
           </div>
           <button
             onClick={loadAll}
             className="w-9 h-9 rounded-full flex items-center justify-center text-slate-400 bg-slate-800 active:bg-slate-700 transition"
+            title="รีเฟรช"
           >
             ↻
           </button>
@@ -127,22 +137,28 @@ export default function Projects() {
         <ManagerNav />
       </div>
 
-      <div className="px-4 py-4 space-y-4">
+      <div className="px-4 py-4 space-y-4 pb-8">
+        <div className="grid grid-cols-3 gap-2">
+          <StatCard label="Pending Requests" value={String(requests.length)} />
+          <StatCard label="Active Projects" value={String(activeCount)} />
+          <StatCard label="Closed Projects" value={String(closedCount)} />
+        </div>
+
         <div className="bg-slate-900 border border-slate-700 rounded-2xl p-4">
-          <p className="text-sm font-semibold text-white mb-3">Create Project</p>
+          <p className="text-sm font-semibold text-white mb-3">สร้างโปรเจคใหม่</p>
           <div className="space-y-2">
             <input
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              placeholder="Project name"
-              className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white"
+              placeholder="ชื่อโปรเจค"
+              className="w-full px-3 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white"
             />
             <input
               type="datetime-local"
               value={newDeadline}
               onChange={(e) => setNewDeadline(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white"
+              className="w-full px-3 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white"
             />
             {error && <p className="text-xs text-red-400">{error}</p>}
             <button
@@ -150,43 +166,43 @@ export default function Projects() {
               disabled={creating}
               className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600 disabled:opacity-50"
             >
-              {creating ? 'Creating...' : 'Create'}
+              {creating ? 'กำลังสร้าง...' : 'สร้างโปรเจค'}
             </button>
           </div>
         </div>
 
         <div className="bg-slate-900 border border-slate-700 rounded-2xl p-4">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-semibold text-white">Join Requests</p>
-            <span className="text-xs text-slate-400">{requests.length} pending</span>
+            <p className="text-sm font-semibold text-white">คำขอเข้าโปรเจค</p>
+            <span className="text-xs text-slate-400">{requests.length} รายการ</span>
           </div>
           {loading ? (
             <div className="h-12 bg-slate-800 rounded-xl animate-pulse" />
           ) : requests.length === 0 ? (
-            <p className="text-sm text-slate-500">No pending requests</p>
+            <p className="text-sm text-slate-500">ไม่มีคำขอค้าง</p>
           ) : (
             <div className="space-y-2">
               {requests.map((r) => (
                 <div key={r.id} className="bg-slate-800 border border-slate-700 rounded-xl p-3">
-                  <p className="text-sm text-white">
-                    {(r.requested_by?.display_name || r.requested_by?.username || 'Unknown')} wants to join{' '}
+                  <p className="text-sm text-white leading-snug">
+                    {(r.requested_by?.display_name || r.requested_by?.username || 'Unknown')} ขอเข้าโปรเจค{' '}
                     <span className="font-semibold">{r.project?.name || '-'}</span>
                   </p>
-                  {r.note && <p className="text-xs text-slate-400 mt-1">Note: {r.note}</p>}
+                  {r.note && <p className="text-xs text-slate-400 mt-1">หมายเหตุ: {r.note}</p>}
                   <div className="flex gap-2 mt-3">
                     <button
                       onClick={() => handleRejectRequest(r.id)}
                       disabled={rejectingId === r.id}
                       className="flex-1 py-2 rounded-lg text-xs font-semibold text-red-300 bg-red-950/40 border border-red-800/60 disabled:opacity-40"
                     >
-                      {rejectingId === r.id ? '...' : 'Reject'}
+                      {rejectingId === r.id ? '...' : 'ปฏิเสธ'}
                     </button>
                     <button
                       onClick={() => handleApproveRequest(r.id)}
                       disabled={approvingId === r.id}
                       className="flex-1 py-2 rounded-lg text-xs font-semibold text-white bg-green-600 disabled:opacity-40"
                     >
-                      {approvingId === r.id ? '...' : 'Approve'}
+                      {approvingId === r.id ? '...' : 'อนุมัติ'}
                     </button>
                   </div>
                 </div>
@@ -195,38 +211,66 @@ export default function Projects() {
           )}
         </div>
 
-        <div className="space-y-2 pb-8">
-          <p className="text-sm font-semibold text-white">All Projects</p>
+        <div className="bg-slate-900 border border-slate-700 rounded-2xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-semibold text-white">รายการโปรเจค</p>
+            <div className="flex gap-1">
+              {(['active', 'closed', 'all'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setFilter(tab)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${
+                    filter === tab ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400'
+                  }`}
+                >
+                  {tab === 'active' ? 'Active' : tab === 'closed' ? 'Closed' : 'All'}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {loading ? (
             <div className="h-16 bg-slate-800 rounded-xl animate-pulse" />
-          ) : projects.length === 0 ? (
-            <p className="text-sm text-slate-500">No projects</p>
+          ) : visibleProjects.length === 0 ? (
+            <p className="text-sm text-slate-500">ไม่มีโปรเจคในหมวดนี้</p>
           ) : (
-            projects.map((p) => (
-              <div key={p.id} className="bg-slate-900 border border-slate-700 rounded-xl p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-white truncate">{p.name}</p>
-                    <p className="text-xs text-slate-400">
-                      {new Date(p.deadline).toLocaleString()} · members {p.members?.length ?? 0}
-                    </p>
+            <div className="space-y-2">
+              {visibleProjects.map((p) => (
+                <div key={p.id} className="bg-slate-800 border border-slate-700 rounded-xl p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-white truncate">{p.name}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Due {new Date(p.deadline).toLocaleString()}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-0.5">Members {p.members?.length ?? 0}</p>
+                    </div>
+                    {p.status_project === 'active' ? (
+                      <button
+                        onClick={() => handleCloseProject(p.id)}
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold text-red-300 bg-red-950/40 border border-red-800/60"
+                      >
+                        ปิดโปรเจค
+                      </button>
+                    ) : (
+                      <span className="px-2.5 py-1 rounded-lg text-xs text-slate-400 bg-slate-900">Closed</span>
+                    )}
                   </div>
-                  {p.status_project === 'active' ? (
-                    <button
-                      onClick={() => handleCloseProject(p.id)}
-                      className="px-3 py-1.5 rounded-lg text-xs font-semibold text-red-300 bg-red-950/40 border border-red-800/60"
-                    >
-                      Close
-                    </button>
-                  ) : (
-                    <span className="text-xs text-slate-500">Closed</span>
-                  )}
                 </div>
-              </div>
-            ))
+              ))}
+            </div>
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function StatCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5">
+      <p className="text-[11px] text-slate-400">{label}</p>
+      <p className="text-lg font-bold text-white leading-tight">{value}</p>
     </div>
   );
 }
