@@ -38,11 +38,36 @@ export async function uploadProofImage(
 }
 
 export async function getSignedUrl(path: string): Promise<string> {
+  return getSignedUrlWithExpiry(path, 60 * 60);
+}
+
+export async function getSignedUrlWithExpiry(path: string, expiresInSeconds: number): Promise<string> {
   const { data, error } = await getSupabase().storage
     .from(process.env.SUPABASE_BUCKET!)
-    .createSignedUrl(path, 60 * 60);
+    .createSignedUrl(path, expiresInSeconds);
   if (error) throw new Error(`Signed URL failed: ${error.message}`);
   return data.signedUrl;
+}
+
+export function getPublicUrl(path: string): string {
+  const { data } = getSupabase().storage
+    .from(process.env.SUPABASE_BUCKET!)
+    .getPublicUrl(path);
+
+  return data.publicUrl;
+}
+
+export async function resolveImageUrl(pathOrUrl: string): Promise<string> {
+  const value = String(pathOrUrl || '').trim();
+  if (!value) throw new Error('Image path/url is empty');
+  if (isHttpUrl(value)) return value;
+
+  // Public bucket: stable URL without expiry.
+  const publicUrl = getPublicUrl(value);
+  if (publicUrl) return publicUrl;
+
+  // Private bucket fallback: use a long-lived signed URL.
+  return getSignedUrlWithExpiry(value, 60 * 60 * 24 * 365 * 10);
 }
 
 function sanitizeFilename(filename: string | undefined): string {
@@ -99,4 +124,8 @@ function ensureFilenameWithExtension(filename: string, fallbackExt: string): str
   const hasExt = /\.[A-Za-z0-9]+$/.test(filename);
   if (hasExt) return filename;
   return `${filename}.${fallbackExt}`;
+}
+
+function isHttpUrl(value: string): boolean {
+  return /^https?:\/\//i.test(value);
 }

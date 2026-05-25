@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getSignedUrl = exports.uploadProofImage = void 0;
+exports.resolveImageUrl = exports.getPublicUrl = exports.getSignedUrlWithExpiry = exports.getSignedUrl = exports.uploadProofImage = void 0;
 const supabase_js_1 = require("@supabase/supabase-js");
 const ws_1 = __importDefault(require("ws"));
 let _supabase = null;
@@ -33,14 +33,39 @@ async function uploadProofImage(file, filename, mimeType) {
 }
 exports.uploadProofImage = uploadProofImage;
 async function getSignedUrl(path) {
+    return getSignedUrlWithExpiry(path, 60 * 60);
+}
+exports.getSignedUrl = getSignedUrl;
+async function getSignedUrlWithExpiry(path, expiresInSeconds) {
     const { data, error } = await getSupabase().storage
         .from(process.env.SUPABASE_BUCKET)
-        .createSignedUrl(path, 60 * 60);
+        .createSignedUrl(path, expiresInSeconds);
     if (error)
         throw new Error(`Signed URL failed: ${error.message}`);
     return data.signedUrl;
 }
-exports.getSignedUrl = getSignedUrl;
+exports.getSignedUrlWithExpiry = getSignedUrlWithExpiry;
+function getPublicUrl(path) {
+    const { data } = getSupabase().storage
+        .from(process.env.SUPABASE_BUCKET)
+        .getPublicUrl(path);
+    return data.publicUrl;
+}
+exports.getPublicUrl = getPublicUrl;
+async function resolveImageUrl(pathOrUrl) {
+    const value = String(pathOrUrl || '').trim();
+    if (!value)
+        throw new Error('Image path/url is empty');
+    if (isHttpUrl(value))
+        return value;
+    // Public bucket: stable URL without expiry.
+    const publicUrl = getPublicUrl(value);
+    if (publicUrl)
+        return publicUrl;
+    // Private bucket fallback: use a long-lived signed URL.
+    return getSignedUrlWithExpiry(value, 60 * 60 * 24 * 365 * 10);
+}
+exports.resolveImageUrl = resolveImageUrl;
 function sanitizeFilename(filename) {
     const base = (filename || 'proof')
         .trim()
@@ -92,4 +117,7 @@ function ensureFilenameWithExtension(filename, fallbackExt) {
     if (hasExt)
         return filename;
     return `${filename}.${fallbackExt}`;
+}
+function isHttpUrl(value) {
+    return /^https?:\/\//i.test(value);
 }

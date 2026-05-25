@@ -1,6 +1,6 @@
 import { factories } from '@strapi/strapi';
 import { promises as fs } from 'node:fs';
-import { getSignedUrl, uploadProofImage } from '../../../services/supabase';
+import { resolveImageUrl, uploadProofImage } from '../../../services/supabase';
 
 export default factories.createCoreController('api::task.task', ({ strapi }) => ({
   async my(ctx) {
@@ -123,10 +123,12 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
       uploadedMediaId = null;
     }
 
+    const resolvedImageUrl = await resolveImageUrl(imagePath);
+
     await strapi.entityService.create('api::proof-image.proof-image', {
       data: {
         task: id,
-        image_url: imagePath,  // เก็บ path ไว้ใน DB
+        image_url: resolvedImageUrl,
         image_file: uploadedMediaId,
         report_text,
         submitted_by: user.id,
@@ -147,19 +149,12 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
       },
     });
 
-    let signedImageUrl = '';
-    try {
-      signedImageUrl = await getSignedUrl(imagePath);
-    } catch {
-      signedImageUrl = '';
-    }
-
     await strapi.service('api::task.task').notifyManager({
       taskId: id,
       taskName: task.name,
       submittedBy: user.username,
       reportText: report_text,
-      imageUrl: signedImageUrl,
+      imageUrl: resolvedImageUrl,
       imageBuffer: fileBuffer,
       imageFilename: file.name || file.filename || file.originalFilename || 'proof',
       imageMimeType: file.type,

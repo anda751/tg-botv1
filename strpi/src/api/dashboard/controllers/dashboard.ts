@@ -1,5 +1,5 @@
 import { factories } from '@strapi/strapi';
-import { getSignedUrl } from '../../../services/supabase';
+import { resolveImageUrl } from '../../../services/supabase';
 
 export default factories.createCoreController('api::task.task', ({ strapi }) => ({
 
@@ -108,12 +108,12 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
           (a: any, b: any) => new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime(),
         )[0] ?? null;
 
-        let signedUrl: string | null = null;
+        let imageUrl: string | null = null;
         if (latestProof?.image_url) {
           try {
-            signedUrl = await getSignedUrl(latestProof.image_url);
+            imageUrl = await resolveImageUrl(latestProof.image_url);
           } catch {
-            signedUrl = null;
+            imageUrl = null;
           }
         }
 
@@ -124,7 +124,7 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
             ? { id: t.current_owner.id, display_name: t.current_owner.display_name }
             : null,
           latest_proof: latestProof ? {
-            image_url: signedUrl,
+            image_url: imageUrl,
             report_text: latestProof.report_text,
             submitted_at: latestProof.submitted_at,
           } : null,

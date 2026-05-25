@@ -109,10 +109,11 @@ exports.default = strapi_1.factories.createCoreController('api::task.task', ({ s
         catch {
             uploadedMediaId = null;
         }
+        const resolvedImageUrl = await (0, supabase_1.resolveImageUrl)(imagePath);
         await strapi.entityService.create('api::proof-image.proof-image', {
             data: {
                 task: id,
-                image_url: imagePath, // เก็บ path ไว้ใน DB
+                image_url: resolvedImageUrl,
                 image_file: uploadedMediaId,
                 report_text,
                 submitted_by: user.id,
@@ -130,19 +131,12 @@ exports.default = strapi_1.factories.createCoreController('api::task.task', ({ s
                 note: report_text,
             },
         });
-        let signedImageUrl = '';
-        try {
-            signedImageUrl = await (0, supabase_1.getSignedUrl)(imagePath);
-        }
-        catch {
-            signedImageUrl = '';
-        }
         await strapi.service('api::task.task').notifyManager({
             taskId: id,
             taskName: task.name,
             submittedBy: user.username,
             reportText: report_text,
-            imageUrl: signedImageUrl,
+            imageUrl: resolvedImageUrl,
             imageBuffer: fileBuffer,
             imageFilename: file.name || file.filename || file.originalFilename || 'proof',
             imageMimeType: file.type,

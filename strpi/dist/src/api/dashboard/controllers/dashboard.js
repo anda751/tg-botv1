@@ -97,13 +97,13 @@ exports.default = strapi_1.factories.createCoreController('api::task.task', ({ s
         const result = await Promise.all(tasks.map(async (t) => {
             var _a, _b;
             const latestProof = (_b = (_a = t.proof_images) === null || _a === void 0 ? void 0 : _a.sort((a, b) => new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime())[0]) !== null && _b !== void 0 ? _b : null;
-            let signedUrl = null;
+            let imageUrl = null;
             if (latestProof === null || latestProof === void 0 ? void 0 : latestProof.image_url) {
                 try {
-                    signedUrl = await (0, supabase_1.getSignedUrl)(latestProof.image_url);
+                    imageUrl = await (0, supabase_1.resolveImageUrl)(latestProof.image_url);
                 }
                 catch {
-                    signedUrl = null;
+                    imageUrl = null;
                 }
             }
             return {
@@ -113,7 +113,7 @@ exports.default = strapi_1.factories.createCoreController('api::task.task', ({ s
                     ? { id: t.current_owner.id, display_name: t.current_owner.display_name }
                     : null,
                 latest_proof: latestProof ? {
-                    image_url: signedUrl,
+                    image_url: imageUrl,
                     report_text: latestProof.report_text,
                     submitted_at: latestProof.submitted_at,
                 } : null,
