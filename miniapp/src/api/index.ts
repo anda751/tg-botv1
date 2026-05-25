@@ -5,6 +5,9 @@ export const taskApi = {
   getMyTasks: () =>
     axios.get('/tasks/my'),
 
+  getHiddenTasks: () =>
+    axios.get('/tasks/hidden'),
+
   getWaitingPickup: () =>
     axios.get('/tasks/waiting-pickup'),
 
@@ -29,6 +32,9 @@ export const taskApi = {
 
   hide: (taskId: number) =>
     axios.post(`/tasks/${taskId}/hide`),
+
+  restore: (taskId: number) =>
+    axios.post(`/tasks/${taskId}/restore`),
 }
 
 // ===== Projects =====
@@ -88,10 +94,12 @@ export const dashboardApi = {
 // ===== Notifications =====
 export const notificationApi = {
   getMy: () => axios.get('/notifications/my'),
+  getHidden: () => axios.get('/notifications/hidden'),
   markRead: (notificationId: number) => axios.post(`/notifications/${notificationId}/read`),
   markAllRead: () => axios.post('/notifications/read-all'),
   hide: (notificationId: number) => axios.post(`/notifications/${notificationId}/hide`),
   hideRead: () => axios.post('/notifications/hide-read'),
+  restore: (notificationId: number) => axios.post(`/notifications/${notificationId}/restore`),
 }
 
 // ===== Users =====

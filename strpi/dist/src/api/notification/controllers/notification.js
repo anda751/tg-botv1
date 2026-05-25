@@ -17,6 +17,20 @@ exports.default = strapi_1.factories.createCoreController(notificationUid, ({ st
         });
         return ctx.send(notifications.map(serializeNotification));
     },
+    async hidden(ctx) {
+        const user = ctx.state.user;
+        if (!(user === null || user === void 0 ? void 0 : user.id))
+            return ctx.unauthorized('กรุณาเข้าสู่ระบบ');
+        const notifications = await strapi.entityService.findMany(notificationUid, {
+            filters: {
+                recipient: { id: user.id },
+                is_hidden: true,
+            },
+            sort: ['hidden_at:desc', 'updatedAt:desc', 'id:desc'],
+            limit: 20,
+        });
+        return ctx.send(notifications.map(serializeNotification));
+    },
     async markRead(ctx) {
         var _a, _b;
         const user = ctx.state.user;
@@ -49,6 +63,7 @@ exports.default = strapi_1.factories.createCoreController(notificationUid, ({ st
             filters: {
                 recipient: { id: user.id },
                 is_read: false,
+                is_hidden: false,
             },
             fields: ['id'],
             limit: -1,
@@ -110,6 +125,30 @@ exports.default = strapi_1.factories.createCoreController(notificationUid, ({ st
         return ctx.send({
             message: 'ซ่อนรายการที่อ่านแล้วเรียบร้อย',
             count: notifications.length,
+        });
+    },
+    async restore(ctx) {
+        var _a;
+        const user = ctx.state.user;
+        const { id } = ctx.params;
+        if (!(user === null || user === void 0 ? void 0 : user.id))
+            return ctx.unauthorized('กรุณาเข้าสู่ระบบ');
+        const notification = await strapi.entityService.findOne(notificationUid, id, {
+            populate: ['recipient'],
+        });
+        if (!notification)
+            return ctx.notFound('ไม่พบการแจ้งเตือน');
+        if (((_a = notification.recipient) === null || _a === void 0 ? void 0 : _a.id) !== user.id)
+            return ctx.forbidden('คุณไม่มีสิทธิ์เข้าถึงการแจ้งเตือนนี้');
+        const updated = await strapi.entityService.update(notificationUid, id, {
+            data: {
+                is_hidden: false,
+                hidden_at: null,
+            },
+        });
+        return ctx.send({
+            message: 'กู้คืนการแจ้งเตือนเรียบร้อย',
+            notification: serializeNotification(updated),
         });
     },
 }));

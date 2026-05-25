@@ -5,6 +5,7 @@ exports.default = {
         // Default CRUD routes
         { method: 'GET', path: '/tasks', handler: 'task.find', config: { auth: false } },
         { method: 'GET', path: '/tasks/my', handler: 'task.my', config: { auth: false } },
+        { method: 'GET', path: '/tasks/hidden', handler: 'task.hidden', config: { auth: false } },
         { method: 'GET', path: '/tasks/waiting-pickup', handler: 'task.waitingPickup', config: { auth: false } },
         { method: 'GET', path: '/tasks/:id', handler: 'task.findOne', config: { auth: false } },
         { method: 'POST', path: '/tasks', handler: 'task.create', config: { auth: false } },
@@ -14,5 +15,6 @@ exports.default = {
         { method: 'POST', path: '/tasks/:id/approve', handler: 'task.approve', config: { auth: false } },
         { method: 'POST', path: '/tasks/:id/reject', handler: 'task.reject', config: { auth: false } },
         { method: 'POST', path: '/tasks/:id/hide', handler: 'task.hide', config: { auth: false } },
+        { method: 'POST', path: '/tasks/:id/restore', handler: 'task.restore', config: { auth: false } },
     ],
 };

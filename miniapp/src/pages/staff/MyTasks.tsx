@@ -20,6 +20,11 @@ type NotificationItem = {
   createdAt: string
 }
 
+type HiddenPanelState = {
+  notifications: NotificationItem[]
+  tasks: Task[]
+}
+
 const statusLabel: Record<Task['status_task'], { text: string; color: string }> = {
   in_progress: { text: 'กำลังทำ', color: 'bg-blue-100 text-blue-700' },
   under_review: { text: 'รอตรวจ', color: 'bg-amber-100 text-amber-700' },
@@ -32,10 +37,13 @@ export default function MyTasks() {
   const location = useLocation();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [hidden, setHidden] = useState<HiddenPanelState>({ notifications: [], tasks: [] });
   const [loading, setLoading] = useState(true);
   const [notificationsLoading, setNotificationsLoading] = useState(true);
+  const [hiddenLoading, setHiddenLoading] = useState(true);
   const [error, setError] = useState('');
   const [notificationsError, setNotificationsError] = useState('');
+  const [hiddenError, setHiddenError] = useState('');
   const [filter, setFilter] = useState<'active' | 'done'>('active');
   const [successMessage, setSuccessMessage] = useState<string>('');
   const [markingAllRead, setMarkingAllRead] = useState(false);
@@ -43,6 +51,9 @@ export default function MyTasks() {
   const [hidingTaskId, setHidingTaskId] = useState<number | null>(null);
   const [openingNotificationId, setOpeningNotificationId] = useState<number | null>(null);
   const [hidingNotificationId, setHidingNotificationId] = useState<number | null>(null);
+  const [restoringNotificationId, setRestoringNotificationId] = useState<number | null>(null);
+  const [restoringTaskId, setRestoringTaskId] = useState<number | null>(null);
+  const [hiddenOpen, setHiddenOpen] = useState(false);
 
   useEffect(() => {
     const message = (location.state as any)?.successMessage;
@@ -55,6 +66,7 @@ export default function MyTasks() {
   useEffect(() => {
     loadTasks();
     loadNotifications();
+    loadHidden();
   }, []);
 
   async function loadTasks() {
@@ -84,6 +96,32 @@ export default function MyTasks() {
       setNotificationsError(extractMessage(err, 'โหลดกิจกรรมล่าสุดไม่สำเร็จ'));
     } finally {
       setNotificationsLoading(false);
+    }
+  }
+
+  async function loadHidden() {
+    setHiddenLoading(true);
+    setHiddenError('');
+    try {
+      const [hiddenNotificationsRes, hiddenTasksRes] = await Promise.all([
+        notificationApi.getHidden(),
+        taskApi.getHiddenTasks(),
+      ]);
+      const hiddenNotifications = Array.isArray(hiddenNotificationsRes.data)
+        ? hiddenNotificationsRes.data
+        : (hiddenNotificationsRes.data.data ?? []);
+      const hiddenTasks = Array.isArray(hiddenTasksRes.data)
+        ? hiddenTasksRes.data
+        : (hiddenTasksRes.data.data ?? []);
+      setHidden({
+        notifications: hiddenNotifications,
+        tasks: hiddenTasks,
+      });
+    } catch (err) {
+      setHiddenError(extractMessage(err, 'โหลดรายการที่ซ่อนไว้ไม่สำเร็จ'));
+      setHidden({ notifications: [], tasks: [] });
+    } finally {
+      setHiddenLoading(false);
     }
   }
 
@@ -122,7 +160,14 @@ export default function MyTasks() {
     setHidingNotificationId(notificationId);
     try {
       await notificationApi.hide(notificationId);
+      const hiddenItem = notifications.find((item) => item.id === notificationId);
       setNotifications((items) => items.filter((item) => item.id !== notificationId));
+      if (hiddenItem) {
+        setHidden((current) => ({
+          ...current,
+          notifications: [{ ...hiddenItem, is_hidden: true }, ...current.notifications],
+        }));
+      }
     } catch (err) {
       setNotificationsError(extractMessage(err, 'ซ่อนการแจ้งเตือนไม่สำเร็จ'));
     } finally {
@@ -134,7 +179,14 @@ export default function MyTasks() {
     setHidingRead(true);
     try {
       await notificationApi.hideRead();
+      const movedItems = notifications.filter((item) => item.is_read);
       setNotifications((items) => items.filter((item) => !item.is_read));
+      if (movedItems.length) {
+        setHidden((current) => ({
+          ...current,
+          notifications: [...movedItems.map((item) => ({ ...item, is_hidden: true })), ...current.notifications],
+        }));
+      }
     } catch (err) {
       setNotificationsError(extractMessage(err, 'ซ่อนรายการที่อ่านแล้วไม่สำเร็จ'));
     } finally {
@@ -146,11 +198,56 @@ export default function MyTasks() {
     setHidingTaskId(taskId);
     try {
       await taskApi.hide(taskId);
+      const hiddenTask = tasks.find((item) => item.id === taskId);
       setTasks((items) => items.filter((item) => item.id !== taskId));
+      if (hiddenTask) {
+        setHidden((current) => ({
+          ...current,
+          tasks: [hiddenTask, ...current.tasks],
+        }));
+      }
     } catch (err) {
       setError(extractMessage(err, 'ซ่อนงานไม่สำเร็จ'));
     } finally {
       setHidingTaskId(null);
+    }
+  }
+
+  async function handleRestoreNotification(notificationId: number) {
+    setRestoringNotificationId(notificationId);
+    try {
+      await notificationApi.restore(notificationId);
+      const restored = hidden.notifications.find((item) => item.id === notificationId);
+      setHidden((current) => ({
+        ...current,
+        notifications: current.notifications.filter((item) => item.id !== notificationId),
+      }));
+      if (restored) {
+        setNotifications((current) => [{ ...restored, is_hidden: false }, ...current]);
+      }
+    } catch (err) {
+      setHiddenError(extractMessage(err, 'กู้คืนการแจ้งเตือนไม่สำเร็จ'));
+    } finally {
+      setRestoringNotificationId(null);
+    }
+  }
+
+  async function handleRestoreTask(taskId: number) {
+    setRestoringTaskId(taskId);
+    try {
+      await taskApi.restore(taskId);
+      const restored = hidden.tasks.find((item) => item.id === taskId);
+      setHidden((current) => ({
+        ...current,
+        tasks: current.tasks.filter((item) => item.id !== taskId),
+      }));
+      if (restored) {
+        setTasks((current) => [restored, ...current]);
+      }
+    } catch (err) {
+      setHiddenError(extractMessage(err, 'กู้คืนงานไม่สำเร็จ'));
+    } finally {
+      setRestoringTaskId(null);
     }
   }
 
@@ -161,6 +258,7 @@ export default function MyTasks() {
 
   const unreadCount = notifications.filter((item) => !item.is_read).length;
   const readCount = notifications.filter((item) => item.is_read).length;
+  const hiddenCount = hidden.notifications.length + hidden.tasks.length;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -304,6 +402,82 @@ export default function MyTasks() {
               </div>
             )}
           </div>
+        </section>
+
+        <section className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+          <button
+            onClick={() => setHiddenOpen((value) => !value)}
+            className="w-full px-4 py-4 flex items-center justify-between text-left"
+          >
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-semibold text-gray-800">รายการที่ซ่อนไว้</h2>
+                {hiddenCount > 0 && (
+                  <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold">
+                    {hiddenCount}
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-gray-500 mt-1">ซ่อนไว้เพื่อลดความรก แต่ยังกู้คืนกลับมาได้</p>
+            </div>
+            <span className="text-lg text-slate-400">{hiddenOpen ? '−' : '+'}</span>
+          </button>
+
+          {hiddenOpen && (
+            <div className="px-4 pb-4 space-y-4 border-t border-gray-100">
+              {hiddenLoading ? (
+                <div className="text-sm text-gray-400 py-3">กำลังโหลดรายการที่ซ่อนไว้...</div>
+              ) : hiddenError ? (
+                <StateBox title="โหลดรายการที่ซ่อนไว้ไม่สำเร็จ" message={hiddenError} actionLabel="ลองใหม่" onAction={loadHidden} />
+              ) : hiddenCount === 0 ? (
+                <StateBox title="ยังไม่มีรายการที่ซ่อนไว้" message="เมื่อซ่อนกิจกรรมล่าสุดหรืองานเสร็จแล้ว รายการจะมาอยู่ตรงนี้" />
+              ) : (
+                <>
+                  {hidden.notifications.length > 0 && (
+                    <div className="space-y-2 pt-4">
+                      <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">กิจกรรมล่าสุด</p>
+                      {hidden.notifications.map((item) => (
+                        <div key={item.id} className="rounded-xl border border-gray-200 bg-slate-50 p-4 flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-gray-800">{item.title}</p>
+                            <p className="text-sm text-gray-600 whitespace-pre-line mt-1">{item.message}</p>
+                          </div>
+                          <button
+                            onClick={() => handleRestoreNotification(item.id)}
+                            disabled={restoringNotificationId === item.id}
+                            className="px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-700 bg-blue-100 disabled:opacity-40"
+                          >
+                            {restoringNotificationId === item.id ? 'กำลังกู้คืน...' : 'กู้คืน'}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {hidden.tasks.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">งานเสร็จแล้ว</p>
+                      {hidden.tasks.map((task) => (
+                        <div key={task.id} className="rounded-xl border border-gray-200 bg-slate-50 p-4 flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-gray-800">{task.name}</p>
+                            {task.project && <p className="text-xs text-gray-500 mt-1">โปรเจกต์: {task.project.name}</p>}
+                          </div>
+                          <button
+                            onClick={() => handleRestoreTask(task.id)}
+                            disabled={restoringTaskId === task.id}
+                            className="px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-700 bg-blue-100 disabled:opacity-40"
+                          >
+                            {restoringTaskId === task.id ? 'กำลังกู้คืน...' : 'กู้คืน'}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
         </section>
 
         {loading ? (

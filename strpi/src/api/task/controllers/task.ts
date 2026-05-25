@@ -18,6 +18,21 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
     return ctx.send(tasks);
   },
 
+  async hidden(ctx) {
+    const user = ctx.state.user;
+
+    const tasks = await strapi.entityService.findMany('api::task.task', {
+      filters: {
+        current_owner: { id: user.id },
+        is_hidden_for_owner: true,
+      },
+      populate: ['project', 'current_owner'],
+      sort: ['hidden_for_owner_at:desc', 'updatedAt:desc', 'id:desc'],
+    } as any);
+
+    return ctx.send(tasks);
+  },
+
   async waitingPickup(ctx) {
     const tasks = await strapi.entityService.findMany('api::task.task', {
       filters: { status_task: 'waiting_pickup' },
@@ -335,6 +350,27 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
     });
 
     return ctx.send({ message: 'ซ่อนงานเรียบร้อย' });
+  },
+
+  async restore(ctx) {
+    const user = ctx.state.user;
+    const { id } = ctx.params;
+
+    const task = await strapi.entityService.findOne('api::task.task', id, {
+      populate: ['current_owner'],
+    }) as any;
+
+    if (!task) return ctx.notFound('ไม่พบงาน');
+    if (task.current_owner?.id !== user.id) return ctx.forbidden('คุณไม่มีสิทธิ์กู้คืนงานนี้');
+
+    await strapi.entityService.update('api::task.task', id, {
+      data: {
+        is_hidden_for_owner: false,
+        hidden_for_owner_at: null,
+      } as any,
+    });
+
+    return ctx.send({ message: 'กู้คืนงานเรียบร้อย' });
   },
 }));
 
