@@ -19,6 +19,7 @@ export default function CreateTask() {
   const [submitting, setSubmitting] = useState(false);
   const [requestingProjectId, setRequestingProjectId] = useState<number | null>(null);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
     loadProjects();
@@ -57,13 +58,14 @@ export default function CreateTask() {
     }
 
     setError('');
+    setSuccessMessage('');
     setSubmitting(true);
     try {
       await taskApi.create({
         name: name.trim(),
         project: selectedProject as number,
       });
-      navigate('/');
+      navigate('/', { state: { successMessage: 'สร้างงานเรียบร้อยแล้ว' } });
     } catch (err: any) {
       setError(err?.response?.data?.error?.message || 'เกิดข้อผิดพลาด');
     } finally {
@@ -74,9 +76,11 @@ export default function CreateTask() {
   async function handleRequestJoin(projectId: number) {
     setRequestingProjectId(projectId);
     setError('');
+    setSuccessMessage('');
     try {
       await projectApi.requestJoin(projectId, '');
       setJoinableProjects((prev) => prev.filter((p) => p.id !== projectId));
+      setSuccessMessage('ส่งคำขอเข้าโปรเจกต์เรียบร้อยแล้ว');
     } catch (err: any) {
       setError(err?.response?.data?.error?.message || 'เกิดข้อผิดพลาด');
     } finally {
@@ -99,6 +103,12 @@ export default function CreateTask() {
       </div>
 
       <div className="flex-1 px-4 py-6 space-y-6">
+        {successMessage && (
+          <div className="bg-green-950/50 border border-green-800 text-green-300 text-sm px-4 py-3 rounded-xl">
+            {successMessage}
+          </div>
+        )}
+
         <div>
           <label className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2 block">
             ชื่องาน <span className="text-red-400">*</span>

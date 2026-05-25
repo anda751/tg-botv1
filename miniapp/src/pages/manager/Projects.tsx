@@ -30,6 +30,7 @@ export default function Projects() {
   const [projectsError, setProjectsError] = useState('');
   const [requestsError, setRequestsError] = useState('');
   const [actionError, setActionError] = useState('');
+  const [actionSuccess, setActionSuccess] = useState('');
   const [filter, setFilter] = useState<'active' | 'closed' | 'all'>('active');
 
   useEffect(() => {
@@ -79,6 +80,7 @@ export default function Projects() {
     setCreating(true);
     setFormError('');
     setActionError('');
+    setActionSuccess('');
     try {
       await projectApi.create({
         name: newName.trim(),
@@ -86,6 +88,7 @@ export default function Projects() {
       });
       setNewName('');
       setNewDeadline('');
+      setActionSuccess('สร้างโปรเจกต์เรียบร้อย');
       await loadAll();
     } catch (err: any) {
       setFormError(extractMessage(err, 'สร้างโปรเจกต์ไม่สำเร็จ'));
@@ -98,8 +101,10 @@ export default function Projects() {
     if (!confirm('ปิดโปรเจกต์นี้?')) return;
 
     setActionError('');
+    setActionSuccess('');
     try {
       await projectApi.close(projectId);
+      setActionSuccess('ปิดโปรเจกต์เรียบร้อย');
       await loadAll();
     } catch (err: any) {
       setActionError(extractMessage(err, 'ปิดโปรเจกต์ไม่สำเร็จ'));
@@ -109,8 +114,10 @@ export default function Projects() {
   async function handleApproveRequest(requestId: number) {
     setApprovingId(requestId);
     setActionError('');
+    setActionSuccess('');
     try {
       await projectApi.approveJoinRequest(requestId);
+      setActionSuccess('อนุมัติคำขอเข้าร่วมเรียบร้อย');
       await loadAll();
     } catch (err: any) {
       setActionError(extractMessage(err, 'อนุมัติคำขอไม่สำเร็จ'));
@@ -123,8 +130,10 @@ export default function Projects() {
     const reason = prompt('เหตุผลการปฏิเสธ (ไม่บังคับ)') ?? '';
     setRejectingId(requestId);
     setActionError('');
+    setActionSuccess('');
     try {
       await projectApi.rejectJoinRequest(requestId, reason);
+      setActionSuccess('ปฏิเสธคำขอเข้าร่วมเรียบร้อย');
       await loadAll();
     } catch (err: any) {
       setActionError(extractMessage(err, 'ปฏิเสธคำขอไม่สำเร็จ'));
@@ -161,7 +170,8 @@ export default function Projects() {
       </div>
 
       <div className="px-4 py-4 space-y-4 pb-8">
-        {actionError && <InlineNotice message={actionError} />}
+        {actionError && <InlineNotice tone="red" title="ทำรายการไม่สำเร็จ" message={actionError} />}
+        {actionSuccess && <InlineNotice tone="green" title="ทำรายการสำเร็จ" message={actionSuccess} />}
 
         <div className="grid grid-cols-3 gap-2">
           <StatCard label="คำขอรออนุมัติ" value={String(requests.length)} />
@@ -324,11 +334,23 @@ function StatCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-function InlineNotice({ message }: { message: string }) {
+function InlineNotice({
+  tone,
+  title,
+  message,
+}: {
+  tone: 'red' | 'green'
+  title: string
+  message: string
+}) {
+  const toneClass = tone === 'green'
+    ? 'border-green-800/70 bg-green-950/40 text-green-100'
+    : 'border-red-800/70 bg-red-950/40 text-red-100';
+
   return (
-    <div className="rounded-2xl border border-red-800/70 bg-red-950/40 px-4 py-3">
-      <p className="text-sm font-semibold text-red-100">ทำรายการไม่สำเร็จ</p>
-      <p className="text-xs text-red-200/90 mt-1">{message}</p>
+    <div className={`rounded-2xl border px-4 py-3 ${toneClass}`}>
+      <p className="text-sm font-semibold">{title}</p>
+      <p className="text-xs mt-1 opacity-90">{message}</p>
     </div>
   );
 }

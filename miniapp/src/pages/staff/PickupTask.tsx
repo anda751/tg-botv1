@@ -18,6 +18,7 @@ export default function PickupTask() {
   const [pickingId, setPickingId] = useState<number | null>(null);
   const [doneId, setDoneId] = useState<number | null>(null);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
     loadTasks();
@@ -40,10 +41,12 @@ export default function PickupTask() {
 
   async function handlePickup(taskId: number) {
     setError('');
+    setSuccessMessage('');
     setPickingId(taskId);
     try {
       await handoverApi.pickup(taskId);
       setDoneId(taskId);
+      setSuccessMessage('ส่งคำขอรับงานเรียบร้อยแล้ว รอหัวหน้าอนุมัติ');
       setTimeout(() => {
         setDoneId(null);
         loadTasks();
@@ -60,7 +63,7 @@ export default function PickupTask() {
       <div className="bg-slate-900 border-b border-slate-800 px-4 pt-6 pb-4 flex items-center gap-3">
         <button
           onClick={() => navigate('/')}
-          className="w-9 h-9 rounded-full flex items-center justify-center text-slate-400 bg-slate-800 active:bg-slate-700 transition"
+          className="w-9 h-9 rounded-full flex items-center justify-center text-slate-300 bg-slate-800 active:bg-slate-700 transition"
         >
           กลับ
         </button>
@@ -92,6 +95,12 @@ export default function PickupTask() {
         {error && (
           <div className="bg-red-950/60 border border-red-800 text-red-400 text-sm px-4 py-3 rounded-xl mb-4">
             {error}
+          </div>
+        )}
+
+        {successMessage && (
+          <div className="bg-green-950/50 border border-green-800 text-green-300 text-sm px-4 py-3 rounded-xl mb-4">
+            {successMessage}
           </div>
         )}
 

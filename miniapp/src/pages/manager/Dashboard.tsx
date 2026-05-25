@@ -22,6 +22,7 @@ export default function Dashboard() {
   const [pageError, setPageError] = useState('');
   const [reviewError, setReviewError] = useState('');
   const [actionError, setActionError] = useState('');
+  const [actionSuccess, setActionSuccess] = useState('');
   const [actionLoading, setActionLoading] = useState<number | null>(null);
   const [rejectId, setRejectId] = useState<number | null>(null);
   const [rejectReason, setRejectReason] = useState('');
@@ -60,9 +61,11 @@ export default function Dashboard() {
 
   async function handleApprove(taskId: number) {
     setActionError('');
+    setActionSuccess('');
     setActionLoading(taskId);
     try {
       await taskApi.approve(taskId);
+      setActionSuccess('อนุมัติงานเรียบร้อย');
       await loadAll();
     } catch (err) {
       setActionError(extractMessage(err, 'อนุมัติงานไม่สำเร็จ'));
@@ -74,11 +77,13 @@ export default function Dashboard() {
   async function handleReject(taskId: number) {
     if (rejectReason.length < 5) return;
     setActionError('');
+    setActionSuccess('');
     setActionLoading(taskId);
     try {
       await taskApi.reject(taskId, rejectReason);
       setRejectId(null);
       setRejectReason('');
+      setActionSuccess('ส่งงานกลับเรียบร้อย');
       await loadAll();
     } catch (err) {
       setActionError(extractMessage(err, 'ส่งงานกลับไม่สำเร็จ'));
@@ -109,6 +114,9 @@ export default function Dashboard() {
       <div className="flex-1 px-4 py-5 space-y-6 overflow-y-auto">
         {actionError && (
           <NoticeBox tone="red" title="ทำรายการไม่สำเร็จ" message={actionError} />
+        )}
+        {actionSuccess && (
+          <NoticeBox tone="blue" title="ทำรายการสำเร็จ" message={actionSuccess} />
         )}
 
         {loading ? (

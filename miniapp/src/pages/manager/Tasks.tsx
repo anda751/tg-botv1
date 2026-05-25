@@ -25,6 +25,7 @@ export default function Tasks() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [actionError, setActionError] = useState('');
+  const [actionSuccess, setActionSuccess] = useState('');
   const [filter, setFilter] = useState<FilterStatus>('all');
   const [search, setSearch] = useState('');
   const [actionLoading, setActionLoading] = useState<number | null>(null);
@@ -54,8 +55,10 @@ export default function Tasks() {
   async function handleApprove(taskId: number) {
     setActionLoading(taskId);
     setActionError('');
+    setActionSuccess('');
     try {
       await taskApi.approve(taskId);
+      setActionSuccess('อนุมัติงานเรียบร้อย');
       await loadTasks();
     } catch (err: any) {
       setActionError(err?.response?.data?.error?.message || 'อนุมัติงานไม่สำเร็จ');
@@ -68,10 +71,12 @@ export default function Tasks() {
     if (rejectReason.length < 5) return;
     setActionLoading(taskId);
     setActionError('');
+    setActionSuccess('');
     try {
       await taskApi.reject(taskId, rejectReason);
       setRejectId(null);
       setRejectReason('');
+      setActionSuccess('ส่งงานกลับเรียบร้อย');
       await loadTasks();
     } catch (err: any) {
       setActionError(err?.response?.data?.error?.message || 'ส่งงานกลับไม่สำเร็จ');
@@ -163,6 +168,12 @@ export default function Tasks() {
           <div className="rounded-2xl border border-red-800/70 bg-red-950/40 px-4 py-3">
             <p className="text-sm font-semibold text-red-100">ทำรายการไม่สำเร็จ</p>
             <p className="text-xs text-red-200/90 mt-1">{actionError}</p>
+          </div>
+        )}
+        {actionSuccess && (
+          <div className="rounded-2xl border border-green-800/70 bg-green-950/40 px-4 py-3">
+            <p className="text-sm font-semibold text-green-100">ทำรายการสำเร็จ</p>
+            <p className="text-xs text-green-200/90 mt-1">{actionSuccess}</p>
           </div>
         )}
 
