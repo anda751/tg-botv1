@@ -14,6 +14,7 @@ export default function PickupTask() {
   const navigate = useNavigate();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const [listError, setListError] = useState('');
   const [pickingId, setPickingId] = useState<number | null>(null);
   const [doneId, setDoneId] = useState<number | null>(null);
   const [error, setError] = useState('');
@@ -24,12 +25,14 @@ export default function PickupTask() {
 
   async function loadTasks() {
     setLoading(true);
+    setListError('');
     try {
       const { data } = await taskApi.getWaitingPickup();
       const list = Array.isArray(data) ? data : (data.data ?? []);
       setTasks(list);
-    } catch {
+    } catch (err: any) {
       setTasks([]);
+      setListError(err?.response?.data?.error?.message || 'โหลดงานรอรับไม่สำเร็จ');
     } finally {
       setLoading(false);
     }
@@ -59,11 +62,11 @@ export default function PickupTask() {
           onClick={() => navigate('/')}
           className="w-9 h-9 rounded-full flex items-center justify-center text-slate-400 bg-slate-800 active:bg-slate-700 transition"
         >
-          ←
+          กลับ
         </button>
         <div className="flex-1">
           <h1 className="text-lg font-bold text-white">งานรอคนรับ</h1>
-          {!loading && (
+          {!loading && !listError && (
             <p className="text-xs text-slate-400 mt-0.5">
               {tasks.length === 0 ? 'ไม่มีงานรอรับ' : `${tasks.length} งาน`}
             </p>
@@ -71,7 +74,8 @@ export default function PickupTask() {
         </div>
         <button
           onClick={loadTasks}
-          className="w-9 h-9 rounded-full flex items-center justify-center text-slate-400 bg-slate-800 active:bg-slate-700 transition"
+          className="w-9 h-9 rounded-full flex items-center justify-center text-slate-300 bg-slate-800 active:bg-slate-700 transition"
+          title="รีเฟรช"
         >
           รี
         </button>
@@ -103,21 +107,20 @@ export default function PickupTask() {
           </div>
         )}
 
-        {!loading && tasks.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="text-5xl mb-4">ว่าง</div>
-            <p className="text-slate-300 font-semibold">ไม่มีงานรอรับตอนนี้</p>
-            <p className="text-slate-500 text-sm mt-1">ทุกงานมีคนรับผิดชอบแล้ว</p>
-            <button
-              onClick={loadTasks}
-              className="mt-6 px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-300 bg-slate-900 border border-slate-700 active:bg-slate-800 transition"
-            >
-              รีเฟรช
-            </button>
-          </div>
+        {!loading && listError && (
+          <StateBox title="โหลดงานรอรับไม่สำเร็จ" message={listError} actionLabel="ลองใหม่" onAction={loadTasks} />
         )}
 
-        {!loading && tasks.length > 0 && (
+        {!loading && !listError && tasks.length === 0 && (
+          <StateBox
+            title="ไม่มีงานรอรับตอนนี้"
+            message="ทุกงานมีคนรับผิดชอบแล้ว"
+            actionLabel="รีเฟรช"
+            onAction={loadTasks}
+          />
+        )}
+
+        {!loading && !listError && tasks.length > 0 && (
           <div className="space-y-3">
             {tasks.map((task) => {
               const isDone = doneId === task.id;
@@ -180,6 +183,33 @@ export default function PickupTask() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function StateBox({
+  title,
+  message,
+  actionLabel,
+  onAction,
+}: {
+  title: string
+  message: string
+  actionLabel?: string
+  onAction?: () => void
+}) {
+  return (
+    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 text-center">
+      <p className="text-white font-semibold">{title}</p>
+      <p className="text-sm text-slate-400 mt-2">{message}</p>
+      {actionLabel && onAction && (
+        <button
+          onClick={onAction}
+          className="mt-4 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-blue-600 active:bg-blue-700 transition"
+        >
+          {actionLabel}
+        </button>
+      )}
     </div>
   );
 }

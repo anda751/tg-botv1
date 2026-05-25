@@ -20,6 +20,7 @@ export default function Reports() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [staff, setStaff] = useState<StaffStat[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     loadData();
@@ -27,6 +28,7 @@ export default function Reports() {
 
   async function loadData() {
     setLoading(true);
+    setError('');
     try {
       const [s, st] = await Promise.all([
         dashboardApi.summary(),
@@ -34,6 +36,10 @@ export default function Reports() {
       ]);
       setSummary(s.data);
       setStaff(Array.isArray(st.data) ? st.data : []);
+    } catch (err) {
+      setSummary(null);
+      setStaff([]);
+      setError(extractMessage(err, 'โหลดรายงานไม่สำเร็จ'));
     } finally {
       setLoading(false);
     }
@@ -57,7 +63,8 @@ export default function Reports() {
           </div>
           <button
             onClick={loadData}
-            className="w-9 h-9 rounded-full flex items-center justify-center text-slate-400 bg-slate-800 active:bg-slate-700 transition"
+            className="w-9 h-9 rounded-full flex items-center justify-center text-slate-300 bg-slate-800 active:bg-slate-700 transition"
+            title="รีเฟรช"
           >
             รี
           </button>
@@ -73,6 +80,8 @@ export default function Reports() {
               <div key={i} className="bg-slate-900 rounded-2xl h-28 animate-pulse" />
             ))}
           </div>
+        ) : error ? (
+          <StateBox title="โหลดรายงานไม่สำเร็จ" message={error} actionLabel="ลองใหม่" onAction={loadData} />
         ) : summary ? (
           <>
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
@@ -123,7 +132,7 @@ export default function Reports() {
             <div>
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">ภาระงานพนักงาน</p>
               {sortedStaff.length === 0 ? (
-                <p className="text-slate-500 text-sm">ยังไม่มีพนักงาน</p>
+                <StateBox title="ยังไม่มีพนักงาน" message="เมื่อมีพนักงานในระบบ สรุปภาระงานจะแสดงที่นี่" />
               ) : (
                 <div className="space-y-2">
                   {sortedStaff.map((s, idx) => {
@@ -205,6 +214,10 @@ export default function Reports() {
   );
 }
 
+function extractMessage(error: any, fallback: string) {
+  return error?.response?.data?.error?.message || error?.response?.data?.message || fallback;
+}
+
 function StatRow({ label, value, color }: { label: string; value: number; color: string }) {
   return (
     <div className="flex items-center justify-between">
@@ -230,6 +243,33 @@ function InsightCard({ text, color, textColor }: {
   return (
     <div className={`border rounded-xl px-4 py-3 flex items-center gap-3 ${color}`}>
       <p className={`text-sm font-medium ${textColor}`}>{text}</p>
+    </div>
+  );
+}
+
+function StateBox({
+  title,
+  message,
+  actionLabel,
+  onAction,
+}: {
+  title: string
+  message: string
+  actionLabel?: string
+  onAction?: () => void
+}) {
+  return (
+    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 text-center">
+      <p className="text-white font-semibold">{title}</p>
+      <p className="text-sm text-slate-400 mt-2">{message}</p>
+      {actionLabel && onAction && (
+        <button
+          onClick={onAction}
+          className="mt-4 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-blue-600 active:bg-blue-700 transition"
+        >
+          {actionLabel}
+        </button>
+      )}
     </div>
   );
 }

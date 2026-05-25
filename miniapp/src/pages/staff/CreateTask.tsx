@@ -15,6 +15,7 @@ export default function CreateTask() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [joinableProjects, setJoinableProjects] = useState<Project[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
+  const [projectsError, setProjectsError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [requestingProjectId, setRequestingProjectId] = useState<number | null>(null);
   const [error, setError] = useState('');
@@ -25,6 +26,7 @@ export default function CreateTask() {
 
   async function loadProjects() {
     setLoadingProjects(true);
+    setProjectsError('');
     try {
       const [myRes, allRes] = await Promise.all([projectApi.getMyProjects(), projectApi.getAll()]);
       const myList = (Array.isArray(myRes.data) ? myRes.data : (myRes.data.data ?? [])) as Project[];
@@ -35,9 +37,10 @@ export default function CreateTask() {
       setJoinableProjects(
         allList.filter((p) => p.status_project === 'active' && !myIds.has(Number(p.id))),
       );
-    } catch {
+    } catch (err: any) {
       setProjects([]);
       setJoinableProjects([]);
+      setProjectsError(err?.response?.data?.error?.message || 'โหลดโปรเจกต์ไม่สำเร็จ');
     } finally {
       setLoadingProjects(false);
     }
@@ -70,6 +73,7 @@ export default function CreateTask() {
 
   async function handleRequestJoin(projectId: number) {
     setRequestingProjectId(projectId);
+    setError('');
     try {
       await projectApi.requestJoin(projectId, '');
       setJoinableProjects((prev) => prev.filter((p) => p.id !== projectId));
@@ -87,9 +91,9 @@ export default function CreateTask() {
       <div className="bg-slate-900 border-b border-slate-800 px-4 pt-6 pb-4 flex items-center gap-3">
         <button
           onClick={() => navigate('/')}
-          className="w-9 h-9 rounded-full flex items-center justify-center text-slate-400 bg-slate-800 active:bg-slate-700 transition"
+          className="w-9 h-9 rounded-full flex items-center justify-center text-slate-300 bg-slate-800 active:bg-slate-700 transition"
         >
-          ←
+          กลับ
         </button>
         <h1 className="text-lg font-bold text-white">สร้างงานใหม่</h1>
       </div>
@@ -114,6 +118,8 @@ export default function CreateTask() {
           </label>
           {loadingProjects ? (
             <div className="h-10 rounded-xl bg-slate-800 animate-pulse" />
+          ) : projectsError ? (
+            <StateBox title="โหลดโปรเจกต์ไม่สำเร็จ" message={projectsError} actionLabel="ลองใหม่" onAction={loadProjects} />
           ) : (
             <div className="flex flex-wrap gap-2">
               <button
@@ -143,7 +149,7 @@ export default function CreateTask() {
           )}
         </div>
 
-        {!loadingProjects && joinableProjects.length > 0 && (
+        {!loadingProjects && !projectsError && joinableProjects.length > 0 && (
           <div>
             <label className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3 block">
               ขอเข้าโปรเจกต์
@@ -157,7 +163,7 @@ export default function CreateTask() {
                     disabled={requestingProjectId === p.id}
                     className="px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-200 bg-blue-900/60 border border-blue-700 active:bg-blue-800 transition disabled:opacity-40"
                   >
-                    {requestingProjectId === p.id ? '...' : 'ขอเข้า'}
+                    {requestingProjectId === p.id ? 'กำลังส่ง...' : 'ขอเข้า'}
                   </button>
                 </div>
               ))}
@@ -181,6 +187,33 @@ export default function CreateTask() {
           {submitting ? 'กำลังสร้าง...' : 'สร้างงาน'}
         </button>
       </div>
+    </div>
+  );
+}
+
+function StateBox({
+  title,
+  message,
+  actionLabel,
+  onAction,
+}: {
+  title: string
+  message: string
+  actionLabel?: string
+  onAction?: () => void
+}) {
+  return (
+    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 text-center">
+      <p className="text-white font-semibold">{title}</p>
+      <p className="text-sm text-slate-400 mt-2">{message}</p>
+      {actionLabel && onAction && (
+        <button
+          onClick={onAction}
+          className="mt-4 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-blue-600 active:bg-blue-700 transition"
+        >
+          {actionLabel}
+        </button>
+      )}
     </div>
   );
 }

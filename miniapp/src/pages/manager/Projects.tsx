@@ -161,9 +161,7 @@ export default function Projects() {
       </div>
 
       <div className="px-4 py-4 space-y-4 pb-8">
-        {actionError && (
-          <InlineNotice message={actionError} />
-        )}
+        {actionError && <InlineNotice message={actionError} />}
 
         <div className="grid grid-cols-3 gap-2">
           <StatCard label="คำขอรออนุมัติ" value={String(requests.length)} />
@@ -270,27 +268,7 @@ export default function Projects() {
           ) : (
             <div className="space-y-2">
               {visibleProjects.map((p) => (
-                <div key={p.id} className="bg-slate-800 border border-slate-700 rounded-xl p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-white truncate">{p.name}</p>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        กำหนดส่ง {new Date(p.deadline).toLocaleString()}
-                      </p>
-                      <p className="text-xs text-slate-500 mt-0.5">สมาชิก {p.members?.length ?? 0} คน</p>
-                    </div>
-                    {p.status_project === 'active' ? (
-                      <button
-                        onClick={() => handleCloseProject(p.id)}
-                        className="px-3 py-1.5 rounded-lg text-xs font-semibold text-red-300 bg-red-950/40 border border-red-800/60"
-                      >
-                        ปิดโปรเจกต์
-                      </button>
-                    ) : (
-                      <span className="px-2.5 py-1 rounded-lg text-xs text-slate-400 bg-slate-900">ปิดแล้ว</span>
-                    )}
-                  </div>
-                </div>
+                <ProjectCard key={p.id} project={p} onClose={handleCloseProject} />
               ))}
             </div>
           )}
@@ -302,6 +280,39 @@ export default function Projects() {
 
 function extractMessage(error: any, fallback: string) {
   return error?.response?.data?.error?.message || error?.response?.data?.message || fallback;
+}
+
+function isOverdue(project: Project) {
+  return project.status_project === 'active' && new Date(project.deadline).getTime() < Date.now();
+}
+
+function ProjectCard({ project, onClose }: { project: Project; onClose: (id: number) => void }) {
+  const overdue = isOverdue(project);
+  const titleColor = overdue ? 'text-red-400' : 'text-green-400';
+
+  return (
+    <div className="bg-slate-800 border border-slate-700 rounded-xl p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className={`text-sm font-semibold truncate ${titleColor}`}>{project.name}</p>
+          <p className="text-xs text-slate-400 mt-0.5">
+            กำหนดส่ง {new Date(project.deadline).toLocaleString()}
+          </p>
+          <p className="text-xs text-slate-500 mt-0.5">สมาชิก {project.members?.length ?? 0} คน</p>
+        </div>
+        {project.status_project === 'active' ? (
+          <button
+            onClick={() => onClose(project.id)}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold text-red-300 bg-red-950/40 border border-red-800/60"
+          >
+            ปิดโปรเจกต์
+          </button>
+        ) : (
+          <span className="px-2.5 py-1 rounded-lg text-xs text-slate-400 bg-slate-900">ปิดแล้ว</span>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function StatCard({ label, value }: { label: string; value: string }) {
