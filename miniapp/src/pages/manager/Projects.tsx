@@ -35,26 +35,41 @@ export default function Projects() {
 
   async function loadAll() {
     setLoading(true);
-    try {
-      const [projectRes, requestRes] = await Promise.all([
-        projectApi.getAll(),
-        projectApi.getPendingJoinRequests(),
-      ]);
-      const projectList = Array.isArray(projectRes.data) ? projectRes.data : (projectRes.data.data ?? []);
-      const requestList = Array.isArray(requestRes.data) ? requestRes.data : (requestRes.data.data ?? []);
+    setError('');
+
+    const [projectRes, requestRes] = await Promise.allSettled([
+      projectApi.getAll(),
+      projectApi.getPendingJoinRequests(),
+    ]);
+
+    if (projectRes.status === 'fulfilled') {
+      const projectList = Array.isArray(projectRes.value.data)
+        ? projectRes.value.data
+        : (projectRes.value.data.data ?? []);
       setProjects(projectList);
-      setRequests(requestList);
-    } catch {
+    } else {
       setProjects([]);
-      setRequests([]);
-    } finally {
-      setLoading(false);
+      setError(extractMessage(projectRes.reason, 'โหลดรายการโปรเจกต์ไม่สำเร็จ'));
     }
+
+    if (requestRes.status === 'fulfilled') {
+      const requestList = Array.isArray(requestRes.value.data)
+        ? requestRes.value.data
+        : (requestRes.value.data.data ?? []);
+      setRequests(requestList);
+    } else {
+      setRequests([]);
+      if (!error) {
+        setError(extractMessage(requestRes.reason, 'โหลดคำขอเข้าโปรเจกต์ไม่สำเร็จ'));
+      }
+    }
+
+    setLoading(false);
   }
 
   async function handleCreate() {
     if (!newName.trim() || !newDeadline) {
-      setError('กรอกชื่อโปรเจคและกำหนดส่ง');
+      setError('กรอกชื่อโปรเจกต์และกำหนดส่ง');
       return;
     }
 
@@ -69,19 +84,20 @@ export default function Projects() {
       setNewDeadline('');
       await loadAll();
     } catch (err: any) {
-      setError(err?.response?.data?.error?.message || 'สร้างโปรเจคไม่สำเร็จ');
+      setError(extractMessage(err, 'สร้างโปรเจกต์ไม่สำเร็จ'));
     } finally {
       setCreating(false);
     }
   }
 
   async function handleCloseProject(projectId: number) {
-    if (!confirm('ปิดโปรเจคนี้?')) return;
+    if (!confirm('ปิดโปรเจกต์นี้?')) return;
+
     try {
       await projectApi.close(projectId);
       await loadAll();
     } catch (err: any) {
-      alert(err?.response?.data?.error?.message || 'ปิดโปรเจคไม่สำเร็จ');
+      alert(extractMessage(err, 'ปิดโปรเจกต์ไม่สำเร็จ'));
     }
   }
 
@@ -91,7 +107,7 @@ export default function Projects() {
       await projectApi.approveJoinRequest(requestId);
       await loadAll();
     } catch (err: any) {
-      alert(err?.response?.data?.error?.message || 'อนุมัติไม่สำเร็จ');
+      alert(extractMessage(err, 'อนุมัติไม่สำเร็จ'));
     } finally {
       setApprovingId(null);
     }
@@ -104,7 +120,7 @@ export default function Projects() {
       await projectApi.rejectJoinRequest(requestId, reason);
       await loadAll();
     } catch (err: any) {
-      alert(err?.response?.data?.error?.message || 'ปฏิเสธไม่สำเร็จ');
+      alert(extractMessage(err, 'ปฏิเสธไม่สำเร็จ'));
     } finally {
       setRejectingId(null);
     }
@@ -123,15 +139,15 @@ export default function Projects() {
       <div className="bg-slate-900 border-b border-slate-800 px-4 pt-6 pb-4">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-xl font-bold text-white">Projects</h1>
-            <p className="text-xs text-slate-400 mt-0.5">จัดการโปรเจคและคำขอเข้าร่วม</p>
+            <h1 className="text-xl font-bold text-white">โปรเจกต์</h1>
+            <p className="text-xs text-slate-400 mt-0.5">จัดการโปรเจกต์และคำขอเข้าร่วม</p>
           </div>
           <button
             onClick={loadAll}
             className="w-9 h-9 rounded-full flex items-center justify-center text-slate-400 bg-slate-800 active:bg-slate-700 transition"
             title="รีเฟรช"
           >
-            ↻
+            รี
           </button>
         </div>
         <ManagerNav />
@@ -139,19 +155,19 @@ export default function Projects() {
 
       <div className="px-4 py-4 space-y-4 pb-8">
         <div className="grid grid-cols-3 gap-2">
-          <StatCard label="Pending Requests" value={String(requests.length)} />
-          <StatCard label="Active Projects" value={String(activeCount)} />
-          <StatCard label="Closed Projects" value={String(closedCount)} />
+          <StatCard label="คำขอรออนุมัติ" value={String(requests.length)} />
+          <StatCard label="โปรเจกต์ที่เปิด" value={String(activeCount)} />
+          <StatCard label="โปรเจกต์ที่ปิดแล้ว" value={String(closedCount)} />
         </div>
 
         <div className="bg-slate-900 border border-slate-700 rounded-2xl p-4">
-          <p className="text-sm font-semibold text-white mb-3">สร้างโปรเจคใหม่</p>
+          <p className="text-sm font-semibold text-white mb-3">สร้างโปรเจกต์ใหม่</p>
           <div className="space-y-2">
             <input
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              placeholder="ชื่อโปรเจค"
+              placeholder="ชื่อโปรเจกต์"
               className="w-full px-3 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white"
             />
             <input
@@ -166,14 +182,14 @@ export default function Projects() {
               disabled={creating}
               className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600 disabled:opacity-50"
             >
-              {creating ? 'กำลังสร้าง...' : 'สร้างโปรเจค'}
+              {creating ? 'กำลังสร้าง...' : 'สร้างโปรเจกต์'}
             </button>
           </div>
         </div>
 
         <div className="bg-slate-900 border border-slate-700 rounded-2xl p-4">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-semibold text-white">คำขอเข้าโปรเจค</p>
+            <p className="text-sm font-semibold text-white">คำขอเข้าโปรเจกต์</p>
             <span className="text-xs text-slate-400">{requests.length} รายการ</span>
           </div>
           {loading ? (
@@ -185,7 +201,7 @@ export default function Projects() {
               {requests.map((r) => (
                 <div key={r.id} className="bg-slate-800 border border-slate-700 rounded-xl p-3">
                   <p className="text-sm text-white leading-snug">
-                    {(r.requested_by?.display_name || r.requested_by?.username || 'Unknown')} ขอเข้าโปรเจค{' '}
+                    {(r.requested_by?.display_name || r.requested_by?.username || 'Unknown')} ขอเข้าโปรเจกต์{' '}
                     <span className="font-semibold">{r.project?.name || '-'}</span>
                   </p>
                   {r.note && <p className="text-xs text-slate-400 mt-1">หมายเหตุ: {r.note}</p>}
@@ -213,7 +229,7 @@ export default function Projects() {
 
         <div className="bg-slate-900 border border-slate-700 rounded-2xl p-4">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-semibold text-white">รายการโปรเจค</p>
+            <p className="text-sm font-semibold text-white">รายการโปรเจกต์</p>
             <div className="flex gap-1">
               {(['active', 'closed', 'all'] as const).map((tab) => (
                 <button
@@ -223,7 +239,7 @@ export default function Projects() {
                     filter === tab ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400'
                   }`}
                 >
-                  {tab === 'active' ? 'Active' : tab === 'closed' ? 'Closed' : 'All'}
+                  {tab === 'active' ? 'เปิดอยู่' : tab === 'closed' ? 'ปิดแล้ว' : 'ทั้งหมด'}
                 </button>
               ))}
             </div>
@@ -232,7 +248,7 @@ export default function Projects() {
           {loading ? (
             <div className="h-16 bg-slate-800 rounded-xl animate-pulse" />
           ) : visibleProjects.length === 0 ? (
-            <p className="text-sm text-slate-500">ไม่มีโปรเจคในหมวดนี้</p>
+            <p className="text-sm text-slate-500">ไม่มีโปรเจกต์ในหมวดนี้</p>
           ) : (
             <div className="space-y-2">
               {visibleProjects.map((p) => (
@@ -241,19 +257,19 @@ export default function Projects() {
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-white truncate">{p.name}</p>
                       <p className="text-xs text-slate-400 mt-0.5">
-                        Due {new Date(p.deadline).toLocaleString()}
+                        กำหนดส่ง {new Date(p.deadline).toLocaleString()}
                       </p>
-                      <p className="text-xs text-slate-500 mt-0.5">Members {p.members?.length ?? 0}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">สมาชิก {p.members?.length ?? 0} คน</p>
                     </div>
                     {p.status_project === 'active' ? (
                       <button
                         onClick={() => handleCloseProject(p.id)}
                         className="px-3 py-1.5 rounded-lg text-xs font-semibold text-red-300 bg-red-950/40 border border-red-800/60"
                       >
-                        ปิดโปรเจค
+                        ปิดโปรเจกต์
                       </button>
                     ) : (
-                      <span className="px-2.5 py-1 rounded-lg text-xs text-slate-400 bg-slate-900">Closed</span>
+                      <span className="px-2.5 py-1 rounded-lg text-xs text-slate-400 bg-slate-900">ปิดแล้ว</span>
                     )}
                   </div>
                 </div>
@@ -264,6 +280,10 @@ export default function Projects() {
       </div>
     </div>
   );
+}
+
+function extractMessage(error: any, fallback: string) {
+  return error?.response?.data?.error?.message || error?.response?.data?.message || fallback;
 }
 
 function StatCard({ label, value }: { label: string; value: string }) {
