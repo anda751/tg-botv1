@@ -38,7 +38,15 @@
       "default": false,
       "required": true
     },
+    "is_hidden": {
+      "type": "boolean",
+      "default": false,
+      "required": true
+    },
     "read_at": {
+      "type": "datetime"
+    },
+    "hidden_at": {
       "type": "datetime"
     },
     "recipient": {

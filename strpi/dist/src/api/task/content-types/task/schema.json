@@ -26,6 +26,14 @@
                 "done"
             ]
         },
+        "is_hidden_for_owner": {
+            "type": "boolean",
+            "default": false,
+            "required": true
+        },
+        "hidden_for_owner_at": {
+            "type": "datetime"
+        },
         "project": {
             "type": "relation",
             "relation": "manyToOne",

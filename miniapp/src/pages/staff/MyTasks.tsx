@@ -16,6 +16,7 @@ type NotificationItem = {
   type: 'task' | 'project' | 'handover' | 'general'
   link?: string
   is_read: boolean
+  is_hidden?: boolean
   createdAt: string
 }
 
@@ -38,7 +39,10 @@ export default function MyTasks() {
   const [filter, setFilter] = useState<'active' | 'done'>('active');
   const [successMessage, setSuccessMessage] = useState<string>('');
   const [markingAllRead, setMarkingAllRead] = useState(false);
+  const [hidingRead, setHidingRead] = useState(false);
+  const [hidingTaskId, setHidingTaskId] = useState<number | null>(null);
   const [openingNotificationId, setOpeningNotificationId] = useState<number | null>(null);
+  const [hidingNotificationId, setHidingNotificationId] = useState<number | null>(null);
 
   useEffect(() => {
     const message = (location.state as any)?.successMessage;
@@ -114,12 +118,49 @@ export default function MyTasks() {
     }
   }
 
+  async function handleHideNotification(notificationId: number) {
+    setHidingNotificationId(notificationId);
+    try {
+      await notificationApi.hide(notificationId);
+      setNotifications((items) => items.filter((item) => item.id !== notificationId));
+    } catch (err) {
+      setNotificationsError(extractMessage(err, 'ซ่อนการแจ้งเตือนไม่สำเร็จ'));
+    } finally {
+      setHidingNotificationId(null);
+    }
+  }
+
+  async function handleHideRead() {
+    setHidingRead(true);
+    try {
+      await notificationApi.hideRead();
+      setNotifications((items) => items.filter((item) => !item.is_read));
+    } catch (err) {
+      setNotificationsError(extractMessage(err, 'ซ่อนรายการที่อ่านแล้วไม่สำเร็จ'));
+    } finally {
+      setHidingRead(false);
+    }
+  }
+
+  async function handleHideTask(taskId: number) {
+    setHidingTaskId(taskId);
+    try {
+      await taskApi.hide(taskId);
+      setTasks((items) => items.filter((item) => item.id !== taskId));
+    } catch (err) {
+      setError(extractMessage(err, 'ซ่อนงานไม่สำเร็จ'));
+    } finally {
+      setHidingTaskId(null);
+    }
+  }
+
   const filtered = useMemo(
     () => tasks.filter((t) => (filter === 'active' ? t.status_task !== 'done' : t.status_task === 'done')),
     [filter, tasks],
   );
 
   const unreadCount = notifications.filter((item) => !item.is_read).length;
+  const readCount = notifications.filter((item) => item.is_read).length;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -182,13 +223,22 @@ export default function MyTasks() {
               </div>
               <p className="text-sm text-gray-500 mt-1">อัปเดตที่เดิมเคยส่งผ่าน Telegram จะมาอยู่ตรงนี้แทน</p>
             </div>
-            <button
-              onClick={handleMarkAllRead}
-              disabled={markingAllRead || unreadCount === 0}
-              className="px-3 py-2 rounded-xl text-sm font-semibold text-blue-700 bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {markingAllRead ? 'กำลังอัปเดต...' : 'อ่านแล้วทั้งหมด'}
-            </button>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <button
+                onClick={handleMarkAllRead}
+                disabled={markingAllRead || unreadCount === 0}
+                className="px-3 py-2 rounded-xl text-sm font-semibold text-blue-700 bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {markingAllRead ? 'กำลังอัปเดต...' : 'อ่านแล้วทั้งหมด'}
+              </button>
+              <button
+                onClick={handleHideRead}
+                disabled={hidingRead || readCount === 0}
+                className="px-3 py-2 rounded-xl text-sm font-semibold text-slate-700 bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {hidingRead ? 'กำลังซ่อน...' : 'ซ่อนที่อ่านแล้ว'}
+              </button>
+            </div>
           </div>
 
           <div className="p-4">
@@ -217,31 +267,39 @@ export default function MyTasks() {
             ) : (
               <div className="space-y-3">
                 {notifications.map((item) => (
-                  <button
+                  <div
                     key={item.id}
-                    onClick={() => handleOpenNotification(item)}
-                    className={`w-full text-left rounded-xl border p-4 transition ${
+                    className={`rounded-xl border p-4 transition ${
                       item.is_read
                         ? 'border-gray-200 bg-white'
                         : 'border-blue-200 bg-blue-50/60'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
+                      <button onClick={() => handleOpenNotification(item)} className="min-w-0 flex-1 text-left">
                         <div className="flex items-center gap-2 mb-1">
                           <span className={`w-2.5 h-2.5 rounded-full ${item.is_read ? 'bg-gray-300' : 'bg-blue-500'}`} />
                           <p className="font-semibold text-gray-800">{item.title}</p>
                         </div>
                         <p className="text-sm text-gray-600 whitespace-pre-line">{item.message}</p>
-                      </div>
-                      <div className="shrink-0 text-right">
+                      </button>
+                      <div className="shrink-0 text-right flex flex-col items-end gap-2">
                         <p className="text-xs text-gray-400">{formatRelativeTime(item.createdAt)}</p>
                         {openingNotificationId === item.id && (
-                          <p className="text-xs text-blue-500 mt-1">กำลังเปิด...</p>
+                          <p className="text-xs text-blue-500">กำลังเปิด...</p>
                         )}
+                        <button
+                          onClick={() => handleHideNotification(item.id)}
+                          disabled={hidingNotificationId === item.id}
+                          className="w-8 h-8 rounded-full text-sm font-semibold text-slate-500 bg-white/80 border border-gray-200 disabled:opacity-40"
+                          title="ซ่อนรายการนี้"
+                          aria-label="ซ่อนรายการนี้"
+                        >
+                          {hidingNotificationId === item.id ? '…' : '×'}
+                        </button>
                       </div>
                     </div>
-                  </button>
+                  </div>
                 ))}
               </div>
             )}
@@ -266,9 +324,11 @@ export default function MyTasks() {
             <TaskCard
               key={task.id}
               task={task}
+              isHiding={hidingTaskId === task.id}
               onProgress={() => navigate(`/progress/${task.id}`, { state: { task } })}
               onSubmit={() => navigate(`/submit/${task.id}`, { state: { task } })}
               onHandover={() => navigate(`/handover/${task.id}`, { state: { task } })}
+              onHide={() => handleHideTask(task.id)}
             />
           ))
         )}
@@ -336,14 +396,18 @@ function StateBox({
 
 function TaskCard({
   task,
+  isHiding,
   onProgress,
   onSubmit,
   onHandover,
+  onHide,
 }: {
   task: Task
+  isHiding: boolean
   onProgress: () => void
   onSubmit: () => void
   onHandover: () => void
+  onHide: () => void
 }) {
   const status = statusLabel[task.status_task];
 
@@ -374,7 +438,16 @@ function TaskCard({
         <div className="w-full text-center text-sm text-amber-600 py-2">รอหัวหน้าตรวจสอบ</div>
       )}
       {task.status_task === 'done' && (
-        <div className="w-full text-center text-sm text-green-600 py-2">งานเสร็จสมบูรณ์</div>
+        <div className="flex items-center justify-between gap-3 py-2">
+          <div className="text-sm text-green-600">งานเสร็จสมบูรณ์</div>
+          <button
+            onClick={onHide}
+            disabled={isHiding}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 bg-slate-100 disabled:opacity-40"
+          >
+            {isHiding ? 'กำลังซ่อน...' : 'ซ่อน'}
+          </button>
+        </div>
       )}
       {task.status_task === 'waiting_pickup' && (
         <div className="w-full text-center text-sm text-orange-600 py-2">งานรอรับช่วงต่อ</div>

@@ -26,6 +26,9 @@ export const taskApi = {
 
   reject: (taskId: number, reason: string) =>
     axios.post(`/tasks/${taskId}/reject`, { reason }),
+
+  hide: (taskId: number) =>
+    axios.post(`/tasks/${taskId}/hide`),
 }
 
 // ===== Projects =====
@@ -87,6 +90,8 @@ export const notificationApi = {
   getMy: () => axios.get('/notifications/my'),
   markRead: (notificationId: number) => axios.post(`/notifications/${notificationId}/read`),
   markAllRead: () => axios.post('/notifications/read-all'),
+  hide: (notificationId: number) => axios.post(`/notifications/${notificationId}/hide`),
+  hideRead: () => axios.post('/notifications/hide-read'),
 }
 
 // ===== Users =====

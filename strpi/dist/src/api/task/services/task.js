@@ -148,6 +148,7 @@ exports.default = strapi_1.factories.createCoreService('api::task.task', ({ stra
                 type,
                 link,
                 is_read: false,
+                is_hidden: false,
             },
         });
     },

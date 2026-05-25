@@ -7,7 +7,10 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
     const user = ctx.state.user;
 
     const tasks = await strapi.entityService.findMany('api::task.task', {
-      filters: { current_owner: { id: user.id } },
+      filters: {
+        current_owner: { id: user.id },
+        is_hidden_for_owner: false,
+      },
       populate: ['project', 'current_owner'],
       sort: ['updatedAt:desc', 'id:desc'],
     });
@@ -309,6 +312,29 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
     });
 
     return ctx.send({ message: 'ตีกลับงานเรียบร้อย' });
+  },
+
+  async hide(ctx) {
+    const user = ctx.state.user;
+    const { id } = ctx.params;
+
+    const task = await strapi.entityService.findOne('api::task.task', id, {
+      populate: ['current_owner'],
+    }) as any;
+
+    if (!task) return ctx.notFound('ไม่พบงาน');
+    if (task.current_owner?.id !== user.id) return ctx.forbidden('คุณไม่มีสิทธิ์ซ่อนงานนี้');
+    if (task.status_task !== 'done') return ctx.badRequest('ซ่อนได้เฉพาะงานที่เสร็จแล้ว');
+    if (task.is_hidden_for_owner) return ctx.send({ message: 'งานนี้ถูกซ่อนไว้แล้ว' });
+
+    await strapi.entityService.update('api::task.task', id, {
+      data: {
+        is_hidden_for_owner: true,
+        hidden_for_owner_at: new Date(),
+      } as any,
+    });
+
+    return ctx.send({ message: 'ซ่อนงานเรียบร้อย' });
   },
 }));
 

@@ -194,6 +194,7 @@ export default factories.createCoreService('api::task.task', ({ strapi }) => ({
         type,
         link,
         is_read: false,
+        is_hidden: false,
       },
     });
   },
