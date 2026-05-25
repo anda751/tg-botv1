@@ -1,0 +1,50 @@
+{
+    "kind": "collectionType",
+    "collectionName": "notifications",
+    "info": {
+        "singularName": "notification",
+        "pluralName": "notifications",
+        "displayName": "Notification"
+    },
+    "options": {
+        "draftAndPublish": false
+    },
+    "pluginOptions": {},
+    "attributes": {
+        "title": {
+            "type": "string",
+            "required": true
+        },
+        "message": {
+            "type": "text",
+            "required": true
+        },
+        "type": {
+            "type": "enumeration",
+            "enum": [
+                "task",
+                "project",
+                "handover",
+                "general"
+            ],
+            "default": "general",
+            "required": true
+        },
+        "link": {
+            "type": "string"
+        },
+        "is_read": {
+            "type": "boolean",
+            "default": false,
+            "required": true
+        },
+        "read_at": {
+            "type": "datetime"
+        },
+        "recipient": {
+            "type": "relation",
+            "relation": "manyToOne",
+            "target": "plugin::users-permissions.user"
+        }
+    }
+}

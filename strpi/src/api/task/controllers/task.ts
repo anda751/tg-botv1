@@ -262,6 +262,14 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
       message: `งานเสร็จสมบูรณ์: *${task.name}*\nโดย: ${task.current_owner.username}`,
     });
 
+    await strapi.service('api::task.task').notifyStaff({
+      userId: task.current_owner.id,
+      title: 'งานได้รับอนุมัติแล้ว',
+      message: `งาน *${task.name}* ผ่านการตรวจสอบและเสร็จสมบูรณ์แล้ว`,
+      type: 'task',
+      link: '/',
+    });
+
     return ctx.send({ message: 'อนุมัติงานเรียบร้อย' });
   },
 
@@ -294,7 +302,10 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
 
     await strapi.service('api::task.task').notifyStaff({
       userId: task.current_owner.id,
+      title: 'งานถูกส่งกลับ',
       message: `งาน *${task.name}* ไม่ผ่านการตรวจสอบ\nเหตุผล: ${reason}`,
+      type: 'task',
+      link: '/',
     });
 
     return ctx.send({ message: 'ตีกลับงานเรียบร้อย' });

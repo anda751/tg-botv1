@@ -22,16 +22,16 @@ export default factories.createCoreController('plugin::users-permissions.user', 
     const normalizedTelegramChatId = String(telegram_chat_id ?? '').trim();
 
     if (!normalizedUsername || !normalizedEmail || !password) {
-      return ctx.badRequest('username, email and password are required');
+      return ctx.badRequest('กรุณากรอก username, email และ password');
     }
     if (normalizedUsername.length < 3) {
-      return ctx.badRequest('username must be at least 3 characters');
+      return ctx.badRequest('ชื่อผู้ใช้ต้องมีอย่างน้อย 3 ตัวอักษร');
     }
     if (!normalizedEmail.includes('@')) {
-      return ctx.badRequest('invalid email');
+      return ctx.badRequest('อีเมลไม่ถูกต้อง');
     }
     if (String(password).length < 6) {
-      return ctx.badRequest('password must be at least 6 characters');
+      return ctx.badRequest('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร');
     }
 
     const [existingUsername, existingEmail] = await Promise.all([
@@ -46,17 +46,17 @@ export default factories.createCoreController('plugin::users-permissions.user', 
     ]);
 
     if (existingUsername.length) {
-      return ctx.badRequest('username is already used');
+      return ctx.badRequest('ชื่อผู้ใช้นี้ถูกใช้งานแล้ว');
     }
     if (existingEmail.length) {
-      return ctx.badRequest('email is already used');
+      return ctx.badRequest('อีเมลนี้ถูกใช้งานแล้ว');
     }
 
     const defaultRole = await strapi
       .query('plugin::users-permissions.role')
       .findOne({ where: { type: 'authenticated' } });
 
-    if (!defaultRole) return ctx.internalServerError('authenticated role not found');
+    if (!defaultRole) return ctx.internalServerError('ไม่พบบทบาท authenticated');
 
     const user = (await strapi.entityService.create('plugin::users-permissions.user', {
       data: {
@@ -86,14 +86,7 @@ export default factories.createCoreController('plugin::users-permissions.user', 
 
     return ctx.send({
       jwt,
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        display_name: user.display_name,
-        role_app: user.role_app,
-        is_approved: user.is_approved,
-      },
+      user: serializeUser(user),
     });
   },
 
@@ -103,38 +96,31 @@ export default factories.createCoreController('plugin::users-permissions.user', 
     const rawPassword = String(password ?? '');
 
     if (!normalizedIdentifier || !rawPassword) {
-      return ctx.badRequest('identifier and password are required');
+      return ctx.badRequest('กรุณากรอกชื่อผู้ใช้หรืออีเมล และรหัสผ่าน');
     }
 
     const user = await strapi.query('plugin::users-permissions.user').findOne({
       where: {
         $or: [{ email: normalizedIdentifier }, { username: normalizedIdentifier }],
       },
-      select: ['id', 'username', 'email', 'password', 'display_name', 'role_app', 'is_approved', 'blocked'],
+      select: ['id', 'username', 'email', 'password', 'display_name', 'role_app', 'is_approved', 'blocked', 'telegram_id', 'telegram_chat_id'],
     }) as any;
 
-    if (!user) return ctx.unauthorized('invalid credentials');
-    if (user.blocked) return ctx.forbidden('account is blocked');
+    if (!user) return ctx.unauthorized('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
+    if (user.blocked) return ctx.forbidden('บัญชีนี้ถูกระงับการใช้งาน');
 
     const isValidPassword = await strapi
       .plugin('users-permissions')
       .service('user')
       .validatePassword(rawPassword, user.password);
 
-    if (!isValidPassword) return ctx.unauthorized('invalid credentials');
+    if (!isValidPassword) return ctx.unauthorized('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
 
     const jwt = strapi.plugin('users-permissions').service('jwt').issue({ id: user.id });
 
     return ctx.send({
       jwt,
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        display_name: user.display_name,
-        role_app: user.role_app,
-        is_approved: user.is_approved,
-      },
+      user: serializeUser(user),
     });
   },
 
@@ -148,15 +134,88 @@ export default factories.createCoreController('plugin::users-permissions.user', 
       { populate: [] },
     )) as any;
 
-    if (!fullUser) return ctx.notFound('user not found');
+    if (!fullUser) return ctx.notFound('ไม่พบผู้ใช้งาน');
+
+    return ctx.send(serializeUser(fullUser));
+  },
+
+  async updateMe(ctx) {
+    const currentUser = ctx.state.user;
+    if (!currentUser?.id) return ctx.unauthorized('unauthorized');
+
+    const body = ctx.request.body ?? {};
+    const displayName = String(body.display_name ?? '').trim();
+    const telegramId = String(body.telegram_id ?? '').trim();
+    const telegramChatId = String(body.telegram_chat_id ?? '').trim();
+    const currentPassword = String(body.current_password ?? '');
+    const newPassword = String(body.new_password ?? '');
+    const confirmPassword = String(body.confirm_password ?? '');
+
+    const fullUser = await strapi.query('plugin::users-permissions.user').findOne({
+      where: { id: currentUser.id },
+      select: ['id', 'username', 'email', 'password', 'display_name', 'role_app', 'is_approved', 'telegram_id', 'telegram_chat_id'],
+    }) as any;
+
+    if (!fullUser) return ctx.notFound('ไม่พบผู้ใช้งาน');
+    if (!displayName) return ctx.badRequest('กรุณากรอกชื่อที่แสดง');
+
+    const wantsPasswordChange = !!currentPassword || !!newPassword || !!confirmPassword;
+    if (wantsPasswordChange) {
+      if (!currentPassword || !newPassword || !confirmPassword) {
+        return ctx.badRequest('กรุณากรอกรหัสผ่านปัจจุบัน รหัสผ่านใหม่ และยืนยันรหัสผ่านให้ครบ');
+      }
+      if (newPassword.length < 6) {
+        return ctx.badRequest('รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร');
+      }
+      if (newPassword !== confirmPassword) {
+        return ctx.badRequest('ยืนยันรหัสผ่านใหม่ไม่ตรงกัน');
+      }
+
+      const isValidPassword = await strapi
+        .plugin('users-permissions')
+        .service('user')
+        .validatePassword(currentPassword, fullUser.password);
+
+      if (!isValidPassword) {
+        return ctx.badRequest('รหัสผ่านปัจจุบันไม่ถูกต้อง');
+      }
+    }
+
+    const data: Record<string, unknown> = {
+      display_name: displayName,
+    };
+
+    if (fullUser.role_app === 'manager') {
+      data.telegram_id = telegramId || null;
+      data.telegram_chat_id = telegramChatId || null;
+    }
+
+    if (wantsPasswordChange) {
+      data.password = newPassword;
+    }
+
+    const updated = (await strapi.entityService.update(
+      'plugin::users-permissions.user',
+      currentUser.id,
+      { data },
+    )) as any;
 
     return ctx.send({
-      id: fullUser.id,
-      username: fullUser.username,
-      email: fullUser.email,
-      display_name: fullUser.display_name,
-      role_app: fullUser.role_app,
-      is_approved: fullUser.is_approved,
+      message: 'บันทึกข้อมูลเรียบร้อย',
+      user: serializeUser(updated),
     });
   },
 }));
+
+function serializeUser(user: any) {
+  return {
+    id: user.id,
+    username: user.username,
+    email: user.email,
+    display_name: user.display_name,
+    role_app: user.role_app,
+    is_approved: user.is_approved,
+    telegram_id: user.role_app === 'manager' ? user.telegram_id ?? '' : undefined,
+    telegram_chat_id: user.role_app === 'manager' ? user.telegram_chat_id ?? '' : undefined,
+  };
+}

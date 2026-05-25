@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const strapi_1 = require("@strapi/strapi");
+const notificationUid = 'api::notification.notification';
 exports.default = strapi_1.factories.createCoreService('api::task.task', ({ strapi }) => ({
     async notifyGroup({ message }) {
         const botToken = process.env.TELEGRAM_BOT_TOKEN;
@@ -42,7 +43,6 @@ exports.default = strapi_1.factories.createCoreService('api::task.task', ({ stra
                 const photoBody = await photoResp.json().catch(() => ({}));
                 if (!photoResp.ok || (photoBody === null || photoBody === void 0 ? void 0 : photoBody.ok) === false) {
                     strapi.log.warn(`[notifyManager] sendPhoto failed: ${JSON.stringify(photoBody)}`);
-                    // Fallback: some formats are rejected by sendPhoto; send as document instead.
                     const docForm = new FormDataCtor();
                     docForm.append('chat_id', String(managerChatId || ''));
                     docForm.append('caption', `งานรอตรวจ: ${taskName}\nโดย: ${submittedBy}\n\nรายงาน:\n${reportText}`);
@@ -89,16 +89,16 @@ exports.default = strapi_1.factories.createCoreService('api::task.task', ({ stra
         if (userId) {
             messageBody.reply_markup = {
                 inline_keyboard: [[
-                        { text: '✅ อนุมัติพนักงาน', callback_data: `approve_user:${userId}` },
-                        { text: '❌ ปฏิเสธ', callback_data: `reject_user:${userId}` },
+                        { text: 'อนุมัติพนักงาน', callback_data: `approve_user:${userId}` },
+                        { text: 'ปฏิเสธ', callback_data: `reject_user:${userId}` },
                     ]],
             };
         }
         else if (taskId) {
             messageBody.reply_markup = {
                 inline_keyboard: [[
-                        { text: '✅ อนุมัติ', callback_data: `approve:${taskId}` },
-                        { text: '❌ ปฏิเสธ', callback_data: `reject:${taskId}` },
+                        { text: 'อนุมัติ', callback_data: `approve:${taskId}` },
+                        { text: 'ปฏิเสธ', callback_data: `reject:${taskId}` },
                     ]],
             };
         }
@@ -126,29 +126,29 @@ exports.default = strapi_1.factories.createCoreService('api::task.task', ({ stra
                 parse_mode: 'Markdown',
                 reply_markup: {
                     inline_keyboard: [[
-                            { text: '✅ อนุมัติ', callback_data: `approve_handover:${handoverId}` },
-                            { text: '❌ ปฏิเสธ', callback_data: `reject_handover:${handoverId}` },
+                            { text: 'อนุมัติ', callback_data: `approve_handover:${handoverId}` },
+                            { text: 'ปฏิเสธ', callback_data: `reject_handover:${handoverId}` },
                         ]],
                 },
             }),
         });
     },
-    async notifyStaff({ userId, message }) {
-        const botToken = process.env.TELEGRAM_BOT_TOKEN;
-        if (!botToken)
+    async notifyStaff({ userId, title, message, type = 'general', link = '/', }) {
+        const recipientId = Number(userId);
+        if (!Number.isFinite(recipientId) || recipientId <= 0)
             return;
-        const user = await strapi.entityService.findOne('plugin::users-permissions.user', userId);
-        // Test mode allows staff without Telegram linkage.
-        if (!(user === null || user === void 0 ? void 0 : user.telegram_chat_id))
-            return;
-        await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                chat_id: user.telegram_chat_id,
-                text: message,
-                parse_mode: 'Markdown',
-            }),
+        // Notification policy:
+        // - Telegram is used for manager notifications only.
+        // - Staff updates are stored as in-app notifications.
+        await strapi.entityService.create(notificationUid, {
+            data: {
+                recipient: recipientId,
+                title: (title === null || title === void 0 ? void 0 : title.trim()) || 'มีอัปเดตใหม่',
+                message: message.trim(),
+                type,
+                link,
+                is_read: false,
+            },
         });
     },
 }));

@@ -1,5 +1,7 @@
 import { factories } from '@strapi/strapi';
 
+const notificationUid = 'api::notification.notification' as any;
+
 export default factories.createCoreService('api::task.task', ({ strapi }) => ({
   async notifyGroup({ message }: { message: string }) {
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
@@ -65,7 +67,7 @@ export default factories.createCoreService('api::task.task', ({ strapi }) => ({
         const photoBody: any = await photoResp.json().catch(() => ({}));
         if (!photoResp.ok || photoBody?.ok === false) {
           strapi.log.warn(`[notifyManager] sendPhoto failed: ${JSON.stringify(photoBody)}`);
-          // Fallback: some formats are rejected by sendPhoto; send as document instead.
+
           const docForm: any = new FormDataCtor();
           docForm.append('chat_id', String(managerChatId || ''));
           docForm.append('caption', `งานรอตรวจ: ${taskName}\nโดย: ${submittedBy}\n\nรายงาน:\n${reportText}`);
@@ -111,15 +113,15 @@ export default factories.createCoreService('api::task.task', ({ strapi }) => ({
     if (userId) {
       messageBody.reply_markup = {
         inline_keyboard: [[
-          { text: '✅ อนุมัติพนักงาน', callback_data: `approve_user:${userId}` },
-          { text: '❌ ปฏิเสธ', callback_data: `reject_user:${userId}` },
+          { text: 'อนุมัติพนักงาน', callback_data: `approve_user:${userId}` },
+          { text: 'ปฏิเสธ', callback_data: `reject_user:${userId}` },
         ]],
       };
     } else if (taskId) {
       messageBody.reply_markup = {
         inline_keyboard: [[
-          { text: '✅ อนุมัติ', callback_data: `approve:${taskId}` },
-          { text: '❌ ปฏิเสธ', callback_data: `reject:${taskId}` },
+          { text: 'อนุมัติ', callback_data: `approve:${taskId}` },
+          { text: 'ปฏิเสธ', callback_data: `reject:${taskId}` },
         ]],
       };
     }
@@ -157,34 +159,42 @@ export default factories.createCoreService('api::task.task', ({ strapi }) => ({
         parse_mode: 'Markdown',
         reply_markup: {
           inline_keyboard: [[
-            { text: '✅ อนุมัติ', callback_data: `approve_handover:${handoverId}` },
-            { text: '❌ ปฏิเสธ', callback_data: `reject_handover:${handoverId}` },
+            { text: 'อนุมัติ', callback_data: `approve_handover:${handoverId}` },
+            { text: 'ปฏิเสธ', callback_data: `reject_handover:${handoverId}` },
           ]],
         },
       }),
     });
   },
 
-  async notifyStaff({ userId, message }: { userId: string; message: string }) {
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    if (!botToken) return;
+  async notifyStaff({
+    userId,
+    title,
+    message,
+    type = 'general',
+    link = '/',
+  }: {
+    userId: string | number;
+    title?: string;
+    message: string;
+    type?: 'task' | 'project' | 'handover' | 'general';
+    link?: string;
+  }) {
+    const recipientId = Number(userId);
+    if (!Number.isFinite(recipientId) || recipientId <= 0) return;
 
-    const user = await strapi.entityService.findOne(
-      'plugin::users-permissions.user',
-      userId,
-    ) as any;
-
-    // Test mode allows staff without Telegram linkage.
-    if (!user?.telegram_chat_id) return;
-
-    await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: user.telegram_chat_id,
-        text: message,
-        parse_mode: 'Markdown',
-      }),
+    // Notification policy:
+    // - Telegram is used for manager notifications only.
+    // - Staff updates are stored as in-app notifications.
+    await strapi.entityService.create(notificationUid, {
+      data: {
+        recipient: recipientId,
+        title: title?.trim() || 'มีอัปเดตใหม่',
+        message: message.trim(),
+        type,
+        link,
+        is_read: false,
+      },
     });
   },
 }));

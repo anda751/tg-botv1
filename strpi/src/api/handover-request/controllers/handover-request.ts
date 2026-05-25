@@ -139,7 +139,10 @@ export default factories.createCoreController('api::handover-request.handover-re
 
     await strapi.service('api::task.task').notifyStaff({
       userId: handover.picked_up_by.id,
+      title: 'ได้รับงานต่อแล้ว',
       message: `หัวหน้าอนุมัติแล้ว งาน *${handover.task.name}* เป็นของคุณแล้ว`,
+      type: 'handover',
+      link: '/',
     });
 
     await strapi.service('api::task.task').notifyGroup({

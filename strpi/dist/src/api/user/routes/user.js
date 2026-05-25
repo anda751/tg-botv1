@@ -20,5 +20,11 @@ exports.default = {
             handler: 'user.me',
             config: { auth: false },
         },
+        {
+            method: 'PUT',
+            path: '/profile/me',
+            handler: 'user.updateMe',
+            config: { auth: false },
+        },
     ],
 };

@@ -2,19 +2,20 @@ import { useNavigate, useLocation } from 'react-router-dom'
 
 const TABS = [
   { label: 'Dashboard', path: '/' },
-  { label: 'Projects',  path: '/projects' },
-  { label: 'Tasks',     path: '/tasks' },
-  { label: 'Staff',     path: '/staff' },
-  { label: 'Reports',   path: '/reports' },
+  { label: 'Projects', path: '/projects' },
+  { label: 'Tasks', path: '/tasks' },
+  { label: 'Staff', path: '/staff' },
+  { label: 'Reports', path: '/reports' },
+  { label: 'Settings', path: '/settings' },
 ]
 
 export default function ManagerNav() {
-  const navigate  = useNavigate()
+  const navigate = useNavigate()
   const { pathname } = useLocation()
 
   return (
     <div className="flex gap-2 overflow-x-auto pb-1">
-      {TABS.map(tab => (
+      {TABS.map((tab) => (
         <button
           key={tab.path}
           onClick={() => navigate(tab.path)}

@@ -108,7 +108,10 @@ export default factories.createCoreController('api::project.project', ({ strapi 
 
     await strapi.service('api::task.task').notifyStaff({
       userId,
+      title: 'ถูกเพิ่มเข้าโปรเจกต์',
       message: `คุณถูกเพิ่มเข้าโปรเจกต์ *${project.name}*`,
+      type: 'project',
+      link: '/create',
     });
 
     return ctx.send({ message: 'เพิ่มสมาชิกเรียบร้อย' });
@@ -252,7 +255,10 @@ export default factories.createCoreController('api::project.project', ({ strapi 
 
     await strapi.service('api::task.task').notifyStaff({
       userId: String(request.requested_by.id),
+      title: 'คำขอเข้าโปรเจกต์ได้รับอนุมัติ',
       message: `คำขอได้รับอนุมัติแล้ว คุณเข้าร่วมโปรเจกต์ *${request.project.name}* ได้แล้ว`,
+      type: 'project',
+      link: '/create',
     });
 
     return ctx.send({ message: 'อนุมัติคำขอเข้าร่วมโปรเจกต์แล้ว' });
@@ -282,7 +288,10 @@ export default factories.createCoreController('api::project.project', ({ strapi 
 
     await strapi.service('api::task.task').notifyStaff({
       userId: String(request.requested_by.id),
+      title: 'คำขอเข้าโปรเจกต์ไม่ผ่าน',
       message: `คำขอเข้าร่วมโปรเจกต์ *${request.project.name}* ไม่ได้รับการอนุมัติ`,
+      type: 'project',
+      link: '/create',
     });
 
     return ctx.send({ message: 'ปฏิเสธคำขอเข้าร่วมโปรเจกต์แล้ว' });

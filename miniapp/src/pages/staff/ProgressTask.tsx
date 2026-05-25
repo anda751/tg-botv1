@@ -72,7 +72,7 @@ export default function ProgressTask() {
       fd.append('report_text', reportText.trim());
       if (imageFile) fd.append('proof_image', imageFile);
       await taskApi.progress(Number(taskId), fd);
-      navigate('/');
+      navigate('/', { state: { successMessage: 'บันทึกความคืบหน้าเรียบร้อยแล้ว' } });
     } catch (err: any) {
       setError(err?.response?.data?.error?.message || 'เกิดข้อผิดพลาด');
     } finally {

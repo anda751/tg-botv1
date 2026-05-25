@@ -82,6 +82,13 @@ export const dashboardApi = {
   staffOverview: () => axios.get('/dashboard/staff'),
 }
 
+// ===== Notifications =====
+export const notificationApi = {
+  getMy: () => axios.get('/notifications/my'),
+  markRead: (notificationId: number) => axios.post(`/notifications/${notificationId}/read`),
+  markAllRead: () => axios.post('/notifications/read-all'),
+}
+
 // ===== Users =====
 export const userApi = {
   register: (data: {
@@ -100,4 +107,13 @@ export const userApi = {
   }) => axios.post('/auth/login', data),
 
   me: () => axios.get('/profile/me'),
+
+  updateMe: (data: {
+    display_name: string
+    telegram_id?: string
+    telegram_chat_id?: string
+    current_password?: string
+    new_password?: string
+    confirm_password?: string
+  }) => axios.put('/profile/me', data),
 }

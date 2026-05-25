@@ -76,7 +76,7 @@ export default function SubmitTask() {
       fd.append('proof_image', imageFile);
       fd.append('report_text', reportText);
       await taskApi.submit(Number(taskId), fd);
-      navigate('/');
+      navigate('/', { state: { successMessage: 'ส่งงานเรียบร้อยแล้ว รอหัวหน้าตรวจสอบ' } });
     } catch (err: any) {
       setError(err?.response?.data?.error?.message || 'เกิดข้อผิดพลาด');
     } finally {

@@ -13,6 +13,7 @@ import Projects from './pages/manager/Projects';
 import Tasks from './pages/manager/Tasks';
 import Staff from './pages/manager/Staff';
 import Reports from './pages/manager/Reports';
+import Settings from './pages/manager/Settings';
 import Register from './pages/Register';
 import Loading from './components/Loading';
 import Login from './pages/Login';
@@ -26,6 +27,8 @@ export type AppUser = {
   email: string
   role_app: RoleApp
   is_approved: boolean
+  telegram_id?: string
+  telegram_chat_id?: string
 }
 
 const AUTH_TOKEN_KEY = 'auth-token';
@@ -99,6 +102,7 @@ export default function App() {
                 <Route path="/tasks" element={<Tasks />} />
                 <Route path="/staff" element={<Staff />} />
                 <Route path="/reports" element={<Reports />} />
+                <Route path="/settings" element={<Settings />} />
                 <Route path="/login" element={<Navigate to="/" replace />} />
                 <Route path="/register" element={<Navigate to="/" replace />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
