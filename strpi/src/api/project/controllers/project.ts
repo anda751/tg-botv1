@@ -146,4 +146,141 @@ export default factories.createCoreController('api::project.project', ({ strapi 
 
     return ctx.send(projects);
   },
+
+  async requestJoin(ctx) {
+    const user = ctx.state.user;
+    const { id } = ctx.params;
+    const { note } = ctx.request.body ?? {};
+
+    if (user.role_app !== 'staff') return ctx.forbidden('Staff role required');
+
+    const project = await strapi.entityService.findOne('api::project.project', id, {
+      populate: ['members'],
+    }) as any;
+
+    if (!project) return ctx.notFound('Project not found');
+    if (project.status_project !== 'active') return ctx.badRequest('Project is not active');
+
+    const alreadyMember = project.members?.some((m: any) => m.id === user.id);
+    if (alreadyMember) return ctx.badRequest('You are already a member of this project');
+
+    const existingPending = await (strapi.entityService as any).findMany(
+      'api::project-join-request.project-join-request',
+      {
+        filters: {
+          project: { id: { $eq: id } },
+          requested_by: { id: { $eq: user.id } },
+          status_request: 'pending',
+        },
+        limit: 1,
+      },
+    ) as any[];
+    if (existingPending.length) return ctx.badRequest('Join request is already pending');
+
+    const request = await (strapi.entityService as any).create(
+      'api::project-join-request.project-join-request',
+      {
+        data: {
+          project: Number(id),
+          requested_by: user.id,
+          note: typeof note === 'string' ? note.trim() : '',
+          status_request: 'pending',
+        },
+        populate: ['project', 'requested_by'],
+      },
+    ) as any;
+
+    await strapi.service('api::task.task').notifyManager({
+      taskId: '',
+      taskName: '',
+      submittedBy: user.display_name || user.username,
+      reportText: `Project join request\nProject: ${project.name}\nStaff: ${user.display_name || user.username}\nNote: ${request.note || '-'}`,
+      imageUrl: '',
+    });
+
+    return ctx.send({ message: 'Join request submitted', request });
+  },
+
+  async pendingJoinRequests(ctx) {
+    const user = ctx.state.user;
+    if (user.role_app !== 'manager') return ctx.forbidden('Manager role required');
+
+    const requests = await (strapi.entityService as any).findMany(
+      'api::project-join-request.project-join-request',
+      {
+        filters: { status_request: 'pending' },
+        populate: ['project', 'requested_by'],
+        sort: ['createdAt:asc'],
+        limit: -1,
+      },
+    ) as any[];
+
+    return ctx.send(requests);
+  },
+
+  async approveJoinRequest(ctx) {
+    const user = ctx.state.user;
+    const { id } = ctx.params;
+    if (user.role_app !== 'manager') return ctx.forbidden('Manager role required');
+
+    const request = await (strapi.entityService as any).findOne(
+      'api::project-join-request.project-join-request',
+      id,
+      { populate: ['project', 'requested_by', 'project.members'] },
+    ) as any;
+    if (!request) return ctx.notFound('Join request not found');
+    if (request.status_request !== 'pending') return ctx.badRequest('Request is not pending');
+
+    const members = request.project?.members?.map((m: any) => m.id) ?? [];
+    const alreadyMember = members.includes(request.requested_by.id);
+    if (!alreadyMember) {
+      await strapi.entityService.update('api::project.project', request.project.id, {
+        data: { members: [...members, request.requested_by.id] } as any,
+      });
+    }
+
+    await (strapi.entityService as any).update('api::project-join-request.project-join-request', id, {
+      data: {
+        status_request: 'approved',
+        reviewed_by: user.id,
+      },
+    });
+
+    await strapi.service('api::task.task').notifyStaff({
+      userId: String(request.requested_by.id),
+      message: `Approved: You joined project *${request.project.name}*`,
+    });
+
+    return ctx.send({ message: 'Join request approved' });
+  },
+
+  async rejectJoinRequest(ctx) {
+    const user = ctx.state.user;
+    const { id } = ctx.params;
+    const { reason } = ctx.request.body ?? {};
+    if (user.role_app !== 'manager') return ctx.forbidden('Manager role required');
+
+    const request = await (strapi.entityService as any).findOne(
+      'api::project-join-request.project-join-request',
+      id,
+      { populate: ['project', 'requested_by'] },
+    ) as any;
+    if (!request) return ctx.notFound('Join request not found');
+    if (request.status_request !== 'pending') return ctx.badRequest('Request is not pending');
+
+    await (strapi.entityService as any).update('api::project-join-request.project-join-request', id, {
+      data: {
+        status_request: 'rejected',
+        reviewed_by: user.id,
+        review_note: typeof reason === 'string' ? reason.trim() : '',
+      },
+    });
+
+    await strapi.service('api::task.task').notifyStaff({
+      userId: String(request.requested_by.id),
+      message: `Rejected: Your request to join *${request.project.name}* was rejected`,
+    });
+
+    return ctx.send({ message: 'Join request rejected' });
+  },
 }));

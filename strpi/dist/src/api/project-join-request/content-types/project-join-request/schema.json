@@ -1,0 +1,43 @@
+{
+    "kind": "collectionType",
+    "collectionName": "project_join_requests",
+    "info": {
+        "singularName": "project-join-request",
+        "pluralName": "project-join-requests",
+        "displayName": "Project Join Request"
+    },
+    "options": {
+        "draftAndPublish": false
+    },
+    "pluginOptions": {},
+    "attributes": {
+        "status_request": {
+            "type": "enumeration",
+            "enum": ["pending", "approved", "rejected"],
+            "default": "pending",
+            "required": true
+        },
+        "note": {
+            "type": "text"
+        },
+        "project": {
+            "type": "relation",
+            "relation": "manyToOne",
+            "target": "api::project.project",
+            "inversedBy": "join_requests"
+        },
+        "requested_by": {
+            "type": "relation",
+            "relation": "manyToOne",
+            "target": "plugin::users-permissions.user"
+        },
+        "reviewed_by": {
+            "type": "relation",
+            "relation": "manyToOne",
+            "target": "plugin::users-permissions.user"
+        },
+        "review_note": {
+            "type": "text"
+        }
+    }
+}

@@ -42,6 +42,12 @@
             "relation": "oneToMany",
             "target": "api::task.task",
             "mappedBy": "project"
+        },
+        "join_requests": {
+            "type": "relation",
+            "relation": "oneToMany",
+            "target": "api::project-join-request.project-join-request",
+            "mappedBy": "project"
         }
     }
 }

@@ -40,6 +40,18 @@ export const projectApi = {
 
   removeMember: (projectId: number, userId: number) =>
     axios.delete(`/projects/${projectId}/members/${userId}`),
+
+  requestJoin: (projectId: number, note: string) =>
+    axios.post(`/projects/${projectId}/join-requests`, { note }),
+
+  getPendingJoinRequests: () =>
+    axios.get('/projects/join-requests/pending'),
+
+  approveJoinRequest: (requestId: number) =>
+    axios.post(`/project-join-requests/${requestId}/approve`),
+
+  rejectJoinRequest: (requestId: number, reason: string) =>
+    axios.post(`/project-join-requests/${requestId}/reject`, { reason }),
 }
 
 // ===== Handover =====
