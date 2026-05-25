@@ -15,8 +15,6 @@ exports.default = (config, { strapi }) => {
         ];
         if (skipPaths.some((p) => ctx.path.startsWith(p)))
             return next();
-        if (ctx.state.isAuthenticatedRoute === false)
-            return next();
         const bearerToken = getBearerToken(ctx.headers.authorization);
         if (bearerToken) {
             try {
