@@ -8,6 +8,7 @@ import SubmitTask from './pages/staff/SubmitTask';
 import ProgressTask from './pages/staff/ProgressTask';
 import HandoverTask from './pages/staff/HandoverTask';
 import PickupTask from './pages/staff/PickupTask';
+import StaffSettings from './pages/staff/Settings';
 import Dashboard from './pages/manager/Dashboard';
 import Projects from './pages/manager/Projects';
 import Tasks from './pages/manager/Tasks';
@@ -115,6 +116,7 @@ export default function App() {
                 <Route path="/progress/:taskId" element={<ProgressTask />} />
                 <Route path="/handover/:taskId" element={<HandoverTask />} />
                 <Route path="/pickup" element={<PickupTask />} />
+                <Route path="/settings" element={<StaffSettings />} />
                 <Route path="/login" element={<Navigate to="/" replace />} />
                 <Route path="/register" element={<Navigate to="/" replace />} />
                 <Route path="*" element={<Navigate to="/" replace />} />

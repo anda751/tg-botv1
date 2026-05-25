@@ -129,12 +129,20 @@ export default function MyTasks() {
             <h1 className="text-xl font-bold text-gray-800">งานของฉัน</h1>
             <p className="text-sm text-gray-500 mt-1">ติดตามงานและอัปเดตล่าสุดได้จากหน้าเดียว</p>
           </div>
-          <button
-            onClick={() => navigate('/create')}
-            className="bg-blue-500 text-white text-sm px-4 py-2 rounded-full font-medium shrink-0"
-          >
-            + สร้างงาน
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => navigate('/settings')}
+              className="px-3 py-2 rounded-full text-sm font-medium bg-gray-100 text-gray-700"
+            >
+              ตั้งค่า
+            </button>
+            <button
+              onClick={() => navigate('/create')}
+              className="bg-blue-500 text-white text-sm px-4 py-2 rounded-full font-medium"
+            >
+              + สร้างงาน
+            </button>
+          </div>
         </div>
 
         <div className="flex gap-2">
