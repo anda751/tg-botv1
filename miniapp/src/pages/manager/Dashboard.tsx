@@ -19,6 +19,9 @@ export default function Dashboard() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [underReview, setUnderReview] = useState<ReviewTask[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pageError, setPageError] = useState('');
+  const [reviewError, setReviewError] = useState('');
+  const [actionError, setActionError] = useState('');
   const [actionLoading, setActionLoading] = useState<number | null>(null);
   const [rejectId, setRejectId] = useState<number | null>(null);
   const [rejectReason, setRejectReason] = useState('');
@@ -29,23 +32,40 @@ export default function Dashboard() {
 
   async function loadAll() {
     setLoading(true);
-    try {
-      const [s, r] = await Promise.all([dashboardApi.summary(), dashboardApi.underReview()]);
-      setSummary(s.data);
-      setUnderReview(Array.isArray(r.data) ? r.data : []);
-    } catch {
+    setPageError('');
+    setReviewError('');
+    setActionError('');
+
+    const [summaryRes, reviewRes] = await Promise.allSettled([
+      dashboardApi.summary(),
+      dashboardApi.underReview(),
+    ]);
+
+    if (summaryRes.status === 'fulfilled') {
+      setSummary(summaryRes.value.data);
+    } else {
       setSummary(null);
-      setUnderReview([]);
-    } finally {
-      setLoading(false);
+      setPageError(extractMessage(summaryRes.reason, 'โหลดข้อมูลภาพรวมไม่สำเร็จ'));
     }
+
+    if (reviewRes.status === 'fulfilled') {
+      setUnderReview(Array.isArray(reviewRes.value.data) ? reviewRes.value.data : []);
+    } else {
+      setUnderReview([]);
+      setReviewError(extractMessage(reviewRes.reason, 'โหลดรายการงานรอตรวจไม่สำเร็จ'));
+    }
+
+    setLoading(false);
   }
 
   async function handleApprove(taskId: number) {
+    setActionError('');
     setActionLoading(taskId);
     try {
       await taskApi.approve(taskId);
       await loadAll();
+    } catch (err) {
+      setActionError(extractMessage(err, 'อนุมัติงานไม่สำเร็จ'));
     } finally {
       setActionLoading(null);
     }
@@ -53,12 +73,15 @@ export default function Dashboard() {
 
   async function handleReject(taskId: number) {
     if (rejectReason.length < 5) return;
+    setActionError('');
     setActionLoading(taskId);
     try {
       await taskApi.reject(taskId, rejectReason);
       setRejectId(null);
       setRejectReason('');
       await loadAll();
+    } catch (err) {
+      setActionError(extractMessage(err, 'ส่งงานกลับไม่สำเร็จ'));
     } finally {
       setActionLoading(null);
     }
@@ -70,11 +93,12 @@ export default function Dashboard() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-white">แดชบอร์ด</h1>
-            <p className="text-xs text-slate-400 mt-0.5">ภาพรวมระบบ</p>
+            <p className="text-xs text-slate-400 mt-0.5">ภาพรวมระบบและงานรอตรวจ</p>
           </div>
           <button
             onClick={loadAll}
-            className="w-9 h-9 rounded-full flex items-center justify-center text-slate-400 bg-slate-800 active:bg-slate-700 transition"
+            className="w-9 h-9 rounded-full flex items-center justify-center text-slate-300 bg-slate-800 active:bg-slate-700 transition"
+            title="รีเฟรช"
           >
             รี
           </button>
@@ -83,16 +107,23 @@ export default function Dashboard() {
       </div>
 
       <div className="flex-1 px-4 py-5 space-y-6 overflow-y-auto">
+        {actionError && (
+          <NoticeBox tone="red" title="ทำรายการไม่สำเร็จ" message={actionError} />
+        )}
+
         {loading ? (
-          <div className="grid grid-cols-2 gap-3">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="bg-slate-900 rounded-2xl p-4 h-24 animate-pulse" />
-            ))}
-          </div>
-        ) : summary && (
           <>
             <div className="grid grid-cols-2 gap-3">
-              <StatCard label="งานทั้งหมด" value={summary.tasks.total} sub={`เสร็จ ${summary.tasks.done}`} color="blue" icon="งาน" />
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="bg-slate-900 rounded-2xl p-4 h-24 animate-pulse" />
+              ))}
+            </div>
+            <div className="bg-slate-900 rounded-2xl h-40 animate-pulse" />
+          </>
+        ) : summary ? (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <StatCard label="งานทั้งหมด" value={summary.tasks.total} sub={`เสร็จแล้ว ${summary.tasks.done}`} color="blue" icon="งาน" />
               <StatCard
                 label="รอตรวจ"
                 value={summary.tasks.under_review}
@@ -106,13 +137,13 @@ export default function Dashboard() {
                 value={summary.projects.active}
                 sub={summary.projects.overdue > 0 ? `เกินกำหนด ${summary.projects.overdue}` : 'กำลังดำเนินการ'}
                 color={summary.projects.overdue > 0 ? 'red' : 'green'}
-                icon="โปร"
+                icon="โปรเจกต์"
                 alert={summary.projects.overdue > 0}
               />
               <StatCard
                 label="พนักงาน"
                 value={summary.staff.total}
-                sub={`รอรับ ${summary.tasks.waiting_pickup} งาน`}
+                sub={`รอรับต่อ ${summary.tasks.waiting_pickup} งาน`}
                 color="purple"
                 icon="ทีม"
               />
@@ -123,19 +154,37 @@ export default function Dashboard() {
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">สถานะงานวันนี้</p>
                 <p className="text-xs text-slate-500">{summary.tasks.total} งาน</p>
               </div>
-              <div className="flex rounded-full overflow-hidden h-3 gap-0.5">
-                <ProgressBar value={summary.tasks.done} total={summary.tasks.total} color="bg-green-500" />
-                <ProgressBar value={summary.tasks.under_review} total={summary.tasks.total} color="bg-amber-400" />
-                <ProgressBar value={summary.tasks.in_progress} total={summary.tasks.total} color="bg-blue-500" />
-                <ProgressBar value={summary.tasks.waiting_pickup} total={summary.tasks.total} color="bg-orange-400" />
-              </div>
+              {summary.tasks.total === 0 ? (
+                <p className="text-sm text-slate-500">ยังไม่มีงานในระบบตอนนี้</p>
+              ) : (
+                <div className="flex rounded-full overflow-hidden h-3 gap-0.5">
+                  <ProgressBar value={summary.tasks.done} total={summary.tasks.total} color="bg-green-500" />
+                  <ProgressBar value={summary.tasks.under_review} total={summary.tasks.total} color="bg-amber-400" />
+                  <ProgressBar value={summary.tasks.in_progress} total={summary.tasks.total} color="bg-blue-500" />
+                  <ProgressBar value={summary.tasks.waiting_pickup} total={summary.tasks.total} color="bg-orange-400" />
+                </div>
+              )}
             </div>
           </>
+        ) : (
+          <ErrorState
+            title="โหลดภาพรวมไม่สำเร็จ"
+            message={pageError || 'ระบบยังดึงข้อมูลแดชบอร์ดไม่ได้'}
+            onRetry={loadAll}
+          />
         )}
 
-        <Section title="รอตรวจงาน" badge={underReview.length} badgeColor="amber">
-          {underReview.length === 0 ? (
-            <p className="text-slate-500 text-sm py-2">ไม่มีงานรอตรวจ</p>
+        <Section title="งานรอตรวจ" badge={underReview.length} badgeColor="amber">
+          {loading ? (
+            <div className="space-y-3">
+              {[1, 2].map((i) => (
+                <div key={i} className="bg-slate-900 rounded-2xl h-36 animate-pulse" />
+              ))}
+            </div>
+          ) : reviewError ? (
+            <NoticeBox tone="red" title="โหลดรายการงานรอตรวจไม่สำเร็จ" message={reviewError} actionLabel="ลองใหม่" onAction={loadAll} />
+          ) : underReview.length === 0 ? (
+            <EmptyState title="ยังไม่มีงานรอตรวจ" message="เมื่องานถูกส่งเข้าตรวจ รายการจะแสดงที่นี่" />
           ) : (
             <div className="space-y-3">
               {underReview.map((task) => (
@@ -160,7 +209,7 @@ export default function Dashboard() {
                           onChange={(e) => setRejectReason(e.target.value)}
                           placeholder="ระบุเหตุผลที่ส่งกลับ อย่างน้อย 5 ตัวอักษร"
                           rows={2}
-                          className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-600 text-white placeholder-slate-600 outline-none focus:border-red-500 text-xs resize-none"
+                          className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-600 text-white placeholder-slate-500 outline-none focus:border-red-500 text-xs resize-none"
                         />
                       </div>
                     )}
@@ -182,7 +231,7 @@ export default function Dashboard() {
                             disabled={rejectReason.length < 5 || actionLoading === task.id}
                             className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-red-600 active:bg-red-700 transition disabled:opacity-40"
                           >
-                            {actionLoading === task.id ? '...' : 'ส่งกลับ'}
+                            {actionLoading === task.id ? 'กำลังส่ง...' : 'ส่งกลับ'}
                           </button>
                         </>
                       ) : (
@@ -198,7 +247,7 @@ export default function Dashboard() {
                             disabled={actionLoading === task.id}
                             className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-green-600 active:bg-green-700 transition disabled:opacity-40"
                           >
-                            {actionLoading === task.id ? '...' : 'อนุมัติ'}
+                            {actionLoading === task.id ? 'กำลังอนุมัติ...' : 'อนุมัติ'}
                           </button>
                         </>
                       )}
@@ -212,6 +261,10 @@ export default function Dashboard() {
       </div>
     </div>
   );
+}
+
+function extractMessage(error: any, fallback: string) {
+  return error?.response?.data?.error?.message || error?.response?.data?.message || fallback;
 }
 
 function StatCard({ label, value, sub, color, icon, alert }: {
@@ -279,6 +332,63 @@ function Section({ title, badge, badgeColor, children }: {
         )}
       </div>
       {children}
+    </div>
+  );
+}
+
+function NoticeBox({
+  tone,
+  title,
+  message,
+  actionLabel,
+  onAction,
+}: {
+  tone: 'red' | 'blue'
+  title: string
+  message: string
+  actionLabel?: string
+  onAction?: () => void
+}) {
+  const toneClass = tone === 'red'
+    ? 'border-red-800/70 bg-red-950/40 text-red-100'
+    : 'border-blue-800/70 bg-blue-950/40 text-blue-100';
+
+  return (
+    <div className={`rounded-2xl border p-4 ${toneClass}`}>
+      <p className="text-sm font-semibold">{title}</p>
+      <p className="text-xs mt-1 opacity-90">{message}</p>
+      {actionLabel && onAction && (
+        <button
+          onClick={onAction}
+          className="mt-3 px-3 py-2 rounded-xl text-xs font-semibold bg-white/10 active:bg-white/20 transition"
+        >
+          {actionLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ErrorState({ title, message, onRetry }: { title: string; message: string; onRetry: () => void }) {
+  return (
+    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 text-center">
+      <p className="text-white font-semibold">{title}</p>
+      <p className="text-sm text-slate-400 mt-2">{message}</p>
+      <button
+        onClick={onRetry}
+        className="mt-4 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-blue-600 active:bg-blue-700 transition"
+      >
+        ลองใหม่
+      </button>
+    </div>
+  );
+}
+
+function EmptyState({ title, message }: { title: string; message: string }) {
+  return (
+    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 text-center">
+      <p className="text-white font-semibold">{title}</p>
+      <p className="text-sm text-slate-500 mt-2">{message}</p>
     </div>
   );
 }

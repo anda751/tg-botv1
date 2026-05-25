@@ -7,7 +7,7 @@ exports.default = strapi_1.factories.createCoreController('api::task.task', ({ s
         var _a, _b, _c, _d;
         const user = ctx.state.user;
         if (user.role_app !== 'manager')
-            return ctx.forbidden('Manager role required');
+            return ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
         const [tasks, projects, staffList] = await Promise.all([
             strapi.entityService.findMany('api::task.task', {
                 populate: ['current_owner'],
@@ -49,7 +49,7 @@ exports.default = strapi_1.factories.createCoreController('api::task.task', ({ s
     async pendingTasks(ctx) {
         const user = ctx.state.user;
         if (user.role_app !== 'manager')
-            return ctx.forbidden('Manager role required');
+            return ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
         const tasks = await strapi.entityService.findMany('api::task.task', {
             filters: { status_task: { $ne: 'done' } },
             populate: ['current_owner', 'task_log'],
@@ -73,7 +73,7 @@ exports.default = strapi_1.factories.createCoreController('api::task.task', ({ s
     async underReview(ctx) {
         const user = ctx.state.user;
         if (user.role_app !== 'manager')
-            return ctx.forbidden('Manager role required');
+            return ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
         const tasks = await strapi.entityService.findMany('api::task.task', {
             filters: { status_task: 'under_review' },
             populate: ['current_owner', 'proof_images'],
@@ -111,7 +111,7 @@ exports.default = strapi_1.factories.createCoreController('api::task.task', ({ s
         var _a;
         const user = ctx.state.user;
         if (user.role_app !== 'manager')
-            return ctx.forbidden('Manager role required');
+            return ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
         const [staffList, activeTasks] = await Promise.all([
             strapi.entityService.findMany('plugin::users-permissions.user', {
                 filters: { role_app: 'staff', is_approved: true },

@@ -18,7 +18,7 @@ export default factories.createCoreController('api::handover-request.handover-re
 
     if (!task) return ctx.notFound('ไม่พบงานนี้');
     if (task.current_owner.id !== user.id) return ctx.forbidden('คุณไม่ใช่เจ้าของงานนี้');
-    if (task.status_task !== 'in_progress') return ctx.badRequest('งานนี้ไม่สามารถส่งต่อได้');
+    if (task.status_task !== 'in_progress') return ctx.badRequest('งานนี้ยังไม่สามารถส่งต่อได้');
 
     await strapi.entityService.update('api::task.task', id, {
       data: { status_task: 'waiting_pickup' },
@@ -48,31 +48,31 @@ export default factories.createCoreController('api::handover-request.handover-re
     });
 
     await strapi.service('api::task.task').notifyGroup({
-      message: `🔄 งานรอคนรับช่วงต่อ: *${task.name}*\nส่งต่อโดย: ${user.username}\nเหตุผล: ${reason}\n\nกด [รับงาน] ใน Mini App ได้เลย`,
+      message: `งานรอคนรับช่วงต่อ: *${task.name}*\nส่งต่อโดย: ${user.username}\nเหตุผล: ${reason}\n\nเข้า Mini App เพื่อรับงานต่อได้เลย`,
     });
 
-    return ctx.send({ message: 'ส่งไม้ต่อเรียบร้อย', handoverId: handover.id });
+    return ctx.send({ message: 'ส่งต่องานเรียบร้อย', handoverId: handover.id });
   },
 
   // ===== ขอรับงานต่อ (Staff คนใหม่กดรับ) =====
   async pickup(ctx) {
     const user = ctx.state.user;
-    const { id } = ctx.params; // task id
+    const { id } = ctx.params;
 
     const task = await strapi.entityService.findOne('api::task.task', id, {
       populate: ['current_owner'],
     }) as any;
 
     if (!task) return ctx.notFound('ไม่พบงานนี้');
-    if (task.status_task !== 'waiting_pickup') return ctx.badRequest('งานนี้ไม่ได้รอคนรับ');
-    if (task.current_owner.id === user.id) return ctx.badRequest('คุณคือเจ้าของงานเดิมอยู่แล้ว');
+    if (task.status_task !== 'waiting_pickup') return ctx.badRequest('งานนี้ไม่ได้อยู่ในสถานะรอรับต่อ');
+    if (task.current_owner.id === user.id) return ctx.badRequest('คุณเป็นเจ้าของงานเดิมอยู่แล้ว');
 
     const handovers = await strapi.entityService.findMany('api::handover-request.handover-request', {
       filters: { task: id, status_handover: 'pending' },
       populate: ['picked_up_by'],
     }) as any[];
 
-    if (!handovers.length) return ctx.notFound('ไม่พบคำขอ Handover');
+    if (!handovers.length) return ctx.notFound('ไม่พบคำขอส่งต่องาน');
 
     const handover = handovers[0];
 
@@ -83,12 +83,10 @@ export default factories.createCoreController('api::handover-request.handover-re
       return ctx.badRequest('คำขอนี้หมดเวลาแล้ว');
     }
 
-    // ป้องกันคนขอซ้ำ
     if (handover.picked_up_by) {
       return ctx.badRequest('มีคนขอรับงานนี้แล้ว กรุณารอหัวหน้าตรวจสอบ');
     }
 
-    // บันทึก picked_up_by แยกต่างหาก — ไม่แตะ requested_by (เจ้าของเดิม)
     await strapi.entityService.update('api::handover-request.handover-request', handover.id, {
       data: { picked_up_by: user.id },
     });
@@ -107,7 +105,7 @@ export default factories.createCoreController('api::handover-request.handover-re
   // ===== อนุมัติ Handover (Manager) =====
   async approveHandover(ctx) {
     const user = ctx.state.user;
-    const { id } = ctx.params; // handover request id
+    const { id } = ctx.params;
 
     if (user.role_app !== 'manager') return ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
 
@@ -116,10 +114,9 @@ export default factories.createCoreController('api::handover-request.handover-re
     }) as any;
 
     if (!handover) return ctx.notFound('ไม่พบคำขอ');
-    if (handover.status_handover !== 'pending') return ctx.badRequest('คำขอนี้ไม่ได้รอการอนุมัติ');
-    if (!handover.picked_up_by) return ctx.badRequest('ยังไม่มีคนขอรับงานนี้');
+    if (handover.status_handover !== 'pending') return ctx.badRequest('คำขอนี้ไม่ได้อยู่ในสถานะรออนุมัติ');
+    if (!handover.picked_up_by) return ctx.badRequest('ยังไม่มีผู้ขอรับงานนี้');
 
-    // เปลี่ยน owner เป็น picked_up_by (คนขอรับงานใหม่)
     await strapi.entityService.update('api::task.task', handover.task.id, {
       data: {
         current_owner: handover.picked_up_by.id,
@@ -142,54 +139,53 @@ export default factories.createCoreController('api::handover-request.handover-re
 
     await strapi.service('api::task.task').notifyStaff({
       userId: handover.picked_up_by.id,
-      message: `✅ หัวหน้าอนุมัติแล้ว งาน *${handover.task.name}* เป็นของคุณแล้ว`,
+      message: `หัวหน้าอนุมัติแล้ว งาน *${handover.task.name}* เป็นของคุณแล้ว`,
     });
 
     await strapi.service('api::task.task').notifyGroup({
-      message: `🤝 งาน *${handover.task.name}* ส่งต่อให้ ${handover.picked_up_by.username} เรียบร้อย`,
+      message: `งาน *${handover.task.name}* ส่งต่อให้ ${handover.picked_up_by.username} เรียบร้อย`,
     });
 
-    return ctx.send({ message: 'อนุมัติ Handover เรียบร้อย' });
+    return ctx.send({ message: 'อนุมัติการส่งต่องานเรียบร้อย' });
   },
 
   // ===== ยกเลิกคำขอ (Staff ยกเลิกเอง) =====
- async cancelHandover(ctx) {
+  async cancelHandover(ctx) {
     const user = ctx.state.user;
-    const { id } = ctx.params; // handover request id
- 
+    const { id } = ctx.params;
+
     const handover = await strapi.entityService.findOne('api::handover-request.handover-request', id, {
       populate: ['task', 'requested_by'],
     }) as any;
- 
+
     if (!handover) return ctx.notFound('ไม่พบคำขอ');
     if (handover.requested_by.id !== user.id) return ctx.forbidden('คุณไม่ใช่เจ้าของคำขอนี้');
     if (handover.status_handover !== 'pending') return ctx.badRequest('คำขอนี้ไม่สามารถยกเลิกได้');
- 
+
     await strapi.entityService.update('api::handover-request.handover-request', id, {
       data: { status_handover: 'cancelled' },
     });
- 
-    // ✅ FIX: คืน task กลับ in_progress + คืน owner ให้คนที่ส่งไม้ต่อ (requested_by)
+
     await strapi.entityService.update('api::task.task', handover.task.id, {
       data: {
         status_task: 'in_progress',
         current_owner: handover.requested_by.id,
       },
     });
- 
+
     await strapi.entityService.create('api::task-log.task-log', {
       data: {
         task: handover.task.id,
         action: 'handover',
         actor: user.id,
-        note: 'ยกเลิกการส่งต่องาน คืนงานให้เจ้าของเดิม',
+        note: 'ยกเลิกการส่งต่องานและคืนงานให้เจ้าของเดิม',
       },
     });
- 
+
     await strapi.service('api::task.task').notifyGroup({
-      message: `↩️ ${user.username} ยกเลิกการส่งต่องาน *${handover.task.name}*\nงานกลับไปอยู่กับ ${user.username} แล้ว`,
+      message: `${user.username} ยกเลิกการส่งต่องาน *${handover.task.name}*\nงานกลับไปอยู่กับ ${user.username} แล้ว`,
     });
- 
+
     return ctx.send({ message: 'ยกเลิกคำขอเรียบร้อย งานกลับมาเป็นของคุณแล้ว' });
   },
 

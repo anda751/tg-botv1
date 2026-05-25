@@ -20,6 +20,7 @@ export default function MyTasks() {
   const navigate = useNavigate();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [filter, setFilter] = useState<'active' | 'done'>('active');
 
   useEffect(() => {
@@ -28,12 +29,14 @@ export default function MyTasks() {
 
   async function loadTasks() {
     setLoading(true);
+    setError('');
     try {
       const { data } = await taskApi.getMyTasks();
       const list = Array.isArray(data) ? data : (data.data ?? []);
       setTasks(list);
-    } catch {
+    } catch (err) {
       setTasks([]);
+      setError(extractMessage(err, 'โหลดรายการงานไม่สำเร็จ'));
     } finally {
       setLoading(false);
     }
@@ -75,11 +78,13 @@ export default function MyTasks() {
       <div className="px-4 py-4 space-y-3 pb-24">
         {loading ? (
           <div className="text-center py-12 text-gray-400">กำลังโหลด...</div>
+        ) : error ? (
+          <StateBox title="โหลดงานไม่สำเร็จ" message={error} actionLabel="ลองใหม่" onAction={loadTasks} />
         ) : filtered.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="text-4xl mb-3">รายการ</div>
-            <p className="text-gray-400 text-sm">ยังไม่มีงานในตอนนี้</p>
-          </div>
+          <StateBox
+            title={filter === 'active' ? 'ยังไม่มีงานที่กำลังทำ' : 'ยังไม่มีงานที่เสร็จแล้ว'}
+            message={filter === 'active' ? 'เริ่มต้นด้วยการสร้างงานใหม่ หรือรับงานต่อจากหน้าอื่น' : 'เมื่องานเสร็จ รายการจะย้ายมาแสดงที่นี่'}
+          />
         ) : (
           filtered.map((task) => (
             <TaskCard
@@ -101,6 +106,37 @@ export default function MyTasks() {
           ดูงานรอรับช่วงต่อ
         </button>
       </div>
+    </div>
+  );
+}
+
+function extractMessage(error: any, fallback: string) {
+  return error?.response?.data?.error?.message || error?.response?.data?.message || fallback;
+}
+
+function StateBox({
+  title,
+  message,
+  actionLabel,
+  onAction,
+}: {
+  title: string
+  message: string
+  actionLabel?: string
+  onAction?: () => void
+}) {
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 p-5 text-center">
+      <p className="font-semibold text-gray-800">{title}</p>
+      <p className="text-sm text-gray-500 mt-2">{message}</p>
+      {actionLabel && onAction && (
+        <button
+          onClick={onAction}
+          className="mt-4 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-blue-500 active:bg-blue-600 transition"
+        >
+          {actionLabel}
+        </button>
+      )}
     </div>
   );
 }

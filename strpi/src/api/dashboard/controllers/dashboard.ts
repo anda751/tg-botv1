@@ -4,7 +4,7 @@ import { resolveImageUrl } from '../../../services/supabase';
 export default factories.createCoreController('api::task.task', ({ strapi }) => ({
   async summary(ctx) {
     const user = ctx.state.user;
-    if (user.role_app !== 'manager') return ctx.forbidden('Manager role required');
+    if (user.role_app !== 'manager') return ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
 
     const [tasks, projects, staffList] = await Promise.all([
       strapi.entityService.findMany('api::task.task', {
@@ -51,7 +51,7 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
 
   async pendingTasks(ctx) {
     const user = ctx.state.user;
-    if (user.role_app !== 'manager') return ctx.forbidden('Manager role required');
+    if (user.role_app !== 'manager') return ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
 
     const tasks = await strapi.entityService.findMany('api::task.task', {
       filters: { status_task: { $ne: 'done' } },
@@ -76,7 +76,7 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
 
   async underReview(ctx) {
     const user = ctx.state.user;
-    if (user.role_app !== 'manager') return ctx.forbidden('Manager role required');
+    if (user.role_app !== 'manager') return ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
 
     const tasks = await strapi.entityService.findMany('api::task.task', {
       filters: { status_task: 'under_review' },
@@ -120,7 +120,7 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
 
   async staffOverview(ctx) {
     const user = ctx.state.user;
-    if (user.role_app !== 'manager') return ctx.forbidden('Manager role required');
+    if (user.role_app !== 'manager') return ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
 
     const [staffList, activeTasks] = await Promise.all([
       strapi.entityService.findMany('plugin::users-permissions.user', {

@@ -17,11 +17,13 @@ exports.default = strapi_1.factories.createCoreController('api::project.project'
         const bodyData = (_b = (_a = ctx.request.body) === null || _a === void 0 ? void 0 : _a.data) !== null && _b !== void 0 ? _b : {};
         const name = typeof bodyData.name === 'string' ? bodyData.name.trim() : '';
         const deadline = bodyData.deadline;
-        if (!name || !deadline)
-            return ctx.badRequest('กรุณากรอกชื่อและเดดไลน์');
+        if (!name || !deadline) {
+            return ctx.badRequest('กรุณากรอกชื่อโปรเจกต์และกำหนดวันครบกำหนด');
+        }
         const deadlineDate = new Date(deadline);
-        if (Number.isNaN(deadlineDate.getTime()))
-            return ctx.badRequest('รูปแบบเดดไลน์ไม่ถูกต้อง');
+        if (Number.isNaN(deadlineDate.getTime())) {
+            return ctx.badRequest('รูปแบบวันครบกำหนดไม่ถูกต้อง');
+        }
         const created = await strapi.entityService.create('api::project.project', {
             data: {
                 ...bodyData,
@@ -33,7 +35,7 @@ exports.default = strapi_1.factories.createCoreController('api::project.project'
             populate: ['creator', 'members'],
         });
         await strapi.service('api::task.task').notifyGroup({
-            message: `📁 โปรเจกต์ใหม่: *${name}*\nเดดไลน์: ${deadlineDate.toLocaleDateString('th-TH')}\nสร้างโดย: ${user.username}`,
+            message: `โปรเจกต์ใหม่: *${name}*\nกำหนดส่ง: ${deadlineDate.toLocaleDateString('th-TH')}\nสร้างโดย: ${user.username}`,
         });
         return ctx.send(created);
     },
@@ -46,7 +48,7 @@ exports.default = strapi_1.factories.createCoreController('api::project.project'
         if (!project)
             return ctx.notFound('ไม่พบโปรเจกต์นี้');
         if (project.status_project === 'closed')
-            return ctx.badRequest('โปรเจกต์นี้ปิดแล้ว');
+            return ctx.badRequest('โปรเจกต์นี้ถูกปิดแล้ว');
         const pendingTasks = await strapi.entityService.findMany('api::task.task', {
             filters: {
                 project: { id: { $eq: id } },
@@ -60,7 +62,7 @@ exports.default = strapi_1.factories.createCoreController('api::project.project'
             data: { status_project: 'closed' },
         });
         await strapi.service('api::task.task').notifyGroup({
-            message: `🏁 โปรเจกต์ *${project.name}* ปิดเรียบร้อยแล้ว`,
+            message: `โปรเจกต์ *${project.name}* ปิดเรียบร้อยแล้ว`,
         });
         return ctx.send({ message: 'ปิดโปรเจกต์เรียบร้อย' });
     },
@@ -78,19 +80,19 @@ exports.default = strapi_1.factories.createCoreController('api::project.project'
             return ctx.notFound('ไม่พบโปรเจกต์นี้');
         const target = await strapi.entityService.findOne('plugin::users-permissions.user', userId);
         if (!target)
-            return ctx.notFound('ไม่พบผู้ใช้นี้');
+            return ctx.notFound('ไม่พบผู้ใช้งานนี้');
         if (!target.is_approved)
-            return ctx.badRequest('พนักงานคนนี้ยังไม่ได้รับการอนุมัติ');
+            return ctx.badRequest('ผู้ใช้งานนี้ยังไม่พร้อมใช้งาน');
         const alreadyMember = (_a = project.members) === null || _a === void 0 ? void 0 : _a.some((m) => m.id === Number(userId));
         if (alreadyMember)
-            return ctx.badRequest('เป็นสมาชิกโปรเจกต์นี้แล้ว');
+            return ctx.badRequest('ผู้ใช้งานนี้เป็นสมาชิกโปรเจกต์อยู่แล้ว');
         const currentMembers = (_c = (_b = project.members) === null || _b === void 0 ? void 0 : _b.map((m) => m.id)) !== null && _c !== void 0 ? _c : [];
         await strapi.entityService.update('api::project.project', id, {
             data: { members: [...currentMembers, userId] },
         });
         await strapi.service('api::task.task').notifyStaff({
             userId,
-            message: `📁 คุณได้รับมอบหมายให้เข้าร่วมโปรเจกต์ *${project.name}*`,
+            message: `คุณถูกเพิ่มเข้าโปรเจกต์ *${project.name}*`,
         });
         return ctx.send({ message: 'เพิ่มสมาชิกเรียบร้อย' });
     },
@@ -130,17 +132,17 @@ exports.default = strapi_1.factories.createCoreController('api::project.project'
         const { id } = ctx.params;
         const { note } = (_a = ctx.request.body) !== null && _a !== void 0 ? _a : {};
         if (user.role_app !== 'staff')
-            return ctx.forbidden('Staff role required');
+            return ctx.forbidden('เฉพาะพนักงานเท่านั้น');
         const project = await strapi.entityService.findOne('api::project.project', id, {
             populate: ['members'],
         });
         if (!project)
-            return ctx.notFound('Project not found');
+            return ctx.notFound('ไม่พบโปรเจกต์');
         if (project.status_project !== 'active')
-            return ctx.badRequest('Project is not active');
+            return ctx.badRequest('โปรเจกต์นี้ยังไม่เปิดใช้งาน');
         const alreadyMember = (_b = project.members) === null || _b === void 0 ? void 0 : _b.some((m) => m.id === user.id);
         if (alreadyMember)
-            return ctx.badRequest('You are already a member of this project');
+            return ctx.badRequest('คุณเป็นสมาชิกของโปรเจกต์นี้อยู่แล้ว');
         const existingPending = await strapi.entityService.findMany('api::project-join-request.project-join-request', {
             filters: {
                 project: { id: { $eq: id } },
@@ -150,7 +152,7 @@ exports.default = strapi_1.factories.createCoreController('api::project.project'
             limit: 1,
         });
         if (existingPending.length)
-            return ctx.badRequest('Join request is already pending');
+            return ctx.badRequest('คุณส่งคำขอเข้าร่วมโปรเจกต์นี้ไว้แล้ว');
         const request = await strapi.entityService.create('api::project-join-request.project-join-request', {
             data: {
                 project: Number(id),
@@ -164,15 +166,15 @@ exports.default = strapi_1.factories.createCoreController('api::project.project'
             taskId: '',
             taskName: '',
             submittedBy: user.display_name || user.username,
-            reportText: `Project join request\nProject: ${project.name}\nStaff: ${user.display_name || user.username}\nNote: ${request.note || '-'}`,
+            reportText: `คำขอเข้าร่วมโปรเจกต์\nโปรเจกต์: ${project.name}\nพนักงาน: ${user.display_name || user.username}\nหมายเหตุ: ${request.note || '-'}`,
             imageUrl: '',
         });
-        return ctx.send({ message: 'Join request submitted', request });
+        return ctx.send({ message: 'ส่งคำขอเข้าร่วมโปรเจกต์แล้ว', request });
     },
     async pendingJoinRequests(ctx) {
         const user = ctx.state.user;
         if (user.role_app !== 'manager')
-            return ctx.forbidden('Manager role required');
+            return ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
         const requests = await strapi.entityService.findMany('api::project-join-request.project-join-request', {
             filters: { status_request: 'pending' },
             populate: ['project', 'requested_by'],
@@ -186,12 +188,12 @@ exports.default = strapi_1.factories.createCoreController('api::project.project'
         const user = ctx.state.user;
         const { id } = ctx.params;
         if (user.role_app !== 'manager')
-            return ctx.forbidden('Manager role required');
+            return ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
         const request = await strapi.entityService.findOne('api::project-join-request.project-join-request', id, { populate: ['project', 'requested_by', 'project.members'] });
         if (!request)
-            return ctx.notFound('Join request not found');
+            return ctx.notFound('ไม่พบคำขอเข้าร่วมโปรเจกต์');
         if (request.status_request !== 'pending')
-            return ctx.badRequest('Request is not pending');
+            return ctx.badRequest('คำขอนี้ไม่ได้อยู่ในสถานะรออนุมัติ');
         const members = (_c = (_b = (_a = request.project) === null || _a === void 0 ? void 0 : _a.members) === null || _b === void 0 ? void 0 : _b.map((m) => m.id)) !== null && _c !== void 0 ? _c : [];
         const alreadyMember = members.includes(request.requested_by.id);
         if (!alreadyMember) {
@@ -207,9 +209,9 @@ exports.default = strapi_1.factories.createCoreController('api::project.project'
         });
         await strapi.service('api::task.task').notifyStaff({
             userId: String(request.requested_by.id),
-            message: `Approved: You joined project *${request.project.name}*`,
+            message: `คำขอได้รับอนุมัติแล้ว คุณเข้าร่วมโปรเจกต์ *${request.project.name}* ได้แล้ว`,
         });
-        return ctx.send({ message: 'Join request approved' });
+        return ctx.send({ message: 'อนุมัติคำขอเข้าร่วมโปรเจกต์แล้ว' });
     },
     async rejectJoinRequest(ctx) {
         var _a;
@@ -217,12 +219,12 @@ exports.default = strapi_1.factories.createCoreController('api::project.project'
         const { id } = ctx.params;
         const { reason } = (_a = ctx.request.body) !== null && _a !== void 0 ? _a : {};
         if (user.role_app !== 'manager')
-            return ctx.forbidden('Manager role required');
+            return ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
         const request = await strapi.entityService.findOne('api::project-join-request.project-join-request', id, { populate: ['project', 'requested_by'] });
         if (!request)
-            return ctx.notFound('Join request not found');
+            return ctx.notFound('ไม่พบคำขอเข้าร่วมโปรเจกต์');
         if (request.status_request !== 'pending')
-            return ctx.badRequest('Request is not pending');
+            return ctx.badRequest('คำขอนี้ไม่ได้อยู่ในสถานะรออนุมัติ');
         await strapi.entityService.update('api::project-join-request.project-join-request', id, {
             data: {
                 status_request: 'rejected',
@@ -232,8 +234,8 @@ exports.default = strapi_1.factories.createCoreController('api::project.project'
         });
         await strapi.service('api::task.task').notifyStaff({
             userId: String(request.requested_by.id),
-            message: `Rejected: Your request to join *${request.project.name}* was rejected`,
+            message: `คำขอเข้าร่วมโปรเจกต์ *${request.project.name}* ไม่ได้รับการอนุมัติ`,
         });
-        return ctx.send({ message: 'Join request rejected' });
+        return ctx.send({ message: 'ปฏิเสธคำขอเข้าร่วมโปรเจกต์แล้ว' });
     },
 }));

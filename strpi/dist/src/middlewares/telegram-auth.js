@@ -21,17 +21,17 @@ exports.default = (config, { strapi }) => {
                 const payload = await strapi.plugin('users-permissions').service('jwt').verify(bearerToken);
                 const userId = Number(payload === null || payload === void 0 ? void 0 : payload.id);
                 if (!Number.isFinite(userId))
-                    return ctx.unauthorized('Invalid auth token');
+                    return ctx.unauthorized('โทเค็นเข้าสู่ระบบไม่ถูกต้อง');
                 const user = await strapi.entityService.findOne('plugin::users-permissions.user', userId);
                 if (!user)
-                    return ctx.unauthorized('User not found');
+                    return ctx.unauthorized('ไม่พบผู้ใช้งาน');
                 if (user.blocked)
-                    return ctx.forbidden('Account is blocked');
+                    return ctx.forbidden('บัญชีนี้ถูกระงับการใช้งาน');
                 ctx.state.user = user;
                 return next();
             }
             catch {
-                return ctx.unauthorized('Invalid auth token');
+                return ctx.unauthorized('โทเค็นเข้าสู่ระบบไม่ถูกต้อง');
             }
         }
         const isTestMode = isTruthy(process.env.TEST_MODE);
@@ -49,11 +49,11 @@ exports.default = (config, { strapi }) => {
                 limit: -1,
             });
             if (!users.length) {
-                return ctx.unauthorized('TEST_MODE enabled but no approved users found');
+                return ctx.unauthorized('เปิด TEST_MODE อยู่ แต่ยังไม่พบผู้ใช้ที่พร้อมใช้งาน');
             }
             const selectedUser = (_d = (_c = users.find((user) => user.role_app === requestedRole)) !== null && _c !== void 0 ? _c : users.find((user) => user.role_app === 'manager')) !== null && _d !== void 0 ? _d : users[0];
             if (!selectedUser) {
-                return ctx.unauthorized('TEST_MODE could not select user');
+                return ctx.unauthorized('ระบบทดสอบไม่สามารถเลือกผู้ใช้งานได้');
             }
             ctx.state.user = selectedUser;
             ctx.state.telegramUser = {
@@ -65,18 +65,18 @@ exports.default = (config, { strapi }) => {
         }
         const botToken = process.env.TELEGRAM_BOT_TOKEN;
         if (!botToken) {
-            return ctx.unauthorized('Missing auth token');
+            return ctx.unauthorized('ไม่พบข้อมูลยืนยันตัวตน');
         }
         const initData = ctx.headers['x-telegram-init-data'];
         if (!initData) {
-            return ctx.unauthorized('Missing X-Telegram-Init-Data header');
+            return ctx.unauthorized('ไม่พบข้อมูล Telegram สำหรับยืนยันตัวตน');
         }
         const verifyResult = verifyTelegramInitData(initData, botToken);
         if (verifyResult === 'expired') {
-            return ctx.unauthorized('Telegram initData expired');
+            return ctx.unauthorized('ข้อมูล Telegram หมดอายุแล้ว');
         }
         if (!verifyResult) {
-            return ctx.unauthorized('Invalid Telegram initData');
+            return ctx.unauthorized('ข้อมูล Telegram ไม่ถูกต้อง');
         }
         const parsed = parseTelegramInitData(initData);
         if (parsed === null || parsed === void 0 ? void 0 : parsed.user) {
@@ -88,7 +88,7 @@ exports.default = (config, { strapi }) => {
                 limit: -1,
             });
             if (!users.length) {
-                return ctx.notFound('Telegram user not registered');
+                return ctx.notFound('ยังไม่มีบัญชีที่ผูกกับ Telegram นี้');
             }
             const selectedUser = pickUserForRole(users, requestedRole);
             if (!selectedUser) {
@@ -97,7 +97,7 @@ exports.default = (config, { strapi }) => {
                     error: {
                         status: 409,
                         name: 'RoleSelectionRequired',
-                        message: 'Multiple accounts found for this Telegram account',
+                        message: 'พบบัญชีหลายบทบาทสำหรับ Telegram นี้',
                         details: {
                             availableRoles: getAvailableRoles(users),
                         },
@@ -107,7 +107,7 @@ exports.default = (config, { strapi }) => {
             }
             strapi.log.info(`[TelegramAuth] user found: id=${selectedUser.id} telegram_id=${selectedUser.telegram_id} is_approved=${selectedUser.is_approved} role_app=${selectedUser.role_app}`);
             if (!selectedUser.is_approved) {
-                return ctx.forbidden('Account is not approved yet');
+                return ctx.forbidden('บัญชียังไม่พร้อมใช้งาน');
             }
             ctx.state.user = selectedUser;
         }

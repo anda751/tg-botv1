@@ -28,16 +28,16 @@ exports.default = strapi_1.factories.createCoreController('api::task.task', ({ s
         const name = typeof bodyData.name === 'string' ? bodyData.name.trim() : '';
         const projectValue = bodyData.project;
         if (!/[A-Za-z0-9\u0E00-\u0E7F]/.test(name)) {
-            return ctx.badRequest('Task name must include at least one letter or number');
+            return ctx.badRequest('ชื่องานต้องมีตัวอักษรหรือตัวเลขอย่างน้อย 1 ตัว');
         }
         if (name.length < 5) {
-            return ctx.badRequest('Task name must be at least 5 characters');
+            return ctx.badRequest('ชื่องานต้องยาวอย่างน้อย 5 ตัวอักษร');
         }
         const projectId = projectValue === null || projectValue === undefined || projectValue === ''
             ? null
             : Number(projectValue);
         if (projectId !== null && Number.isNaN(projectId)) {
-            return ctx.badRequest('Invalid project format');
+            return ctx.badRequest('รูปแบบโปรเจกต์ไม่ถูกต้อง');
         }
         const created = await strapi.entityService.create('api::task.task', {
             data: {
@@ -55,11 +55,11 @@ exports.default = strapi_1.factories.createCoreController('api::task.task', ({ s
                 task: created.id,
                 action: 'created',
                 actor: user.id,
-                note: `Task created: ${name}`,
+                note: `สร้างงาน: ${name}`,
             },
         });
         await strapi.service('api::task.task').notifyGroup({
-            message: `📋 New task: *${name}*\nOwner: ${user.username}`,
+            message: `งานใหม่: *${name}*\nผู้รับผิดชอบ: ${user.username}`,
         });
         return ctx.send(created);
     },
@@ -73,15 +73,15 @@ exports.default = strapi_1.factories.createCoreController('api::task.task', ({ s
             populate: ['current_owner'],
         });
         if (!task)
-            return ctx.notFound('Task not found');
+            return ctx.notFound('ไม่พบงาน');
         if (task.current_owner.id !== user.id)
-            return ctx.forbidden('You are not current owner');
+            return ctx.forbidden('คุณไม่ใช่ผู้รับผิดชอบงานนี้');
         if (task.status_task !== 'in_progress')
-            return ctx.badRequest('Task is not in progress');
+            return ctx.badRequest('งานนี้ไม่ได้อยู่ระหว่างดำเนินการ');
         if (!file)
-            return ctx.badRequest('Proof image is required');
+            return ctx.badRequest('กรุณาแนบรูปหลักฐาน');
         if (!report_text || report_text.length < 5)
-            return ctx.badRequest('Report text must be at least 5 chars');
+            return ctx.badRequest('รายละเอียดงานต้องยาวอย่างน้อย 5 ตัวอักษร');
         const fileBuffer = await readUploadedFileBuffer(file);
         const imagePath = await (0, supabase_1.uploadProofImage)(fileBuffer, file.name || file.filename || file.originalFilename || 'proof', file.type);
         let uploadedMediaId = null;
@@ -132,7 +132,7 @@ exports.default = strapi_1.factories.createCoreController('api::task.task', ({ s
             imageFilename: file.name || file.filename || file.originalFilename || 'proof',
             imageMimeType: file.type,
         });
-        return ctx.send({ message: 'Submitted successfully and waiting for review' });
+        return ctx.send({ message: 'ส่งงานเรียบร้อย รอหัวหน้าตรวจสอบ' });
     },
     async progress(ctx) {
         var _a, _b, _c;
@@ -146,13 +146,13 @@ exports.default = strapi_1.factories.createCoreController('api::task.task', ({ s
             populate: ['current_owner'],
         });
         if (!task)
-            return ctx.notFound('Task not found');
+            return ctx.notFound('ไม่พบงาน');
         if (task.current_owner.id !== user.id)
-            return ctx.forbidden('You are not current owner');
+            return ctx.forbidden('คุณไม่ใช่ผู้รับผิดชอบงานนี้');
         if (task.status_task !== 'in_progress')
-            return ctx.badRequest('Progress update is allowed only for in-progress tasks');
+            return ctx.badRequest('อัปเดตความคืบหน้าได้เฉพาะงานที่กำลังดำเนินการอยู่');
         if (!reportText || reportText.length < 5)
-            return ctx.badRequest('Progress text must be at least 5 chars');
+            return ctx.badRequest('ข้อความอัปเดตต้องยาวอย่างน้อย 5 ตัวอักษร');
         let resolvedImageUrl = '';
         let uploadedMediaId = null;
         if (file) {
@@ -197,26 +197,26 @@ exports.default = strapi_1.factories.createCoreController('api::task.task', ({ s
             taskId: id,
             taskName: task.name,
             submittedBy: user.username,
-            reportText: `Progress update:\n${reportText}`,
+            reportText: `อัปเดตความคืบหน้า:\n${reportText}`,
             imageUrl: resolvedImageUrl,
             imageBuffer: fileBuffer !== null && fileBuffer !== void 0 ? fileBuffer : undefined,
             imageFilename: (file === null || file === void 0 ? void 0 : file.name) || (file === null || file === void 0 ? void 0 : file.filename) || (file === null || file === void 0 ? void 0 : file.originalFilename) || 'progress',
             imageMimeType: file === null || file === void 0 ? void 0 : file.type,
         });
-        return ctx.send({ message: 'Progress updated successfully' });
+        return ctx.send({ message: 'อัปเดตความคืบหน้าเรียบร้อย' });
     },
     async approve(ctx) {
         const user = ctx.state.user;
         const { id } = ctx.params;
         if (user.role_app !== 'manager')
-            return ctx.forbidden('Manager role required');
+            return ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
         const task = await strapi.entityService.findOne('api::task.task', id, {
             populate: ['current_owner'],
         });
         if (!task)
-            return ctx.notFound('Task not found');
+            return ctx.notFound('ไม่พบงาน');
         if (task.status_task !== 'under_review')
-            return ctx.badRequest('Task is not under review');
+            return ctx.badRequest('งานนี้ไม่ได้อยู่ในสถานะรอตรวจสอบ');
         await strapi.entityService.update('api::task.task', id, {
             data: { status_task: 'done' },
         });
@@ -228,23 +228,23 @@ exports.default = strapi_1.factories.createCoreController('api::task.task', ({ s
             },
         });
         await strapi.service('api::task.task').notifyGroup({
-            message: `✅ Task done: *${task.name}*\nBy: ${task.current_owner.username}`,
+            message: `งานเสร็จสมบูรณ์: *${task.name}*\nโดย: ${task.current_owner.username}`,
         });
-        return ctx.send({ message: 'Approved successfully' });
+        return ctx.send({ message: 'อนุมัติงานเรียบร้อย' });
     },
     async reject(ctx) {
         const user = ctx.state.user;
         const { id } = ctx.params;
         const { reason } = ctx.request.body;
         if (user.role_app !== 'manager')
-            return ctx.forbidden('Manager role required');
+            return ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
         if (!reason || reason.length < 5)
-            return ctx.badRequest('Reason must be at least 5 chars');
+            return ctx.badRequest('กรุณาระบุเหตุผลอย่างน้อย 5 ตัวอักษร');
         const task = await strapi.entityService.findOne('api::task.task', id, {
             populate: ['current_owner'],
         });
         if (!task)
-            return ctx.notFound('Task not found');
+            return ctx.notFound('ไม่พบงาน');
         await strapi.entityService.update('api::task.task', id, {
             data: { status_task: 'in_progress' },
         });
@@ -258,9 +258,9 @@ exports.default = strapi_1.factories.createCoreController('api::task.task', ({ s
         });
         await strapi.service('api::task.task').notifyStaff({
             userId: task.current_owner.id,
-            message: `⚠️ Task *${task.name}* was rejected\nReason: ${reason}`,
+            message: `งาน *${task.name}* ไม่ผ่านการตรวจสอบ\nเหตุผล: ${reason}`,
         });
-        return ctx.send({ message: 'Rejected successfully' });
+        return ctx.send({ message: 'ตีกลับงานเรียบร้อย' });
     },
 }));
 async function readUploadedFileBuffer(file) {
