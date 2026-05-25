@@ -160,6 +160,7 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
     const reportTextRaw = ctx.request.body?.report_text;
     const reportText = typeof reportTextRaw === 'string' ? reportTextRaw.trim() : '';
     const file = (ctx.request as any).files?.proof_image;
+    let fileBuffer: Buffer | null = null;
 
     const task = await strapi.entityService.findOne('api::task.task', id, {
       populate: ['current_owner'],
@@ -174,7 +175,7 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
     let uploadedMediaId: number | null = null;
 
     if (file) {
-      const fileBuffer = await readUploadedFileBuffer(file);
+      fileBuffer = await readUploadedFileBuffer(file);
       const imagePath = await uploadProofImage(
         fileBuffer,
         file.name || file.filename || file.originalFilename || 'progress',
@@ -224,6 +225,9 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
       submittedBy: user.username,
       reportText: `Progress update:\n${reportText}`,
       imageUrl: resolvedImageUrl,
+      imageBuffer: fileBuffer ?? undefined,
+      imageFilename: file?.name || file?.filename || file?.originalFilename || 'progress',
+      imageMimeType: file?.type,
     });
 
     return ctx.send({ message: 'Progress updated successfully' });

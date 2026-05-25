@@ -1,69 +1,68 @@
-import { useEffect, useState } from 'react'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { handoverApi, taskApi } from '../../api'
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { handoverApi, taskApi } from '../../api';
 
-type Task = { id: number; name: string; project?: { name: string } }
+type Task = { id: number; name: string; project?: { name: string } };
 
 export default function HandoverTask() {
-  const navigate = useNavigate()
-  const location = useLocation()
-  const { taskId } = useParams()
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { taskId } = useParams();
 
-  const [task, setTask] = useState<Task | null>(null)
-  const [reason, setReason] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState('')
+  const [task, setTask] = useState<Task | null>(null);
+  const [reason, setReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    const navTask = (location.state as any)?.task as Task | undefined
-    const idNum = Number(taskId)
+    const navTask = (location.state as any)?.task as Task | undefined;
+    const idNum = Number(taskId);
 
     if (!Number.isFinite(idNum) || idNum <= 0) {
-      navigate('/')
-      return
+      navigate('/');
+      return;
     }
 
     if (navTask && navTask.id === idNum) {
-      setTask(navTask)
-      return
+      setTask(navTask);
+      return;
     }
 
     taskApi
       .getMyTasks()
       .then(({ data }) => {
-        const list = Array.isArray(data) ? data : (data.data ?? [])
-        const found = list.find((t: any) => Number(t.id) === idNum)
+        const list = Array.isArray(data) ? data : (data.data ?? []);
+        const found = list.find((t: any) => Number(t.id) === idNum);
         if (!found) {
-          navigate('/')
-          return
+          navigate('/');
+          return;
         }
-        setTask(found)
+        setTask(found);
       })
-      .catch(() => navigate('/'))
-  }, [taskId, location.state, navigate])
+      .catch(() => navigate('/'));
+  }, [taskId, location.state, navigate]);
 
   async function handleHandover() {
     if (reason.length < 5) {
-      setError('กรุณาระบุเหตุผลอย่างน้อย 5 ตัวอักษร')
-      return
+      setError('กรุณาระบุเหตุผลอย่างน้อย 5 ตัวอักษร');
+      return;
     }
-    setError('')
-    setSubmitting(true)
+    setError('');
+    setSubmitting(true);
     try {
-      await handoverApi.handover(Number(taskId), reason)
-      navigate('/')
+      await handoverApi.handover(Number(taskId), reason);
+      navigate('/');
     } catch (err: any) {
-      setError(err?.response?.data?.error?.message || 'เกิดข้อผิดพลาด')
+      setError(err?.response?.data?.error?.message || 'เกิดข้อผิดพลาด');
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
   }
 
-  const isValid = reason.length >= 5
+  const isValid = reason.length >= 5;
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col">
-      {/* Header */}
       <div className="bg-slate-900 border-b border-slate-800 px-4 pt-6 pb-4 flex items-center gap-3">
         <button
           onClick={() => navigate('/')}
@@ -75,34 +74,28 @@ export default function HandoverTask() {
           <h1 className="text-lg font-bold text-white">ส่งต่องาน</h1>
           {task && (
             <p className="text-xs text-slate-400 truncate mt-0.5">
-              {task.project ? `📁 ${task.project.name} · ` : ''}{task.name}
+              {task.project ? `โปรเจกต์ ${task.project.name} · ` : ''}{task.name}
             </p>
           )}
         </div>
       </div>
 
       <div className="flex-1 px-4 py-6 space-y-6">
-
-        {/* Info banner */}
         <div className="bg-amber-950/40 border border-amber-800/60 rounded-xl px-4 py-3 flex gap-3 items-start">
-          <span className="text-xl mt-0.5">⚠️</span>
+          <span className="text-xl mt-0.5">!</span>
           <div>
             <p className="text-amber-300 text-sm font-semibold">ส่งต่องานให้คนอื่นรับ</p>
             <p className="text-amber-400/70 text-xs mt-0.5 leading-relaxed">
-              งานจะเปลี่ยนเป็น "รอคนรับ" และมีเวลา 30 นาที
-              ถ้าไม่มีคนรับ งานจะกลับมาที่คุณ
+              งานจะเปลี่ยนเป็นสถานะรอคนรับ และมีเวลา 30 นาที ถ้าไม่มีคนรับ งานจะกลับมาที่คุณ
             </p>
           </div>
         </div>
 
-        {/* Task card */}
         {task && (
           <div className="bg-slate-900 border border-slate-700 rounded-xl p-4">
             <p className="text-xs text-slate-500 mb-1 uppercase tracking-widest font-semibold">งานที่จะส่งต่อ</p>
             <p className="text-white font-semibold text-sm leading-snug">{task.name}</p>
-            {task.project && (
-              <p className="text-xs text-slate-400 mt-1.5">📁 {task.project.name}</p>
-            )}
+            {task.project && <p className="text-xs text-slate-400 mt-1.5">โปรเจกต์: {task.project.name}</p>}
             <div className="mt-3 flex items-center gap-1.5">
               <div className="w-2 h-2 rounded-full bg-blue-400" />
               <span className="text-xs text-blue-300">กำลังทำ → รอคนรับ</span>
@@ -110,15 +103,14 @@ export default function HandoverTask() {
           </div>
         )}
 
-        {/* Reason */}
         <div>
           <label className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2 block">
             เหตุผลที่ส่งต่อ <span className="text-red-400">*</span>
           </label>
           <textarea
             value={reason}
-            onChange={e => { setReason(e.target.value); setError('') }}
-            placeholder="เช่น ติดประชุม, ป่วย, ต้องไปทำงานอื่นก่อน..."
+            onChange={(e) => { setReason(e.target.value); setError(''); }}
+            placeholder="เช่น ติดประชุม ป่วย หรือต้องไปทำงานอื่นก่อน..."
             rows={4}
             className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white placeholder-slate-600 outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition resize-none text-sm"
           />
@@ -130,23 +122,20 @@ export default function HandoverTask() {
           </div>
         </div>
 
-        {/* What happens next */}
         <div className="space-y-2">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">ขั้นตอนหลังส่งต่อ</p>
-          <Step n={1} text="งานเปลี่ยนเป็นสถานะ รอคนรับ" />
-          <Step n={2} text="เพื่อนร่วมทีมสามารถกด Pickup งานได้" />
-          <Step n={3} text="หัวหน้าอนุมัติการโอน แล้วงานย้ายไปให้คนใหม่" />
+          <Step n={1} text="งานเปลี่ยนเป็นสถานะรอคนรับ" />
+          <Step n={2} text="เพื่อนร่วมทีมสามารถกดรับงานได้" />
+          <Step n={3} text="หัวหน้าอนุมัติแล้วงานจะย้ายไปให้คนใหม่" />
         </div>
 
-        {/* Error */}
         {error && (
           <div className="bg-red-950/60 border border-red-800 text-red-400 text-sm px-4 py-3 rounded-xl">
-            ⚠️ {error}
+            {error}
           </div>
         )}
       </div>
 
-      {/* Bottom buttons */}
       <div className="px-4 pb-8 pt-2 flex gap-3">
         <button
           onClick={() => navigate('/')}
@@ -159,18 +148,11 @@ export default function HandoverTask() {
           disabled={submitting || !isValid}
           className="flex-1 py-3.5 rounded-xl font-semibold text-white bg-gradient-to-r from-amber-500 to-orange-500 active:scale-95 transition-all disabled:opacity-40 disabled:scale-100"
         >
-          {submitting ? (
-            <span className="flex items-center justify-center gap-2">
-              <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-              กำลังส่ง...
-            </span>
-          ) : (
-            'ส่งต่องาน 🔄'
-          )}
+          {submitting ? 'กำลังส่ง...' : 'ส่งต่องาน'}
         </button>
       </div>
     </div>
-  )
+  );
 }
 
 function Step({ n, text }: { n: number; text: string }) {
@@ -181,5 +163,5 @@ function Step({ n, text }: { n: number; text: string }) {
       </div>
       <p className="text-sm text-slate-400">{text}</p>
     </div>
-  )
+  );
 }

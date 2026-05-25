@@ -19,9 +19,10 @@ export default function Login({ onLoggedIn }: { onLoggedIn: (token: string, user
 
   async function handleLogin() {
     if (!identifier.trim() || !password) {
-      setError('Please enter username/email and password');
+      setError('กรุณากรอกชื่อผู้ใช้หรืออีเมล และรหัสผ่าน');
       return;
     }
+
     setLoading(true);
     setError('');
     try {
@@ -31,7 +32,7 @@ export default function Login({ onLoggedIn }: { onLoggedIn: (token: string, user
       });
       onLoggedIn(data.jwt, data.user);
     } catch (err: any) {
-      setError(err?.response?.data?.error?.message || err?.response?.data?.message || 'Login failed');
+      setError(err?.response?.data?.error?.message || err?.response?.data?.message || 'เข้าสู่ระบบไม่สำเร็จ');
       setLoading(false);
     }
   }
@@ -41,18 +42,18 @@ export default function Login({ onLoggedIn }: { onLoggedIn: (token: string, user
       <div className="h-1 w-full bg-gradient-to-r from-blue-500 to-indigo-500" />
       <div className="flex-1 flex items-center justify-center px-6">
         <div className="w-full max-w-sm space-y-4">
-          <h1 className="text-2xl font-bold text-white">Login</h1>
+          <h1 className="text-2xl font-bold text-white">เข้าสู่ระบบ</h1>
 
           <input
             type="text"
-            placeholder="Username or Email"
+            placeholder="ชื่อผู้ใช้หรืออีเมล"
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
             className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white"
           />
           <input
             type="password"
-            placeholder="Password"
+            placeholder="รหัสผ่าน"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white"
@@ -65,11 +66,11 @@ export default function Login({ onLoggedIn }: { onLoggedIn: (token: string, user
             disabled={loading}
             className="w-full py-3 rounded-xl font-semibold text-white bg-blue-600 disabled:opacity-60"
           >
-            {loading ? 'Logging in...' : 'Login'}
+            {loading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
           </button>
 
           <p className="text-sm text-slate-400 text-center">
-            No account yet? <Link to="/register" className="text-blue-400">Sign up</Link>
+            ยังไม่มีบัญชี? <Link to="/register" className="text-blue-400">สมัครใช้งาน</Link>
           </p>
         </div>
       </div>

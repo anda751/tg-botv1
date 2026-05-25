@@ -53,21 +53,21 @@ export default function Staff() {
       <div className="bg-slate-900 border-b border-slate-800 px-4 pt-6 pb-4">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-xl font-bold text-white">Staff</h1>
+            <h1 className="text-xl font-bold text-white">พนักงาน</h1>
             <p className="text-xs text-slate-400 mt-0.5">{staff.length} คน</p>
           </div>
           <button
             onClick={loadData}
             className="w-9 h-9 rounded-full flex items-center justify-center text-slate-400 bg-slate-800 active:bg-slate-700 transition"
           >
-            ↻
+            รี
           </button>
         </div>
 
         <ManagerNav />
 
         <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">🔍</span>
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">ค้น</span>
           <input
             type="text"
             placeholder="ค้นหาชื่อพนักงาน..."
@@ -85,7 +85,7 @@ export default function Staff() {
 
         {!loading && filteredStaff.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="text-5xl mb-4">👥</div>
+            <div className="text-5xl mb-4">ทีม</div>
             <p className="text-slate-300 font-semibold">ไม่พบพนักงาน</p>
           </div>
         )}

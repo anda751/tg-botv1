@@ -49,7 +49,7 @@ export default function CreateTask() {
       return;
     }
     if (!/[a-zA-Zก-๙]/.test(name)) {
-      setError('ชื่องานต้องมีตัวอักษรภาษาไทยหรืออังกฤษอย่างน้อย 1 ตัว');
+      setError('ชื่องานต้องมีตัวอักษรไทยหรืออังกฤษอย่างน้อย 1 ตัว');
       return;
     }
 
@@ -110,7 +110,7 @@ export default function CreateTask() {
 
         <div>
           <label className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3 block">
-            โปรเจคต์ของฉัน
+            โปรเจกต์ของฉัน
           </label>
           {loadingProjects ? (
             <div className="h-10 rounded-xl bg-slate-800 animate-pulse" />
@@ -136,7 +136,7 @@ export default function CreateTask() {
                       : 'bg-slate-900 border-slate-700 text-slate-400'
                   }`}
                 >
-                  📁 {p.name}
+                  {p.name}
                 </button>
               ))}
             </div>
@@ -146,12 +146,12 @@ export default function CreateTask() {
         {!loadingProjects && joinableProjects.length > 0 && (
           <div>
             <label className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3 block">
-              ขอเข้าโปรเจคต์
+              ขอเข้าโปรเจกต์
             </label>
             <div className="space-y-2">
               {joinableProjects.map((p) => (
                 <div key={p.id} className="flex items-center justify-between gap-3 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5">
-                  <p className="text-sm text-white truncate">📁 {p.name}</p>
+                  <p className="text-sm text-white truncate">{p.name}</p>
                   <button
                     onClick={() => handleRequestJoin(p.id)}
                     disabled={requestingProjectId === p.id}

@@ -90,6 +90,8 @@ export const userApi = {
     email: string
     display_name: string
     role_app: 'manager' | 'staff'
+    telegram_id?: string
+    telegram_chat_id?: string
   }) => axios.post('/auth/register', data),
 
   login: (data: {

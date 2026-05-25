@@ -77,8 +77,8 @@ export default function MyTasks() {
           <div className="text-center py-12 text-gray-400">กำลังโหลด...</div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-12">
-            <div className="text-4xl mb-3">📋</div>
-            <p className="text-gray-400 text-sm">ไม่มีงานในขณะนี้</p>
+            <div className="text-4xl mb-3">รายการ</div>
+            <p className="text-gray-400 text-sm">ยังไม่มีงานในตอนนี้</p>
           </div>
         ) : (
           filtered.map((task) => (
@@ -125,7 +125,7 @@ function TaskCard({
         <span className={`text-xs px-2.5 py-1 rounded-full font-medium shrink-0 ${status.color}`}>{status.text}</span>
       </div>
 
-      {task.project && <p className="text-xs text-gray-400 mb-3">📁 {task.project.name}</p>}
+      {task.project && <p className="text-xs text-gray-400 mb-3">โปรเจกต์: {task.project.name}</p>}
 
       {task.status_task === 'in_progress' && (
         <div className="grid grid-cols-3 gap-2">

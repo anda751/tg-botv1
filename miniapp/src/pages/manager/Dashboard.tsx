@@ -69,14 +69,14 @@ export default function Dashboard() {
       <div className="bg-slate-900 border-b border-slate-800 px-4 pt-6 pb-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-white">Dashboard</h1>
+            <h1 className="text-xl font-bold text-white">แดชบอร์ด</h1>
             <p className="text-xs text-slate-400 mt-0.5">ภาพรวมระบบ</p>
           </div>
           <button
             onClick={loadAll}
             className="w-9 h-9 rounded-full flex items-center justify-center text-slate-400 bg-slate-800 active:bg-slate-700 transition"
           >
-            ↻
+            รี
           </button>
         </div>
         <ManagerNav />
@@ -92,21 +92,21 @@ export default function Dashboard() {
         ) : summary && (
           <>
             <div className="grid grid-cols-2 gap-3">
-              <StatCard label="งานทั้งหมด" value={summary.tasks.total} sub={`เสร็จ ${summary.tasks.done}`} color="blue" icon="📋" />
+              <StatCard label="งานทั้งหมด" value={summary.tasks.total} sub={`เสร็จ ${summary.tasks.done}`} color="blue" icon="งาน" />
               <StatCard
                 label="รอตรวจ"
                 value={summary.tasks.under_review}
                 sub="รอหัวหน้าตรวจ"
                 color="amber"
-                icon="🔍"
+                icon="ตรวจ"
                 alert={summary.tasks.under_review > 0}
               />
               <StatCard
-                label="โปรเจคต์"
+                label="โปรเจกต์"
                 value={summary.projects.active}
-                sub={summary.projects.overdue > 0 ? `เกินกำหนด ${summary.projects.overdue}` : 'Active'}
+                sub={summary.projects.overdue > 0 ? `เกินกำหนด ${summary.projects.overdue}` : 'กำลังดำเนินการ'}
                 color={summary.projects.overdue > 0 ? 'red' : 'green'}
-                icon="📁"
+                icon="โปร"
                 alert={summary.projects.overdue > 0}
               />
               <StatCard
@@ -114,7 +114,7 @@ export default function Dashboard() {
                 value={summary.staff.total}
                 sub={`รอรับ ${summary.tasks.waiting_pickup} งาน`}
                 color="purple"
-                icon="👥"
+                icon="ทีม"
               />
             </div>
 
@@ -145,7 +145,7 @@ export default function Dashboard() {
                   )}
                   <div className="p-4">
                     <p className="text-white font-semibold text-sm leading-snug">{task.name}</p>
-                    {task.current_owner && <p className="text-xs text-slate-400 mt-1">👤 {task.current_owner.display_name}</p>}
+                    {task.current_owner && <p className="text-xs text-slate-400 mt-1">ผู้ส่ง: {task.current_owner.display_name}</p>}
 
                     {task.latest_proof?.report_text && (
                       <div className="bg-slate-800 rounded-xl px-3 py-2 mt-3">
@@ -158,7 +158,7 @@ export default function Dashboard() {
                         <textarea
                           value={rejectReason}
                           onChange={(e) => setRejectReason(e.target.value)}
-                          placeholder="ระบุเหตุผลที่ส่งกลับ (อย่างน้อย 5 ตัว)"
+                          placeholder="ระบุเหตุผลที่ส่งกลับ อย่างน้อย 5 ตัวอักษร"
                           rows={2}
                           className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-600 text-white placeholder-slate-600 outline-none focus:border-red-500 text-xs resize-none"
                         />
@@ -191,14 +191,14 @@ export default function Dashboard() {
                             onClick={() => setRejectId(task.id)}
                             className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-red-300 bg-red-950/50 border border-red-800 active:bg-red-900 transition"
                           >
-                            ❌ ส่งกลับ
+                            ส่งกลับ
                           </button>
                           <button
                             onClick={() => handleApprove(task.id)}
                             disabled={actionLoading === task.id}
                             className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-green-600 active:bg-green-700 transition disabled:opacity-40"
                           >
-                            {actionLoading === task.id ? '...' : '✅ อนุมัติ'}
+                            {actionLoading === task.id ? '...' : 'อนุมัติ'}
                           </button>
                         </>
                       )}
@@ -240,7 +240,7 @@ function StatCard({ label, value, sub, color, icon, alert }: {
   return (
     <div className={`border rounded-2xl p-4 ${colors[color]}`}>
       <div className="flex items-start justify-between mb-2">
-        <span className="text-xl">{icon}</span>
+        <span className="text-xs font-semibold text-slate-300">{icon}</span>
         {alert && <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />}
       </div>
       <p className={`text-2xl font-bold ${valueColors[color]}`}>{value}</p>
