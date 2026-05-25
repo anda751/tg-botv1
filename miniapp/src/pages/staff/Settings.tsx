@@ -10,8 +10,10 @@ export default function StaffSettings() {
         <button
           onClick={() => navigate('/')}
           className="w-9 h-9 rounded-full flex items-center justify-center text-slate-300 bg-slate-800 active:bg-slate-700 transition"
+          title="ย้อนกลับ"
+          aria-label="ย้อนกลับ"
         >
-          กลับ
+          ←
         </button>
         <div>
           <p className="text-xs text-slate-400">บัญชีผู้ใช้งาน</p>

@@ -96,8 +96,10 @@ export default function CreateTask() {
         <button
           onClick={() => navigate('/')}
           className="w-9 h-9 rounded-full flex items-center justify-center text-slate-300 bg-slate-800 active:bg-slate-700 transition"
+          title="ย้อนกลับ"
+          aria-label="ย้อนกลับ"
         >
-          กลับ
+          ←
         </button>
         <h1 className="text-lg font-bold text-white">สร้างงานใหม่</h1>
       </div>

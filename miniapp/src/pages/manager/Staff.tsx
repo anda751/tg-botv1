@@ -65,8 +65,9 @@ export default function Staff() {
             onClick={loadData}
             className="w-9 h-9 rounded-full flex items-center justify-center text-slate-300 bg-slate-800 active:bg-slate-700 transition"
             title="รีเฟรช"
+            aria-label="รีเฟรช"
           >
-            รี
+            ↻
           </button>
         </div>
 

@@ -88,6 +88,8 @@ export default function ProgressTask() {
         <button
           onClick={() => navigate('/')}
           className="w-9 h-9 rounded-full flex items-center justify-center text-slate-400 bg-slate-800 active:bg-slate-700 transition"
+          title="ย้อนกลับ"
+          aria-label="ย้อนกลับ"
         >
           ←
         </button>

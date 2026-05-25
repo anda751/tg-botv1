@@ -132,9 +132,11 @@ export default function MyTasks() {
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={() => navigate('/settings')}
-              className="px-3 py-2 rounded-full text-sm font-medium bg-gray-100 text-gray-700"
+              className="w-10 h-10 rounded-full text-lg font-medium bg-gray-100 text-gray-700 flex items-center justify-center"
+              title="ตั้งค่าโปรไฟล์"
+              aria-label="ตั้งค่าโปรไฟล์"
             >
-              ตั้งค่า
+              ⚙
             </button>
             <button
               onClick={() => navigate('/create')}

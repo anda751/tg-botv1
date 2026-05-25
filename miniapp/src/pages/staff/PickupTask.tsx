@@ -64,8 +64,10 @@ export default function PickupTask() {
         <button
           onClick={() => navigate('/')}
           className="w-9 h-9 rounded-full flex items-center justify-center text-slate-300 bg-slate-800 active:bg-slate-700 transition"
+          title="ย้อนกลับ"
+          aria-label="ย้อนกลับ"
         >
-          กลับ
+          ←
         </button>
         <div className="flex-1">
           <h1 className="text-lg font-bold text-white">งานรอคนรับ</h1>
@@ -79,8 +81,9 @@ export default function PickupTask() {
           onClick={loadTasks}
           className="w-9 h-9 rounded-full flex items-center justify-center text-slate-300 bg-slate-800 active:bg-slate-700 transition"
           title="รีเฟรช"
+          aria-label="รีเฟรช"
         >
-          รี
+          ↻
         </button>
       </div>
 
