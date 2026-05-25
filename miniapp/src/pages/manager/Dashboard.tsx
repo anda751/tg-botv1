@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import ManagerNav from '../../components/ManagerNav'
-import { dashboardApi, taskApi } from '../../api'
+import { useEffect, useState } from 'react';
+import ManagerNav from '../../components/ManagerNav';
+import { dashboardApi, taskApi } from '../../api';
 
 type Summary = {
   tasks: { total: number; in_progress: number; under_review: number; waiting_pickup: number; done: number }
@@ -16,70 +15,57 @@ type ReviewTask = {
   latest_proof: { image_url: string | null; report_text: string; submitted_at: string } | null
 }
 
-type PendingUser = {
-  id: number
-  display_name: string
-  email: string
-  telegram_id: string
-  registered_at: string
-}
-
 export default function Dashboard() {
-  const navigate = useNavigate()
-  const [summary, setSummary] = useState<Summary | null>(null)
-  const [underReview, setUnderReview] = useState<ReviewTask[]>([])
-  const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([])
-  const [loading, setLoading] = useState(true)
-  const [actionLoading, setActionLoading] = useState<number | null>(null)
-  const [rejectId, setRejectId] = useState<number | null>(null)
-  const [rejectReason, setRejectReason] = useState('')
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const [underReview, setUnderReview] = useState<ReviewTask[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<number | null>(null);
+  const [rejectId, setRejectId] = useState<number | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
 
-  useEffect(() => { loadAll() }, [])
+  useEffect(() => {
+    loadAll();
+  }, []);
 
   async function loadAll() {
-    setLoading(true)
+    setLoading(true);
     try {
-      const [s, r, p] = await Promise.all([
-        dashboardApi.summary(),
-        dashboardApi.underReview(),
-        dashboardApi.pendingApproval(),
-      ])
-      setSummary(s.data)
-      setUnderReview(Array.isArray(r.data) ? r.data : [])
-      setPendingUsers(Array.isArray(p.data) ? p.data : [])
+      const [s, r] = await Promise.all([dashboardApi.summary(), dashboardApi.underReview()]);
+      setSummary(s.data);
+      setUnderReview(Array.isArray(r.data) ? r.data : []);
     } catch {
-      /* ignore */
+      setSummary(null);
+      setUnderReview([]);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   async function handleApprove(taskId: number) {
-    setActionLoading(taskId)
+    setActionLoading(taskId);
     try {
-      await taskApi.approve(taskId)
-      await loadAll()
+      await taskApi.approve(taskId);
+      await loadAll();
     } finally {
-      setActionLoading(null)
+      setActionLoading(null);
     }
   }
 
   async function handleReject(taskId: number) {
-    if (rejectReason.length < 5) return
-    setActionLoading(taskId)
+    if (rejectReason.length < 5) return;
+    setActionLoading(taskId);
     try {
-      await taskApi.reject(taskId, rejectReason)
-      setRejectId(null)
-      setRejectReason('')
-      await loadAll()
+      await taskApi.reject(taskId, rejectReason);
+      setRejectId(null);
+      setRejectReason('');
+      await loadAll();
     } finally {
-      setActionLoading(null)
+      setActionLoading(null);
     }
   }
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col">
-      {/* Header */}
       <div className="bg-slate-900 border-b border-slate-800 px-4 pt-6 pb-4">
         <div className="flex items-center justify-between">
           <div>
@@ -93,29 +79,20 @@ export default function Dashboard() {
             ↻
           </button>
         </div>
-
         <ManagerNav />
       </div>
 
       <div className="flex-1 px-4 py-5 space-y-6 overflow-y-auto">
-
-        {/* Summary cards */}
         {loading ? (
           <div className="grid grid-cols-2 gap-3">
-            {[1,2,3,4].map(i => (
+            {[1, 2, 3, 4].map((i) => (
               <div key={i} className="bg-slate-900 rounded-2xl p-4 h-24 animate-pulse" />
             ))}
           </div>
         ) : summary && (
           <>
             <div className="grid grid-cols-2 gap-3">
-              <StatCard
-                label="งานทั้งหมด"
-                value={summary.tasks.total}
-                sub={`เสร็จ ${summary.tasks.done}`}
-                color="blue"
-                icon="📋"
-              />
+              <StatCard label="งานทั้งหมด" value={summary.tasks.total} sub={`เสร็จ ${summary.tasks.done}`} color="blue" icon="📋" />
               <StatCard
                 label="รอตรวจ"
                 value={summary.tasks.under_review}
@@ -125,9 +102,9 @@ export default function Dashboard() {
                 alert={summary.tasks.under_review > 0}
               />
               <StatCard
-                label="โปรเจกต์"
+                label="โปรเจคต์"
                 value={summary.projects.active}
-                sub={summary.projects.overdue > 0 ? `⚠️ เกินกำหนด ${summary.projects.overdue}` : 'Active'}
+                sub={summary.projects.overdue > 0 ? `เกินกำหนด ${summary.projects.overdue}` : 'Active'}
                 color={summary.projects.overdue > 0 ? 'red' : 'green'}
                 icon="📁"
                 alert={summary.projects.overdue > 0}
@@ -141,7 +118,6 @@ export default function Dashboard() {
               />
             </div>
 
-            {/* Progress bar */}
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
               <div className="flex justify-between items-center mb-3">
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">สถานะงานวันนี้</p>
@@ -153,99 +129,35 @@ export default function Dashboard() {
                 <ProgressBar value={summary.tasks.in_progress} total={summary.tasks.total} color="bg-blue-500" />
                 <ProgressBar value={summary.tasks.waiting_pickup} total={summary.tasks.total} color="bg-orange-400" />
               </div>
-              <div className="flex gap-4 mt-2.5 flex-wrap">
-                <Legend color="bg-green-500" label={`เสร็จ ${summary.tasks.done}`} />
-                <Legend color="bg-amber-400" label={`รอตรวจ ${summary.tasks.under_review}`} />
-                <Legend color="bg-blue-500" label={`กำลังทำ ${summary.tasks.in_progress}`} />
-                <Legend color="bg-orange-400" label={`รอรับ ${summary.tasks.waiting_pickup}`} />
-              </div>
             </div>
           </>
         )}
 
-        {/* Pending approval */}
-        {pendingUsers.length > 0 && (
-          <Section title="รออนุมัติเข้าระบบ" badge={pendingUsers.length} badgeColor="red">
-            <div className="space-y-2">
-              {pendingUsers.map(u => (
-                <div key={u.id} className="bg-slate-900 border border-slate-700 rounded-xl p-3 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-sm font-bold text-slate-300 shrink-0">
-                    {u.display_name?.[0]?.toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white text-sm font-semibold truncate">{u.display_name}</p>
-                    <p className="text-slate-500 text-xs truncate">{u.email}</p>
-                  </div>
-                  <div className="flex gap-1.5 shrink-0">
-                    <button
-                      onClick={async () => {
-                        const { userApi } = await import('../../api')
-                        await userApi.approve(u.id)
-                        await loadAll()
-                      }}
-                      className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-green-600 active:bg-green-700 transition"
-                    >
-                      ✓
-                    </button>
-                    <button
-                      onClick={async () => {
-                        const reason = prompt('ระบุเหตุผลที่ปฏิเสธ')
-                        if (!reason || reason.length < 5) return
-                        const { userApi } = await import('../../api')
-                        await userApi.reject(u.id, reason)
-                        await loadAll()
-                      }}
-                      className="px-3 py-1.5 rounded-lg text-xs font-semibold text-red-300 bg-red-950/60 border border-red-800 active:bg-red-900 transition"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Section>
-        )}
-
-        {/* Under review tasks */}
         <Section title="รอตรวจงาน" badge={underReview.length} badgeColor="amber">
           {underReview.length === 0 ? (
-            <p className="text-slate-500 text-sm py-2">ไม่มีงานรอตรวจ 🎉</p>
+            <p className="text-slate-500 text-sm py-2">ไม่มีงานรอตรวจ</p>
           ) : (
             <div className="space-y-3">
-              {underReview.map(task => (
+              {underReview.map((task) => (
                 <div key={task.id} className="bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden">
-                  {/* proof image */}
                   {task.latest_proof?.image_url && (
-                    <img
-                      src={task.latest_proof.image_url}
-                      alt="proof"
-                      className="w-full object-cover max-h-48"
-                    />
+                    <img src={task.latest_proof.image_url} alt="proof" className="w-full object-cover max-h-48" />
                   )}
-
                   <div className="p-4">
                     <p className="text-white font-semibold text-sm leading-snug">{task.name}</p>
-                    {task.current_owner && (
-                      <p className="text-xs text-slate-400 mt-1">
-                        👤 {task.current_owner.display_name}
-                      </p>
-                    )}
+                    {task.current_owner && <p className="text-xs text-slate-400 mt-1">👤 {task.current_owner.display_name}</p>}
 
                     {task.latest_proof?.report_text && (
                       <div className="bg-slate-800 rounded-xl px-3 py-2 mt-3">
-                        <p className="text-xs text-slate-500 mb-0.5">รายงาน</p>
-                        <p className="text-xs text-slate-300 leading-relaxed">
-                          {task.latest_proof.report_text}
-                        </p>
+                        <p className="text-xs text-slate-300 leading-relaxed">{task.latest_proof.report_text}</p>
                       </div>
                     )}
 
-                    {/* reject reason input */}
                     {rejectId === task.id && (
                       <div className="mt-3">
                         <textarea
                           value={rejectReason}
-                          onChange={e => setRejectReason(e.target.value)}
+                          onChange={(e) => setRejectReason(e.target.value)}
                           placeholder="ระบุเหตุผลที่ส่งกลับ (อย่างน้อย 5 ตัว)"
                           rows={2}
                           className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-600 text-white placeholder-slate-600 outline-none focus:border-red-500 text-xs resize-none"
@@ -253,12 +165,14 @@ export default function Dashboard() {
                       </div>
                     )}
 
-                    {/* action buttons */}
                     <div className="flex gap-2 mt-3">
                       {rejectId === task.id ? (
                         <>
                           <button
-                            onClick={() => { setRejectId(null); setRejectReason('') }}
+                            onClick={() => {
+                              setRejectId(null);
+                              setRejectReason('');
+                            }}
                             className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-slate-400 bg-slate-800 active:bg-slate-700 transition"
                           >
                             ยกเลิก
@@ -284,11 +198,7 @@ export default function Dashboard() {
                             disabled={actionLoading === task.id}
                             className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-green-600 active:bg-green-700 transition disabled:opacity-40"
                           >
-                            {actionLoading === task.id ? (
-                              <span className="flex items-center justify-center gap-1">
-                                <span className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                              </span>
-                            ) : '✅ อนุมัติ'}
+                            {actionLoading === task.id ? '...' : '✅ อนุมัติ'}
                           </button>
                         </>
                       )}
@@ -301,11 +211,16 @@ export default function Dashboard() {
         </Section>
       </div>
     </div>
-  )
+  );
 }
 
 function StatCard({ label, value, sub, color, icon, alert }: {
-  label: string; value: number; sub: string; color: string; icon: string; alert?: boolean
+  label: string
+  value: number
+  sub: string
+  color: string
+  icon: string
+  alert?: boolean
 }) {
   const colors: Record<string, string> = {
     blue: 'bg-blue-900/40 border-blue-800/50',
@@ -313,11 +228,15 @@ function StatCard({ label, value, sub, color, icon, alert }: {
     green: 'bg-green-900/40 border-green-800/50',
     red: 'bg-red-900/40 border-red-800/50',
     purple: 'bg-purple-900/40 border-purple-800/50',
-  }
+  };
   const valueColors: Record<string, string> = {
-    blue: 'text-blue-300', amber: 'text-amber-300',
-    green: 'text-green-300', red: 'text-red-300', purple: 'text-purple-300',
-  }
+    blue: 'text-blue-300',
+    amber: 'text-amber-300',
+    green: 'text-green-300',
+    red: 'text-red-300',
+    purple: 'text-purple-300',
+  };
+
   return (
     <div className={`border rounded-2xl p-4 ${colors[color]}`}>
       <div className="flex items-start justify-between mb-2">
@@ -328,30 +247,27 @@ function StatCard({ label, value, sub, color, icon, alert }: {
       <p className="text-xs text-slate-400 mt-0.5">{label}</p>
       <p className="text-xs text-slate-600 mt-0.5">{sub}</p>
     </div>
-  )
+  );
 }
 
 function ProgressBar({ value, total, color }: { value: number; total: number; color: string }) {
-  if (!total || !value) return null
-  const pct = Math.max(2, Math.round((value / total) * 100))
-  return <div className={`${color} h-full`} style={{ width: `${pct}%` }} />
-}
-
-function Legend({ color, label }: { color: string; label: string }) {
-  return (
-    <div className="flex items-center gap-1.5">
-      <div className={`w-2 h-2 rounded-full ${color}`} />
-      <span className="text-xs text-slate-500">{label}</span>
-    </div>
-  )
+  if (!total || !value) return null;
+  const pct = Math.max(2, Math.round((value / total) * 100));
+  return <div className={`${color} h-full`} style={{ width: `${pct}%` }} />;
 }
 
 function Section({ title, badge, badgeColor, children }: {
-  title: string; badge?: number; badgeColor?: string; children: React.ReactNode
+  title: string
+  badge?: number
+  badgeColor?: string
+  children: React.ReactNode
 }) {
   const badgeColors: Record<string, string> = {
-    red: 'bg-red-500', amber: 'bg-amber-500', blue: 'bg-blue-500',
-  }
+    red: 'bg-red-500',
+    amber: 'bg-amber-500',
+    blue: 'bg-blue-500',
+  };
+
   return (
     <div>
       <div className="flex items-center gap-2 mb-3">
@@ -364,5 +280,5 @@ function Section({ title, badge, badgeColor, children }: {
       </div>
       {children}
     </div>
-  )
+  );
 }

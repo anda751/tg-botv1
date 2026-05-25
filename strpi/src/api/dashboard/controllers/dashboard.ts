@@ -2,25 +2,18 @@ import { factories } from '@strapi/strapi';
 import { resolveImageUrl } from '../../../services/supabase';
 
 export default factories.createCoreController('api::task.task', ({ strapi }) => ({
-
-  /**
-   * GET /dashboard/summary
-   * ภาพรวมตัวเลขสำหรับ Manager
-   */
   async summary(ctx) {
     const user = ctx.state.user;
-    if (user.role_app !== 'manager') return ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
+    if (user.role_app !== 'manager') return ctx.forbidden('Manager role required');
 
     const [tasks, projects, staffList] = await Promise.all([
       strapi.entityService.findMany('api::task.task', {
         populate: ['current_owner'],
         limit: -1,
       }) as Promise<any[]>,
-
       strapi.entityService.findMany('api::project.project', {
         limit: -1,
       }) as Promise<any[]>,
-
       strapi.entityService.findMany('plugin::users-permissions.user', {
         filters: { role_app: 'staff', is_approved: true },
         limit: -1,
@@ -33,21 +26,21 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
     }, {});
 
     const now = new Date();
-    const overdueProjects = (projects as any[]).filter(
-      (p) => p.status_project === 'active' && new Date(p.deadline) < now,
+    const overdueProjects = projects.filter(
+      (p: any) => p.status_project === 'active' && new Date(p.deadline) < now,
     );
 
     return ctx.send({
       tasks: {
         total: tasks.length,
-        in_progress: tasksByStatus['in_progress'] ?? 0,
-        under_review: tasksByStatus['under_review'] ?? 0,
-        waiting_pickup: tasksByStatus['waiting_pickup'] ?? 0,
-        done: tasksByStatus['done'] ?? 0,
+        in_progress: tasksByStatus.in_progress ?? 0,
+        under_review: tasksByStatus.under_review ?? 0,
+        waiting_pickup: tasksByStatus.waiting_pickup ?? 0,
+        done: tasksByStatus.done ?? 0,
       },
       projects: {
         total: projects.length,
-        active: (projects as any[]).filter((p) => p.status_project === 'active').length,
+        active: projects.filter((p: any) => p.status_project === 'active').length,
         overdue: overdueProjects.length,
       },
       staff: {
@@ -56,18 +49,12 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
     });
   },
 
-  /**
-   * GET /dashboard/pending-tasks
-   * งานที่รอดำเนินการ (ไม่รวม done) พร้อม owner
-   */
   async pendingTasks(ctx) {
     const user = ctx.state.user;
-    if (user.role_app !== 'manager') return ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
+    if (user.role_app !== 'manager') return ctx.forbidden('Manager role required');
 
     const tasks = await strapi.entityService.findMany('api::task.task', {
-      filters: {
-        status_task: { $ne: 'done' },
-      },
+      filters: { status_task: { $ne: 'done' } },
       populate: ['current_owner', 'task_log'],
       sort: { createdAt: 'asc' },
       limit: -1,
@@ -87,13 +74,9 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
     );
   },
 
-  /**
-   * GET /dashboard/under-review
-   * งานที่รอ Manager ตรวจ พร้อมรูปหลักฐานล่าสุด
-   */
-    async underReview(ctx) {
+  async underReview(ctx) {
     const user = ctx.state.user;
-    if (user.role_app !== 'manager') return ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
+    if (user.role_app !== 'manager') return ctx.forbidden('Manager role required');
 
     const tasks = await strapi.entityService.findMany('api::task.task', {
       filters: { status_task: 'under_review' },
@@ -135,20 +118,15 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
     return ctx.send(result);
   },
 
-  /**
-   * GET /dashboard/staff
-   * รายชื่อ Staff พร้อมจำนวนงานปัจจุบัน
-   */
   async staffOverview(ctx) {
     const user = ctx.state.user;
-    if (user.role_app !== 'manager') return ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
+    if (user.role_app !== 'manager') return ctx.forbidden('Manager role required');
 
     const [staffList, activeTasks] = await Promise.all([
       strapi.entityService.findMany('plugin::users-permissions.user', {
         filters: { role_app: 'staff', is_approved: true },
         limit: -1,
       }) as Promise<any[]>,
-
       strapi.entityService.findMany('api::task.task', {
         filters: { status_task: { $ne: 'done' } },
         populate: ['current_owner'],
@@ -156,7 +134,6 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
       }) as Promise<any[]>,
     ]);
 
-    // นับงานต่อ staff
     const taskCount: Record<number, number> = {};
     for (const t of activeTasks as any[]) {
       if (t.current_owner) {
@@ -174,30 +151,4 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
       })),
     );
   },
-
-  /**
-   * GET /dashboard/pending-approval
-   * Staff ที่ยังรออนุมัติเข้าระบบ
-   */
-  async pendingApproval(ctx) {
-    const user = ctx.state.user;
-    if (user.role_app !== 'manager') return ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
-
-    const pending = await strapi.entityService.findMany('plugin::users-permissions.user', {
-      filters: { role_app: 'staff', is_approved: false },
-      sort: { createdAt: 'asc' },
-      limit: -1,
-    }) as any[];
-
-    return ctx.send(
-      (pending as any[]).map((u) => ({
-        id: u.id,
-        display_name: u.display_name,
-        email: u.email,
-        telegram_id: u.telegram_id,
-        registered_at: u.createdAt,
-      })),
-    );
-  },
-
 }));

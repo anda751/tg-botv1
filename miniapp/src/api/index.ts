@@ -75,7 +75,6 @@ export const dashboardApi = {
   pendingTasks: () => axios.get('/dashboard/pending-tasks'),
   underReview: () => axios.get('/dashboard/under-review'),
   staffOverview: () => axios.get('/dashboard/staff'),
-  pendingApproval: () => axios.get('/dashboard/pending-approval'),
 }
 
 // ===== Users =====
@@ -94,10 +93,4 @@ export const userApi = {
   }) => axios.post('/auth/login', data),
 
   me: () => axios.get('/profile/me'),
-
-  approve: (userId: number) =>
-    axios.post(`/staff/${userId}/approve`),
-
-  reject: (userId: number, reason: string) =>
-    axios.post(`/staff/${userId}/reject`, { reason }),
 }
