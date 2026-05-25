@@ -4,6 +4,7 @@ export default factories.createCoreService('api::task.task', ({ strapi }) => ({
   async notifyGroup({ message }: { message: string }) {
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     const groupChatId = process.env.TELEGRAM_GROUP_CHAT_ID;
+    if (!botToken || !groupChatId) return;
 
     await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: 'POST',
@@ -39,6 +40,7 @@ export default factories.createCoreService('api::task.task', ({ strapi }) => ({
   }) {
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     const managerChatId = process.env.TELEGRAM_MANAGER_CHAT_ID;
+    if (!botToken || !managerChatId) return;
 
     const hasImageBuffer = !!imageBuffer && (
       ((imageBuffer as any).length ?? 0) > 0 ||
@@ -144,6 +146,7 @@ export default factories.createCoreService('api::task.task', ({ strapi }) => ({
   }) {
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     const managerChatId = process.env.TELEGRAM_MANAGER_CHAT_ID;
+    if (!botToken || !managerChatId) return;
 
     await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: 'POST',
@@ -164,12 +167,14 @@ export default factories.createCoreService('api::task.task', ({ strapi }) => ({
 
   async notifyStaff({ userId, message }: { userId: string; message: string }) {
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    if (!botToken) return;
 
     const user = await strapi.entityService.findOne(
       'plugin::users-permissions.user',
       userId,
     ) as any;
 
+    // Test mode allows staff without Telegram linkage.
     if (!user?.telegram_chat_id) return;
 
     await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {

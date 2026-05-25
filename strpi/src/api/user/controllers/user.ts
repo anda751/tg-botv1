@@ -4,12 +4,22 @@ type RoleApp = 'manager' | 'staff';
 
 export default factories.createCoreController('plugin::users-permissions.user', ({ strapi }) => ({
   async register(ctx) {
-    const { username, email, password, display_name, role_app } = ctx.request.body ?? {};
+    const {
+      username,
+      email,
+      password,
+      display_name,
+      role_app,
+      telegram_id,
+      telegram_chat_id,
+    } = ctx.request.body ?? {};
 
     const normalizedUsername = String(username ?? '').trim().toLowerCase();
     const normalizedEmail = String(email ?? '').trim().toLowerCase();
     const normalizedDisplayName = String(display_name ?? '').trim() || normalizedUsername;
     const selectedRole: RoleApp = role_app === 'manager' ? 'manager' : 'staff';
+    const normalizedTelegramId = String(telegram_id ?? '').trim();
+    const normalizedTelegramChatId = String(telegram_chat_id ?? '').trim();
 
     if (!normalizedUsername || !normalizedEmail || !password) {
       return ctx.badRequest('username, email and password are required');
@@ -56,6 +66,8 @@ export default factories.createCoreController('plugin::users-permissions.user', 
         display_name: normalizedDisplayName,
         role_app: selectedRole,
         is_approved: true,
+        telegram_id: selectedRole === 'manager' ? normalizedTelegramId || null : null,
+        telegram_chat_id: selectedRole === 'manager' ? normalizedTelegramChatId || null : null,
         role: defaultRole.id,
         confirmed: true,
         blocked: false,

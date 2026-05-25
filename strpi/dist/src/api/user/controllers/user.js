@@ -4,11 +4,13 @@ const strapi_1 = require("@strapi/strapi");
 exports.default = strapi_1.factories.createCoreController('plugin::users-permissions.user', ({ strapi }) => ({
     async register(ctx) {
         var _a;
-        const { username, email, password, display_name, role_app } = (_a = ctx.request.body) !== null && _a !== void 0 ? _a : {};
+        const { username, email, password, display_name, role_app, telegram_id, telegram_chat_id, } = (_a = ctx.request.body) !== null && _a !== void 0 ? _a : {};
         const normalizedUsername = String(username !== null && username !== void 0 ? username : '').trim().toLowerCase();
         const normalizedEmail = String(email !== null && email !== void 0 ? email : '').trim().toLowerCase();
         const normalizedDisplayName = String(display_name !== null && display_name !== void 0 ? display_name : '').trim() || normalizedUsername;
         const selectedRole = role_app === 'manager' ? 'manager' : 'staff';
+        const normalizedTelegramId = String(telegram_id !== null && telegram_id !== void 0 ? telegram_id : '').trim();
+        const normalizedTelegramChatId = String(telegram_chat_id !== null && telegram_chat_id !== void 0 ? telegram_chat_id : '').trim();
         if (!normalizedUsername || !normalizedEmail || !password) {
             return ctx.badRequest('username, email and password are required');
         }
@@ -50,6 +52,8 @@ exports.default = strapi_1.factories.createCoreController('plugin::users-permiss
                 display_name: normalizedDisplayName,
                 role_app: selectedRole,
                 is_approved: true,
+                telegram_id: selectedRole === 'manager' ? normalizedTelegramId || null : null,
+                telegram_chat_id: selectedRole === 'manager' ? normalizedTelegramChatId || null : null,
                 role: defaultRole.id,
                 confirmed: true,
                 blocked: false,

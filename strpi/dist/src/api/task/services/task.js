@@ -5,6 +5,8 @@ exports.default = strapi_1.factories.createCoreService('api::task.task', ({ stra
     async notifyGroup({ message }) {
         const botToken = process.env.TELEGRAM_BOT_TOKEN;
         const groupChatId = process.env.TELEGRAM_GROUP_CHAT_ID;
+        if (!botToken || !groupChatId)
+            return;
         await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -19,6 +21,8 @@ exports.default = strapi_1.factories.createCoreService('api::task.task', ({ stra
         var _a, _b, _c, _d;
         const botToken = process.env.TELEGRAM_BOT_TOKEN;
         const managerChatId = process.env.TELEGRAM_MANAGER_CHAT_ID;
+        if (!botToken || !managerChatId)
+            return;
         const hasImageBuffer = !!imageBuffer && (((_a = imageBuffer.length) !== null && _a !== void 0 ? _a : 0) > 0 ||
             ((_b = imageBuffer.byteLength) !== null && _b !== void 0 ? _b : 0) > 0);
         if (hasImageBuffer) {
@@ -111,6 +115,8 @@ exports.default = strapi_1.factories.createCoreService('api::task.task', ({ stra
     async notifyManagerHandover({ handoverId, taskName, pickedUpBy, }) {
         const botToken = process.env.TELEGRAM_BOT_TOKEN;
         const managerChatId = process.env.TELEGRAM_MANAGER_CHAT_ID;
+        if (!botToken || !managerChatId)
+            return;
         await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -129,7 +135,10 @@ exports.default = strapi_1.factories.createCoreService('api::task.task', ({ stra
     },
     async notifyStaff({ userId, message }) {
         const botToken = process.env.TELEGRAM_BOT_TOKEN;
+        if (!botToken)
+            return;
         const user = await strapi.entityService.findOne('plugin::users-permissions.user', userId);
+        // Test mode allows staff without Telegram linkage.
         if (!(user === null || user === void 0 ? void 0 : user.telegram_chat_id))
             return;
         await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {

@@ -10,6 +10,7 @@ exports.default = {
         { method: 'POST', path: '/tasks', handler: 'task.create', config: { auth: false } },
         // Custom routes
         { method: 'POST', path: '/tasks/:id/submit', handler: 'task.submit', config: { auth: false } },
+        { method: 'POST', path: '/tasks/:id/progress', handler: 'task.progress', config: { auth: false } },
         { method: 'POST', path: '/tasks/:id/approve', handler: 'task.approve', config: { auth: false } },
         { method: 'POST', path: '/tasks/:id/reject', handler: 'task.reject', config: { auth: false } },
     ],

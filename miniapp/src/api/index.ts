@@ -16,6 +16,11 @@ export const taskApi = {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
 
+  progress: (taskId: number, formData: FormData) =>
+    axios.post(`/tasks/${taskId}/progress`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+
   approve: (taskId: number) =>
     axios.post(`/tasks/${taskId}/approve`),
 

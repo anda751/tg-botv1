@@ -5,6 +5,7 @@ import axios from 'axios';
 import MyTasks from './pages/staff/MyTasks';
 import CreateTask from './pages/staff/CreateTask';
 import SubmitTask from './pages/staff/SubmitTask';
+import ProgressTask from './pages/staff/ProgressTask';
 import HandoverTask from './pages/staff/HandoverTask';
 import PickupTask from './pages/staff/PickupTask';
 import Dashboard from './pages/manager/Dashboard';
@@ -107,6 +108,7 @@ export default function App() {
                 <Route path="/" element={<MyTasks />} />
                 <Route path="/create" element={<CreateTask />} />
                 <Route path="/submit/:taskId" element={<SubmitTask />} />
+                <Route path="/progress/:taskId" element={<ProgressTask />} />
                 <Route path="/handover/:taskId" element={<HandoverTask />} />
                 <Route path="/pickup" element={<PickupTask />} />
                 <Route path="/login" element={<Navigate to="/" replace />} />

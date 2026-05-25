@@ -20,7 +20,8 @@
                 "approved",
                 "rejected",
                 "handover",
-                "picked_up"
+                "picked_up",
+                "progress_update"
             ]
         },
         "note": {
