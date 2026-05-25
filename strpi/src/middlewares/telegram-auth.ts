@@ -14,6 +14,24 @@ export default (config, { strapi }) => {
 
     if (ctx.state.isAuthenticatedRoute === false) return next();
 
+    const bearerToken = getBearerToken(ctx.headers.authorization);
+    if (bearerToken) {
+      try {
+        const payload = await strapi.plugin('users-permissions').service('jwt').verify(bearerToken) as any;
+        const userId = Number(payload?.id);
+        if (!Number.isFinite(userId)) return ctx.unauthorized('Invalid auth token');
+
+        const user = await strapi.entityService.findOne('plugin::users-permissions.user', userId);
+        if (!user) return ctx.unauthorized('User not found');
+        if ((user as any).blocked) return ctx.forbidden('Account is blocked');
+
+        ctx.state.user = user;
+        return next();
+      } catch {
+        return ctx.unauthorized('Invalid auth token');
+      }
+    }
+
     const isTestMode = isTruthy(process.env.TEST_MODE);
     if (isTestMode) {
       const requestedRole = normalizeRoleHeader(ctx.headers['x-role-app']) ?? 'staff';
@@ -58,8 +76,7 @@ export default (config, { strapi }) => {
 
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     if (!botToken) {
-      strapi.log.warn('[TelegramAuth] TELEGRAM_BOT_TOKEN not set - skipping');
-      return next();
+      return ctx.unauthorized('Missing auth token');
     }
 
     const initData = ctx.headers['x-telegram-init-data'];
@@ -126,6 +143,14 @@ export default (config, { strapi }) => {
     return next();
   };
 };
+
+function getBearerToken(authorization: unknown): string | null {
+  if (typeof authorization !== 'string') return null;
+  const [scheme, token] = authorization.trim().split(/\s+/, 2);
+  if (!scheme || !token) return null;
+  if (scheme.toLowerCase() !== 'bearer') return null;
+  return token.trim() || null;
+}
 
 function normalizeRoleHeader(value: unknown): RoleApp | undefined {
   if (value === 'manager' || value === 'staff') return value;

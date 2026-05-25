@@ -3,44 +3,51 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const strapi_1 = require("@strapi/strapi");
 exports.default = strapi_1.factories.createCoreController('plugin::users-permissions.user', ({ strapi }) => ({
     async register(ctx) {
-        var _a, _b, _c;
-        const { email, display_name, telegram_id, telegram_chat_id, role_app } = ctx.request.body;
-        const selectedRole = role_app === 'manager' ? 'manager' : 'staff';
-        const requiresApproval = false;
+        var _a;
+        const { username, email, password, display_name, role_app } = (_a = ctx.request.body) !== null && _a !== void 0 ? _a : {};
+        const normalizedUsername = String(username !== null && username !== void 0 ? username : '').trim().toLowerCase();
         const normalizedEmail = String(email !== null && email !== void 0 ? email : '').trim().toLowerCase();
-        const normalizedDisplayName = String(display_name !== null && display_name !== void 0 ? display_name : '').trim();
-        const telegramFromInitData = String((_c = (_b = (_a = ctx.state) === null || _a === void 0 ? void 0 : _a.telegramUser) === null || _b === void 0 ? void 0 : _b.id) !== null && _c !== void 0 ? _c : '').trim();
-        // Testing-friendly fallback: registration no longer requires Telegram ID in request body.
-        const resolvedTelegramId = String(telegram_id || telegramFromInitData || `test:${normalizedEmail}`).trim();
-        const resolvedTelegramChatId = String(telegram_chat_id || resolvedTelegramId).trim();
-        if (!normalizedEmail || !normalizedDisplayName) {
-            return ctx.badRequest('Please provide all required fields');
+        const normalizedDisplayName = String(display_name !== null && display_name !== void 0 ? display_name : '').trim() || normalizedUsername;
+        const selectedRole = role_app === 'manager' ? 'manager' : 'staff';
+        if (!normalizedUsername || !normalizedEmail || !password) {
+            return ctx.badRequest('username, email and password are required');
         }
-        if (normalizedDisplayName.length < 2) {
-            return ctx.badRequest('Display name must be at least 2 characters');
+        if (normalizedUsername.length < 3) {
+            return ctx.badRequest('username must be at least 3 characters');
         }
-        const existingEmail = (await strapi.entityService.findMany('plugin::users-permissions.user', {
-            filters: {
-                email: normalizedEmail,
-                role_app: selectedRole,
-            },
-            limit: 1,
-        }));
+        if (!normalizedEmail.includes('@')) {
+            return ctx.badRequest('invalid email');
+        }
+        if (String(password).length < 6) {
+            return ctx.badRequest('password must be at least 6 characters');
+        }
+        const [existingUsername, existingEmail] = await Promise.all([
+            strapi.entityService.findMany('plugin::users-permissions.user', {
+                filters: { username: normalizedUsername },
+                limit: 1,
+            }),
+            strapi.entityService.findMany('plugin::users-permissions.user', {
+                filters: { email: normalizedEmail },
+                limit: 1,
+            }),
+        ]);
+        if (existingUsername.length) {
+            return ctx.badRequest('username is already used');
+        }
         if (existingEmail.length) {
-            return ctx.badRequest(`Email is already registered for role ${selectedRole}`);
+            return ctx.badRequest('email is already used');
         }
         const defaultRole = await strapi
             .query('plugin::users-permissions.role')
             .findOne({ where: { type: 'authenticated' } });
         if (!defaultRole)
-            return ctx.internalServerError('Authenticated role not found');
+            return ctx.internalServerError('authenticated role not found');
         const user = (await strapi.entityService.create('plugin::users-permissions.user', {
             data: {
+                username: normalizedUsername,
                 email: normalizedEmail,
-                username: `${normalizedEmail}:${selectedRole}`,
+                password: String(password),
                 display_name: normalizedDisplayName,
-                telegram_id: resolvedTelegramId,
-                telegram_chat_id: resolvedTelegramChatId,
                 role_app: selectedRole,
                 is_approved: true,
                 role: defaultRole.id,
@@ -52,63 +59,71 @@ exports.default = strapi_1.factories.createCoreController('plugin::users-permiss
             taskId: '',
             taskName: '',
             submittedBy: normalizedDisplayName,
-            reportText: `New user joined\nName: ${normalizedDisplayName}\nEmail: ${normalizedEmail}\nRole: ${selectedRole}\nTelegram ID: ${resolvedTelegramId}`,
+            reportText: `New user joined\nUsername: ${normalizedUsername}\nEmail: ${normalizedEmail}\nRole: ${selectedRole}`,
             imageUrl: '',
         });
+        const jwt = strapi.plugin('users-permissions').service('jwt').issue({ id: user.id });
         return ctx.send({
-            message: 'Registration completed',
-            userId: user.id,
-            requiresApproval,
-            role_app: selectedRole,
+            jwt,
+            user: {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                display_name: user.display_name,
+                role_app: user.role_app,
+                is_approved: user.is_approved,
+            },
         });
     },
-    async approveUser(ctx) {
-        const currentUser = ctx.state.user;
-        const { id } = ctx.params;
-        if (currentUser.role_app !== 'manager')
-            return ctx.forbidden('Manager role required');
-        const target = (await strapi.entityService.findOne('plugin::users-permissions.user', id));
-        if (!target)
-            return ctx.notFound('User not found');
-        if (target.is_approved)
-            return ctx.badRequest('User is already approved');
-        await strapi.entityService.update('plugin::users-permissions.user', id, {
-            data: { is_approved: true },
+    async login(ctx) {
+        var _a;
+        const { identifier, password } = (_a = ctx.request.body) !== null && _a !== void 0 ? _a : {};
+        const normalizedIdentifier = String(identifier !== null && identifier !== void 0 ? identifier : '').trim().toLowerCase();
+        const rawPassword = String(password !== null && password !== void 0 ? password : '');
+        if (!normalizedIdentifier || !rawPassword) {
+            return ctx.badRequest('identifier and password are required');
+        }
+        const user = await strapi.query('plugin::users-permissions.user').findOne({
+            where: {
+                $or: [{ email: normalizedIdentifier }, { username: normalizedIdentifier }],
+            },
+            select: ['id', 'username', 'email', 'password', 'display_name', 'role_app', 'is_approved', 'blocked'],
         });
-        await strapi.service('api::task.task').notifyStaff({
-            userId: id,
-            message: 'Your account has been approved.',
+        if (!user)
+            return ctx.unauthorized('invalid credentials');
+        if (user.blocked)
+            return ctx.forbidden('account is blocked');
+        const isValidPassword = await strapi
+            .plugin('users-permissions')
+            .service('user')
+            .validatePassword(rawPassword, user.password);
+        if (!isValidPassword)
+            return ctx.unauthorized('invalid credentials');
+        const jwt = strapi.plugin('users-permissions').service('jwt').issue({ id: user.id });
+        return ctx.send({
+            jwt,
+            user: {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                display_name: user.display_name,
+                role_app: user.role_app,
+                is_approved: user.is_approved,
+            },
         });
-        return ctx.send({ message: 'User approved successfully' });
-    },
-    async rejectUser(ctx) {
-        const currentUser = ctx.state.user;
-        const { id } = ctx.params;
-        const { reason } = ctx.request.body;
-        if (currentUser.role_app !== 'manager')
-            return ctx.forbidden('Manager role required');
-        if (!reason || reason.length < 5)
-            return ctx.badRequest('Reason must be at least 5 characters');
-        const target = (await strapi.entityService.findOne('plugin::users-permissions.user', id));
-        if (!target)
-            return ctx.notFound('User not found');
-        await strapi.service('api::task.task').notifyStaff({
-            userId: id,
-            message: `Registration rejected\nReason: ${reason}`,
-        });
-        await strapi.entityService.delete('plugin::users-permissions.user', id);
-        return ctx.send({ message: 'User rejected successfully' });
     },
     async me(ctx) {
         const currentUser = ctx.state.user;
+        if (!(currentUser === null || currentUser === void 0 ? void 0 : currentUser.id))
+            return ctx.unauthorized('unauthorized');
         const fullUser = (await strapi.entityService.findOne('plugin::users-permissions.user', currentUser.id, { populate: [] }));
         if (!fullUser)
-            return ctx.notFound('User not found');
+            return ctx.notFound('user not found');
         return ctx.send({
             id: fullUser.id,
+            username: fullUser.username,
             email: fullUser.email,
             display_name: fullUser.display_name,
-            telegram_id: fullUser.telegram_id,
             role_app: fullUser.role_app,
             is_approved: fullUser.is_approved,
         });

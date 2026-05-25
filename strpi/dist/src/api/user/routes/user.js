@@ -4,8 +4,14 @@ exports.default = {
     routes: [
         {
             method: 'POST',
-            path: '/auth/telegram/register',
+            path: '/auth/register',
             handler: 'user.register',
+            config: { auth: false },
+        },
+        {
+            method: 'POST',
+            path: '/auth/login',
+            handler: 'user.login',
             config: { auth: false },
         },
         {

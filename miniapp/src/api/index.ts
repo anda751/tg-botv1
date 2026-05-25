@@ -69,12 +69,17 @@ export const dashboardApi = {
 // ===== Users =====
 export const userApi = {
   register: (data: {
+    username: string
+    password: string
     email: string
     display_name: string
-    telegram_id: string
-    telegram_chat_id: string
     role_app: 'manager' | 'staff'
-  }) => axios.post('/auth/telegram/register', data),
+  }) => axios.post('/auth/register', data),
+
+  login: (data: {
+    identifier: string
+    password: string
+  }) => axios.post('/auth/login', data),
 
   me: () => axios.get('/profile/me'),
 
