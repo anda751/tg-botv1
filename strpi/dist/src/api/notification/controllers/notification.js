@@ -7,7 +7,6 @@ exports.default = strapi_1.factories.createCoreController(notificationUid, ({ st
         const user = ctx.state.user;
         if (!(user === null || user === void 0 ? void 0 : user.id))
             return ctx.unauthorized('กรุณาเข้าสู่ระบบ');
-        await strapi.service('api::project.project').syncOverdueNotificationsForUser(user);
         const notifications = await strapi.entityService.findMany(notificationUid, {
             filters: {
                 recipient: { id: user.id },
