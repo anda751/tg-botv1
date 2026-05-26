@@ -186,7 +186,7 @@ export default factories.createCoreService('api::task.task', ({ strapi }) => ({
     // Notification policy:
     // - Telegram is used for manager notifications only.
     // - Staff updates are stored as in-app notifications.
-    await strapi.entityService.create(notificationUid, {
+    await strapi.db.query(notificationUid).create({
       data: {
         recipient: recipientId,
         title: title?.trim() || 'มีอัปเดตใหม่',

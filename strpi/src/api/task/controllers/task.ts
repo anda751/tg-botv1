@@ -2,42 +2,49 @@ import { factories } from '@strapi/strapi';
 import { promises as fs } from 'node:fs';
 import { resolveImageUrl, uploadProofImage } from '../../../services/supabase';
 
-export default factories.createCoreController('api::task.task', ({ strapi }) => ({
+const taskUid = 'api::task.task' as any;
+const taskLogUid = 'api::task-log.task-log' as any;
+const proofImageUid = 'api::proof-image.proof-image' as any;
+const notificationUid = 'api::notification.notification' as any;
+
+export default factories.createCoreController(taskUid, ({ strapi }) => ({
+  async home(ctx) {
+    const user = ctx.state.user;
+    if (!user?.id) return ctx.unauthorized('กรุณาเข้าสู่ระบบ');
+
+    const tasks = await fetchTasksForOwner(strapi, user.id, false);
+    const hiddenTasks = await fetchTasksForOwner(strapi, user.id, true);
+    const notifications = await fetchNotifications(strapi, user.id, false);
+    const hiddenNotifications = await fetchNotifications(strapi, user.id, true);
+
+    return ctx.send({
+      tasks,
+      hidden_tasks: hiddenTasks,
+      notifications: notifications.map(serializeNotification),
+      hidden_notifications: hiddenNotifications.map(serializeNotification),
+    });
+  },
+
   async my(ctx) {
     const user = ctx.state.user;
-
-    const tasks = await strapi.entityService.findMany('api::task.task', {
-      filters: {
-        current_owner: { id: user.id },
-        is_hidden_for_owner: false,
-      },
-      populate: ['project', 'task_log'],
-      sort: ['updatedAt:desc', 'id:desc'],
-    });
-
+    const tasks = await fetchTasksForOwner(strapi, user.id, false);
     return ctx.send(tasks);
   },
 
   async hidden(ctx) {
     const user = ctx.state.user;
-
-    const tasks = await strapi.entityService.findMany('api::task.task', {
-      filters: {
-        current_owner: { id: user.id },
-        is_hidden_for_owner: true,
-      },
-      populate: ['project', 'task_log'],
-      sort: ['hidden_for_owner_at:desc', 'updatedAt:desc', 'id:desc'],
-    } as any);
-
+    const tasks = await fetchTasksForOwner(strapi, user.id, true);
     return ctx.send(tasks);
   },
 
   async waitingPickup(ctx) {
-    const tasks = await strapi.entityService.findMany('api::task.task', {
-      filters: { status_task: 'waiting_pickup' },
-      populate: ['current_owner', 'task_log'],
-      sort: ['updatedAt:desc', 'id:desc'],
+    const tasks = await strapi.db.query(taskUid).findMany({
+      where: { status_task: 'waiting_pickup' },
+      populate: {
+        current_owner: true,
+        task_log: true,
+      },
+      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
     });
 
     return ctx.send(tasks);
@@ -64,7 +71,7 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
       return ctx.badRequest('รูปแบบโปรเจกต์ไม่ถูกต้อง');
     }
 
-    const created = await strapi.entityService.create('api::task.task', {
+    const created = await strapi.db.query(taskUid).create({
       data: {
         ...bodyData,
         name,
@@ -75,7 +82,7 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
       },
     }) as any;
 
-    await strapi.entityService.create('api::task-log.task-log', {
+    await strapi.db.query(taskLogUid).create({
       data: {
         task: created.id,
         action: 'created',
@@ -93,75 +100,52 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
 
   async submit(ctx) {
     const user = ctx.state.user;
-    const { id } = ctx.params;
-    const { report_text } = ctx.request.body;
+    const taskId = Number(ctx.params.id);
+    const reportTextRaw = ctx.request.body?.report_text;
+    const reportText = typeof reportTextRaw === 'string' ? reportTextRaw.trim() : '';
     const file = (ctx.request as any).files?.proof_image;
 
-    const task = await strapi.entityService.findOne('api::task.task', id, {
-      populate: ['current_owner'],
-    }) as any;
-
-    if (!task) return ctx.notFound('ไม่พบงาน');
-    if (task.current_owner.id !== user.id) return ctx.forbidden('คุณไม่ใช่ผู้รับผิดชอบงานนี้');
-    if (task.status_task !== 'in_progress') return ctx.badRequest('งานนี้ไม่ได้อยู่ระหว่างดำเนินการ');
-    if (!file) return ctx.badRequest('กรุณาแนบรูปหลักฐาน');
-    if (!report_text || report_text.length < 5) return ctx.badRequest('รายละเอียดงานต้องยาวอย่างน้อย 5 ตัวอักษร');
+    const task = await getTaskWithOwner(strapi, taskId);
+    const validationError = validateTaskMutation(task, user.id, 'submit', reportText, !!file);
+    if (validationError) return validationError(ctx);
 
     const fileBuffer = await readUploadedFileBuffer(file);
-
     const imagePath = await uploadProofImage(
       fileBuffer,
       file.name || file.filename || file.originalFilename || 'proof',
       file.type,
     );
-
-    let uploadedMediaId: number | null = null;
-    try {
-      const uploaded = await strapi.plugin('upload').service('upload').upload({
-        data: {
-          fileInfo: {
-            name: file.name || file.filename || file.originalFilename || 'proof',
-          },
-        },
-        files: file,
-      });
-      const media = Array.isArray(uploaded) ? uploaded[0] : uploaded;
-      uploadedMediaId = media?.id ?? null;
-    } catch {
-      uploadedMediaId = null;
-    }
-
     const resolvedImageUrl = await resolveImageUrl(imagePath);
 
-    await strapi.entityService.create('api::proof-image.proof-image', {
+    await strapi.db.query(proofImageUid).create({
       data: {
-        task: id,
+        task: taskId,
         image_url: resolvedImageUrl,
-        image_file: uploadedMediaId,
-        report_text,
+        report_text: reportText,
         submitted_by: user.id,
         submitted_at: new Date(),
       },
     });
 
-    await strapi.entityService.update('api::task.task', id, {
+    await strapi.db.query(taskUid).update({
+      where: { id: taskId },
       data: { status_task: 'under_review' },
     });
 
-    await strapi.entityService.create('api::task-log.task-log', {
+    await strapi.db.query(taskLogUid).create({
       data: {
-        task: id,
+        task: taskId,
         action: 'submitted',
         actor: user.id,
-        note: report_text,
+        note: reportText,
       },
     });
 
     await strapi.service('api::task.task').notifyManager({
-      taskId: id,
+      taskId: String(taskId),
       taskName: task.name,
       submittedBy: user.username,
-      reportText: report_text,
+      reportText,
       imageUrl: resolvedImageUrl,
       imageBuffer: fileBuffer,
       imageFilename: file.name || file.filename || file.originalFilename || 'proof',
@@ -173,23 +157,16 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
 
   async progress(ctx) {
     const user = ctx.state.user;
-    const { id } = ctx.params;
+    const taskId = Number(ctx.params.id);
     const reportTextRaw = ctx.request.body?.report_text;
     const reportText = typeof reportTextRaw === 'string' ? reportTextRaw.trim() : '';
     const file = (ctx.request as any).files?.proof_image;
     let fileBuffer: Buffer | null = null;
-
-    const task = await strapi.entityService.findOne('api::task.task', id, {
-      populate: ['current_owner'],
-    }) as any;
-
-    if (!task) return ctx.notFound('ไม่พบงาน');
-    if (task.current_owner.id !== user.id) return ctx.forbidden('คุณไม่ใช่ผู้รับผิดชอบงานนี้');
-    if (task.status_task !== 'in_progress') return ctx.badRequest('อัปเดตความคืบหน้าได้เฉพาะงานที่กำลังดำเนินการอยู่');
-    if (!reportText || reportText.length < 5) return ctx.badRequest('ข้อความอัปเดตต้องยาวอย่างน้อย 5 ตัวอักษร');
-
     let resolvedImageUrl = '';
-    let uploadedMediaId: number | null = null;
+
+    const task = await getTaskWithOwner(strapi, taskId);
+    const validationError = validateTaskMutation(task, user.id, 'progress', reportText, true);
+    if (validationError) return validationError(ctx);
 
     if (file) {
       fileBuffer = await readUploadedFileBuffer(file);
@@ -200,26 +177,10 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
       );
       resolvedImageUrl = await resolveImageUrl(imagePath);
 
-      try {
-        const uploaded = await strapi.plugin('upload').service('upload').upload({
-          data: {
-            fileInfo: {
-              name: file.name || file.filename || file.originalFilename || 'progress',
-            },
-          },
-          files: file,
-        });
-        const media = Array.isArray(uploaded) ? uploaded[0] : uploaded;
-        uploadedMediaId = media?.id ?? null;
-      } catch {
-        uploadedMediaId = null;
-      }
-
-      await strapi.entityService.create('api::proof-image.proof-image', {
+      await strapi.db.query(proofImageUid).create({
         data: {
-          task: id,
+          task: taskId,
           image_url: resolvedImageUrl,
-          image_file: uploadedMediaId,
           report_text: reportText,
           submitted_by: user.id,
           submitted_at: new Date(),
@@ -227,17 +188,17 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
       });
     }
 
-    await strapi.entityService.create('api::task-log.task-log', {
+    await strapi.db.query(taskLogUid).create({
       data: {
-        task: id,
-        action: 'progress_update' as any,
+        task: taskId,
+        action: 'progress_update',
         actor: user.id,
         note: reportText,
       },
     });
 
     await strapi.service('api::task.task').notifyManager({
-      taskId: id,
+      taskId: String(taskId),
       taskName: task.name,
       submittedBy: user.username,
       reportText: `อัปเดตความคืบหน้า:\n${reportText}`,
@@ -252,24 +213,22 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
 
   async approve(ctx) {
     const user = ctx.state.user;
-    const { id } = ctx.params;
+    const taskId = Number(ctx.params.id);
 
     if (user.role_app !== 'manager') return ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
 
-    const task = await strapi.entityService.findOne('api::task.task', id, {
-      populate: ['current_owner'],
-    }) as any;
-
+    const task = await getTaskWithOwner(strapi, taskId);
     if (!task) return ctx.notFound('ไม่พบงาน');
     if (task.status_task !== 'under_review') return ctx.badRequest('งานนี้ไม่ได้อยู่ในสถานะรอตรวจสอบ');
 
-    await strapi.entityService.update('api::task.task', id, {
+    await strapi.db.query(taskUid).update({
+      where: { id: taskId },
       data: { status_task: 'done' },
     });
 
-    await strapi.entityService.create('api::task-log.task-log', {
+    await strapi.db.query(taskLogUid).create({
       data: {
-        task: id,
+        task: taskId,
         action: 'approved',
         actor: user.id,
       },
@@ -292,25 +251,24 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
 
   async reject(ctx) {
     const user = ctx.state.user;
-    const { id } = ctx.params;
-    const { reason } = ctx.request.body;
+    const taskId = Number(ctx.params.id);
+    const reasonRaw = ctx.request.body?.reason;
+    const reason = typeof reasonRaw === 'string' ? reasonRaw.trim() : '';
 
     if (user.role_app !== 'manager') return ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
     if (!reason || reason.length < 5) return ctx.badRequest('กรุณาระบุเหตุผลอย่างน้อย 5 ตัวอักษร');
 
-    const task = await strapi.entityService.findOne('api::task.task', id, {
-      populate: ['current_owner'],
-    }) as any;
-
+    const task = await getTaskWithOwner(strapi, taskId);
     if (!task) return ctx.notFound('ไม่พบงาน');
 
-    await strapi.entityService.update('api::task.task', id, {
+    await strapi.db.query(taskUid).update({
+      where: { id: taskId },
       data: { status_task: 'in_progress' },
     });
 
-    await strapi.entityService.create('api::task-log.task-log', {
+    await strapi.db.query(taskLogUid).create({
       data: {
-        task: id,
+        task: taskId,
         action: 'rejected',
         actor: user.id,
         note: reason,
@@ -330,22 +288,20 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
 
   async hide(ctx) {
     const user = ctx.state.user;
-    const { id } = ctx.params;
-
-    const task = await strapi.entityService.findOne('api::task.task', id, {
-      populate: ['current_owner'],
-    }) as any;
+    const taskId = Number(ctx.params.id);
+    const task = await getTaskWithOwner(strapi, taskId);
 
     if (!task) return ctx.notFound('ไม่พบงาน');
     if (task.current_owner?.id !== user.id) return ctx.forbidden('คุณไม่มีสิทธิ์ซ่อนงานนี้');
     if (task.status_task !== 'done') return ctx.badRequest('ซ่อนได้เฉพาะงานที่เสร็จแล้ว');
     if (task.is_hidden_for_owner) return ctx.send({ message: 'งานนี้ถูกซ่อนไว้แล้ว' });
 
-    await strapi.entityService.update('api::task.task', id, {
+    await strapi.db.query(taskUid).update({
+      where: { id: taskId },
       data: {
         is_hidden_for_owner: true,
         hidden_for_owner_at: new Date(),
-      } as any,
+      },
     });
 
     return ctx.send({ message: 'ซ่อนงานเรียบร้อย' });
@@ -353,20 +309,18 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
 
   async restore(ctx) {
     const user = ctx.state.user;
-    const { id } = ctx.params;
-
-    const task = await strapi.entityService.findOne('api::task.task', id, {
-      populate: ['current_owner'],
-    }) as any;
+    const taskId = Number(ctx.params.id);
+    const task = await getTaskWithOwner(strapi, taskId);
 
     if (!task) return ctx.notFound('ไม่พบงาน');
     if (task.current_owner?.id !== user.id) return ctx.forbidden('คุณไม่มีสิทธิ์กู้คืนงานนี้');
 
-    await strapi.entityService.update('api::task.task', id, {
+    await strapi.db.query(taskUid).update({
+      where: { id: taskId },
       data: {
         is_hidden_for_owner: false,
         hidden_for_owner_at: null,
-      } as any,
+      },
     });
 
     return ctx.send({ message: 'กู้คืนงานเรียบร้อย' });
@@ -375,21 +329,21 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
   async restoreAll(ctx) {
     const user = ctx.state.user;
 
-    const tasks = await strapi.entityService.findMany('api::task.task', {
-      filters: {
-        current_owner: { id: user.id },
+    const tasks = await strapi.db.query(taskUid).findMany({
+      where: {
+        current_owner: user.id,
         is_hidden_for_owner: true,
       },
-      fields: ['id'],
-      limit: -1,
-    } as any) as any[];
+      select: ['id'],
+    }) as any[];
 
     for (const task of tasks) {
-      await strapi.entityService.update('api::task.task', task.id, {
+      await strapi.db.query(taskUid).update({
+        where: { id: Number(task.id) },
         data: {
           is_hidden_for_owner: false,
           hidden_for_owner_at: null,
-        } as any,
+        },
       });
     }
 
@@ -399,6 +353,87 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
     });
   },
 }));
+
+async function fetchTasksForOwner(strapi: any, userId: number, hidden: boolean) {
+  return strapi.db.query(taskUid).findMany({
+    where: {
+      current_owner: userId,
+      is_hidden_for_owner: hidden,
+    },
+    populate: {
+      project: true,
+      task_log: true,
+    },
+    orderBy: hidden
+      ? [{ hidden_for_owner_at: 'desc' }, { updatedAt: 'desc' }, { id: 'desc' }]
+      : [{ updatedAt: 'desc' }, { id: 'desc' }],
+  });
+}
+
+async function fetchNotifications(strapi: any, userId: number, hidden: boolean) {
+  return strapi.db.query(notificationUid).findMany({
+    where: {
+      recipient: userId,
+      is_hidden: hidden,
+    },
+    orderBy: hidden
+      ? [{ hidden_at: 'desc' }, { updatedAt: 'desc' }, { id: 'desc' }]
+      : [{ createdAt: 'desc' }, { id: 'desc' }],
+    limit: 20,
+  }) as Promise<any[]>;
+}
+
+async function getTaskWithOwner(strapi: any, taskId: number) {
+  if (!Number.isFinite(taskId)) return null;
+  return strapi.db.query(taskUid).findOne({
+    where: { id: taskId },
+    populate: { current_owner: true },
+  }) as Promise<any>;
+}
+
+function validateTaskMutation(
+  task: any,
+  userId: number,
+  mode: 'submit' | 'progress',
+  reportText: string,
+  allowWithoutFile: boolean,
+) {
+  return (ctx: any) => {
+    if (!task) return ctx.notFound('ไม่พบงาน');
+    if (task.current_owner?.id !== userId) return ctx.forbidden('คุณไม่ใช่ผู้รับผิดชอบงานนี้');
+    if (task.status_task !== 'in_progress') {
+      return ctx.badRequest(
+        mode === 'submit'
+          ? 'งานนี้ไม่ได้อยู่ระหว่างดำเนินการ'
+          : 'อัปเดตความคืบหน้าได้เฉพาะงานที่กำลังดำเนินการอยู่',
+      );
+    }
+    if (!allowWithoutFile) return ctx.badRequest('กรุณาแนบรูปหลักฐาน');
+    if (!reportText || reportText.length < 5) {
+      return ctx.badRequest(
+        mode === 'submit'
+          ? 'รายละเอียดงานต้องยาวอย่างน้อย 5 ตัวอักษร'
+          : 'ข้อความอัปเดตต้องยาวอย่างน้อย 5 ตัวอักษร',
+      );
+    }
+    return null;
+  };
+}
+
+function serializeNotification(notification: any) {
+  return {
+    id: notification.id,
+    title: notification.title,
+    message: notification.message,
+    type: notification.type,
+    link: notification.link || '',
+    is_read: !!notification.is_read,
+    is_hidden: !!notification.is_hidden,
+    read_at: notification.read_at,
+    hidden_at: notification.hidden_at,
+    createdAt: notification.createdAt,
+  };
+}
 
 async function readUploadedFileBuffer(file: any): Promise<Buffer> {
   if (!file) throw new Error('proof_image is missing');

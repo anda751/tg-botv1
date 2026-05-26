@@ -7,12 +7,12 @@ export default factories.createCoreController(notificationUid, ({ strapi }) => (
     const user = ctx.state.user;
     if (!user?.id) return ctx.unauthorized('กรุณาเข้าสู่ระบบ');
 
-    const notifications = await strapi.entityService.findMany(notificationUid, {
-      filters: {
-        recipient: { id: user.id },
+    const notifications = await strapi.db.query(notificationUid).findMany({
+      where: {
+        recipient: user.id,
         is_hidden: false,
       },
-      sort: ['createdAt:desc', 'id:desc'],
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       limit: 20,
     }) as any[];
 
@@ -23,12 +23,12 @@ export default factories.createCoreController(notificationUid, ({ strapi }) => (
     const user = ctx.state.user;
     if (!user?.id) return ctx.unauthorized('กรุณาเข้าสู่ระบบ');
 
-    const notifications = await strapi.entityService.findMany(notificationUid, {
-      filters: {
-        recipient: { id: user.id },
+    const notifications = await strapi.db.query(notificationUid).findMany({
+      where: {
+        recipient: user.id,
         is_hidden: true,
       },
-      sort: ['hidden_at:desc', 'updatedAt:desc', 'id:desc'],
+      orderBy: [{ hidden_at: 'desc' }, { updatedAt: 'desc' }, { id: 'desc' }],
       limit: 20,
     }) as any[];
 
@@ -37,17 +37,20 @@ export default factories.createCoreController(notificationUid, ({ strapi }) => (
 
   async markRead(ctx) {
     const user = ctx.state.user;
-    const { id } = ctx.params;
+    const notificationId = Number(ctx.params.id);
     if (!user?.id) return ctx.unauthorized('กรุณาเข้าสู่ระบบ');
+    if (!Number.isFinite(notificationId)) return ctx.badRequest('รูปแบบการแจ้งเตือนไม่ถูกต้อง');
 
-    const notification = await strapi.entityService.findOne(notificationUid, id, {
-      populate: ['recipient'],
+    const notification = await strapi.db.query(notificationUid).findOne({
+      where: { id: notificationId },
+      populate: { recipient: true },
     }) as any;
 
     if (!notification) return ctx.notFound('ไม่พบการแจ้งเตือน');
     if (notification.recipient?.id !== user.id) return ctx.forbidden('คุณไม่มีสิทธิ์เข้าถึงการแจ้งเตือนนี้');
 
-    const updated = await strapi.entityService.update(notificationUid, id, {
+    const updated = await strapi.db.query(notificationUid).update({
+      where: { id: notificationId },
       data: {
         is_read: true,
         read_at: notification.read_at ?? new Date(),
@@ -64,18 +67,18 @@ export default factories.createCoreController(notificationUid, ({ strapi }) => (
     const user = ctx.state.user;
     if (!user?.id) return ctx.unauthorized('กรุณาเข้าสู่ระบบ');
 
-    const notifications = await strapi.entityService.findMany(notificationUid, {
-      filters: {
-        recipient: { id: user.id },
+    const notifications = await strapi.db.query(notificationUid).findMany({
+      where: {
+        recipient: user.id,
         is_read: false,
         is_hidden: false,
       },
-      fields: ['id'],
-      limit: -1,
+      select: ['id'],
     }) as any[];
 
     for (const notification of notifications) {
-      await strapi.entityService.update(notificationUid, notification.id, {
+      await strapi.db.query(notificationUid).update({
+        where: { id: Number(notification.id) },
         data: {
           is_read: true,
           read_at: new Date(),
@@ -91,17 +94,20 @@ export default factories.createCoreController(notificationUid, ({ strapi }) => (
 
   async hide(ctx) {
     const user = ctx.state.user;
-    const { id } = ctx.params;
+    const notificationId = Number(ctx.params.id);
     if (!user?.id) return ctx.unauthorized('กรุณาเข้าสู่ระบบ');
+    if (!Number.isFinite(notificationId)) return ctx.badRequest('รูปแบบการแจ้งเตือนไม่ถูกต้อง');
 
-    const notification = await strapi.entityService.findOne(notificationUid, id, {
-      populate: ['recipient'],
+    const notification = await strapi.db.query(notificationUid).findOne({
+      where: { id: notificationId },
+      populate: { recipient: true },
     }) as any;
 
     if (!notification) return ctx.notFound('ไม่พบการแจ้งเตือน');
     if (notification.recipient?.id !== user.id) return ctx.forbidden('คุณไม่มีสิทธิ์เข้าถึงการแจ้งเตือนนี้');
 
-    const updated = await strapi.entityService.update(notificationUid, id, {
+    const updated = await strapi.db.query(notificationUid).update({
+      where: { id: notificationId },
       data: {
         is_hidden: true,
         hidden_at: notification.hidden_at ?? new Date(),
@@ -118,18 +124,18 @@ export default factories.createCoreController(notificationUid, ({ strapi }) => (
     const user = ctx.state.user;
     if (!user?.id) return ctx.unauthorized('กรุณาเข้าสู่ระบบ');
 
-    const notifications = await strapi.entityService.findMany(notificationUid, {
-      filters: {
-        recipient: { id: user.id },
+    const notifications = await strapi.db.query(notificationUid).findMany({
+      where: {
+        recipient: user.id,
         is_hidden: false,
         is_read: true,
       },
-      fields: ['id'],
-      limit: -1,
+      select: ['id'],
     }) as any[];
 
     for (const notification of notifications) {
-      await strapi.entityService.update(notificationUid, notification.id, {
+      await strapi.db.query(notificationUid).update({
+        where: { id: Number(notification.id) },
         data: {
           is_hidden: true,
           hidden_at: new Date(),
@@ -145,17 +151,20 @@ export default factories.createCoreController(notificationUid, ({ strapi }) => (
 
   async restore(ctx) {
     const user = ctx.state.user;
-    const { id } = ctx.params;
+    const notificationId = Number(ctx.params.id);
     if (!user?.id) return ctx.unauthorized('กรุณาเข้าสู่ระบบ');
+    if (!Number.isFinite(notificationId)) return ctx.badRequest('รูปแบบการแจ้งเตือนไม่ถูกต้อง');
 
-    const notification = await strapi.entityService.findOne(notificationUid, id, {
-      populate: ['recipient'],
+    const notification = await strapi.db.query(notificationUid).findOne({
+      where: { id: notificationId },
+      populate: { recipient: true },
     }) as any;
 
     if (!notification) return ctx.notFound('ไม่พบการแจ้งเตือน');
     if (notification.recipient?.id !== user.id) return ctx.forbidden('คุณไม่มีสิทธิ์เข้าถึงการแจ้งเตือนนี้');
 
-    const updated = await strapi.entityService.update(notificationUid, id, {
+    const updated = await strapi.db.query(notificationUid).update({
+      where: { id: notificationId },
       data: {
         is_hidden: false,
         hidden_at: null,
@@ -172,17 +181,17 @@ export default factories.createCoreController(notificationUid, ({ strapi }) => (
     const user = ctx.state.user;
     if (!user?.id) return ctx.unauthorized('กรุณาเข้าสู่ระบบ');
 
-    const notifications = await strapi.entityService.findMany(notificationUid, {
-      filters: {
-        recipient: { id: user.id },
+    const notifications = await strapi.db.query(notificationUid).findMany({
+      where: {
+        recipient: user.id,
         is_hidden: true,
       },
-      fields: ['id'],
-      limit: -1,
+      select: ['id'],
     }) as any[];
 
     for (const notification of notifications) {
-      await strapi.entityService.update(notificationUid, notification.id, {
+      await strapi.db.query(notificationUid).update({
+        where: { id: Number(notification.id) },
         data: {
           is_hidden: false,
           hidden_at: null,

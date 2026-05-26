@@ -2,6 +2,7 @@ export default {
   routes: [
     // Default CRUD routes
     { method: 'GET',  path: '/tasks',     handler: 'task.find',    config: { auth: false } },
+    { method: 'GET',  path: '/tasks/home', handler: 'task.home',   config: { auth: false } },
     { method: 'GET',  path: '/tasks/my',  handler: 'task.my',      config: { auth: false } },
     { method: 'GET',  path: '/tasks/hidden', handler: 'task.hidden', config: { auth: false } },
     { method: 'GET',  path: '/tasks/waiting-pickup', handler: 'task.waitingPickup', config: { auth: false } },

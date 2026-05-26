@@ -2,6 +2,9 @@ import axios from 'axios'
 
 // ===== Tasks =====
 export const taskApi = {
+  getHome: () =>
+    axios.get('/tasks/home'),
+
   getMyTasks: () =>
     axios.get('/tasks/my'),
 

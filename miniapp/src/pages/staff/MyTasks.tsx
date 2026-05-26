@@ -76,9 +76,36 @@ export default function MyTasks() {
   }, []);
 
   async function loadInitialData() {
-    await loadTasks();
-    await loadNotifications();
-    await loadHidden();
+    setLoading(true);
+    setNotificationsLoading(true);
+    setHiddenLoading(true);
+    setError('');
+    setNotificationsError('');
+    setHiddenError('');
+
+    try {
+      const { data } = await taskApi.getHome();
+      const payload = data?.data ?? data ?? {};
+
+      setTasks(Array.isArray(payload.tasks) ? payload.tasks : []);
+      setNotifications(Array.isArray(payload.notifications) ? payload.notifications : []);
+      setHidden({
+        notifications: Array.isArray(payload.hidden_notifications) ? payload.hidden_notifications : [],
+        tasks: Array.isArray(payload.hidden_tasks) ? payload.hidden_tasks : [],
+      });
+    } catch (err) {
+      const message = extractMessage(err, 'โหลดข้อมูลงานไม่สำเร็จ');
+      setTasks([]);
+      setNotifications([]);
+      setHidden({ notifications: [], tasks: [] });
+      setError(message);
+      setNotificationsError(message);
+      setHiddenError(message);
+    } finally {
+      setLoading(false);
+      setNotificationsLoading(false);
+      setHiddenLoading(false);
+    }
   }
 
   async function loadTasks() {
