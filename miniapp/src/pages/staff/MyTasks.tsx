@@ -598,13 +598,28 @@ export default function MyTasks() {
                               className={`rounded-xl border p-4 flex items-start justify-between gap-3 ${
                                 isUrgentProjectNotification(item)
                                   ? 'border-red-900/60 bg-red-950/20'
+                                  : isApprovedNotification(item)
+                                    ? 'border-green-900/60 bg-green-950/20'
                                   : 'border-slate-800 bg-slate-950'
                               }`}
                             >
                               <div className="min-w-0">
-                                <p className={`font-semibold ${isUrgentProjectNotification(item) ? 'text-red-100 text-[15px]' : 'text-slate-100'}`}>{item.title}</p>
+                                <p className={`font-semibold ${
+                                  isUrgentProjectNotification(item)
+                                    ? 'text-red-100 text-[15px]'
+                                    : isApprovedNotification(item)
+                                      ? 'text-green-100 text-[15px]'
+                                      : 'text-slate-100'
+                                }`}>{item.title}</p>
                                 <div className="mt-1">
-                                  {renderNotificationMessage(item.message, isUrgentProjectNotification(item))}
+                                  {renderNotificationMessage(
+                                    item.message,
+                                    isUrgentProjectNotification(item)
+                                      ? 'urgent'
+                                      : isApprovedNotification(item)
+                                        ? 'success'
+                                        : 'default',
+                                  )}
                                 </div>
                               </div>
                               <button
@@ -668,7 +683,17 @@ function isUrgentProjectNotification(item: Pick<NotificationItem, 'title' | 'mes
   return item.title.includes('เกินกำหนด') || item.message.includes('เกินกำหนด');
 }
 
-function renderNotificationMessage(message: string, urgent = false) {
+function isApprovedNotification(item: Pick<NotificationItem, 'title' | 'message'>) {
+  return (
+    item.title.includes('งานเสร็จแล้ว')
+    || item.title.includes('งานได้รับอนุมัติแล้ว')
+    || item.message.includes('อนุมัติงานแล้ว')
+    || item.message.includes('ผ่านการตรวจสอบแล้ว')
+    || item.message.includes('เสร็จสมบูรณ์แล้ว')
+  );
+}
+
+function renderNotificationMessage(message: string, tone: 'urgent' | 'success' | 'default' = 'default') {
   const lines = message.split('\n').filter((line) => line.trim().length > 0);
 
   return (
@@ -690,7 +715,13 @@ function renderNotificationMessage(message: string, urgent = false) {
         return (
           <p
             key={`${line}-${index}`}
-            className={urgent ? 'text-sm font-semibold text-red-100 leading-relaxed' : 'text-sm text-slate-300'}
+            className={
+              tone === 'urgent'
+                ? 'text-sm font-semibold text-red-100 leading-relaxed'
+                : tone === 'success'
+                  ? 'text-sm font-semibold text-green-100 leading-relaxed'
+                  : 'text-sm text-slate-300'
+            }
           >
             {line}
           </p>
@@ -801,6 +832,8 @@ function NotificationCard({
   onHide: () => void
 }) {
   const urgent = isUrgentProjectNotification(item);
+  const success = isApprovedNotification(item);
+  const tone = urgent ? 'urgent' : success ? 'success' : 'default';
 
   return (
     <div
@@ -809,6 +842,10 @@ function NotificationCard({
           ? item.is_read
             ? 'border-red-900/70 bg-red-950/30'
             : 'border-red-800 bg-red-950/50'
+          : success
+            ? item.is_read
+              ? 'border-green-900/60 bg-green-950/20'
+              : 'border-green-800 bg-green-950/40'
           : item.is_read
             ? 'border-slate-800 bg-slate-900'
             : 'border-blue-900 bg-blue-950/30'
@@ -817,10 +854,10 @@ function NotificationCard({
       <div className="flex items-start justify-between gap-3">
         <button onClick={onOpen} className="min-w-0 flex-1 text-left">
           <div className="flex items-center gap-2 mb-1">
-            <span className={`w-2.5 h-2.5 rounded-full ${urgent ? 'bg-red-400' : item.is_read ? 'bg-slate-600' : 'bg-blue-500'}`} />
-            <p className={`font-semibold ${urgent ? 'text-red-100 text-[15px]' : 'text-slate-100'}`}>{item.title}</p>
+            <span className={`w-2.5 h-2.5 rounded-full ${urgent ? 'bg-red-400' : success ? 'bg-green-400' : item.is_read ? 'bg-slate-600' : 'bg-blue-500'}`} />
+            <p className={`font-semibold ${urgent ? 'text-red-100 text-[15px]' : success ? 'text-green-100 text-[15px]' : 'text-slate-100'}`}>{item.title}</p>
           </div>
-          {renderNotificationMessage(item.message, urgent)}
+          {renderNotificationMessage(item.message, tone)}
         </button>
 
         <div className="shrink-0 text-right flex flex-col items-end gap-2">

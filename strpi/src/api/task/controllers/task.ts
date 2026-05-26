@@ -282,8 +282,8 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
 
     await strapi.service('api::task.task').notifyStaff({
       userId: task.current_owner.id,
-      title: 'งานได้รับอนุมัติแล้ว',
-      message: `งาน *${task.name}* ผ่านการตรวจสอบและเสร็จสมบูรณ์แล้ว`,
+      title: 'งานเสร็จแล้ว',
+      message: `อนุมัติงานแล้ว\nงาน "${task.name}" ผ่านการตรวจสอบแล้ว`,
       type: 'task',
       link: '/',
     });
