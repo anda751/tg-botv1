@@ -80,6 +80,8 @@ export default function App() {
 
   if (loading) return <Loading />;
 
+  const roleLabel = user?.role_app === 'manager' ? 'หัวหน้า' : 'ลูกน้อง';
+
   return (
     <BrowserRouter>
       {!user ? (
@@ -89,13 +91,27 @@ export default function App() {
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       ) : (
-        <>
-          <button
-            onClick={handleLogout}
-            className="fixed right-4 bottom-24 z-40 px-4 py-2 rounded-full text-xs font-semibold text-red-200 bg-red-950/90 border border-red-800 shadow-lg backdrop-blur active:bg-red-900 transition"
-          >
-            Logout
-          </button>
+        <div className="min-h-screen bg-slate-950">
+          <div className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/95 backdrop-blur">
+            <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">
+                  Task Tracker
+                </p>
+                <p className="truncate text-sm font-semibold text-slate-100">
+                  {user.display_name || user.username} · {roleLabel}
+                </p>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="shrink-0 flex h-10 w-10 items-center justify-center rounded-full border border-red-800 bg-red-950/80 text-base font-semibold text-red-200 transition active:bg-red-900"
+                title="ออกจากระบบ"
+                aria-label="ออกจากระบบ"
+              >
+                ⎋
+              </button>
+            </div>
+          </div>
           <Routes>
             {user.role_app === 'manager' ? (
               <>
@@ -125,7 +141,7 @@ export default function App() {
               </>
             )}
           </Routes>
-        </>
+        </div>
       )}
     </BrowserRouter>
   );
