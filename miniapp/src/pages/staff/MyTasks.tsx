@@ -59,9 +59,7 @@ export default function MyTasks() {
   const [restoringTaskId, setRestoringTaskId] = useState<number | null>(null);
   const [restoringAllNotifications, setRestoringAllNotifications] = useState(false);
   const [restoringAllTasks, setRestoringAllTasks] = useState(false);
-  const [underReviewOpen, setUnderReviewOpen] = useState(false);
-  const [doneOpen, setDoneOpen] = useState(false);
-  const [hiddenOpen, setHiddenOpen] = useState(false);
+  const [openPanel, setOpenPanel] = useState<'under_review' | 'done' | 'hidden' | null>(null);
   const [activityExpanded, setActivityExpanded] = useState(false);
 
   useEffect(() => {
@@ -455,7 +453,7 @@ export default function MyTasks() {
                 subtitle={`${underReviewTasks.length} งานที่ส่งแล้วและกำลังรอหัวหน้าตรวจ`}
                 buttonLabel="เปิดรายการ"
                 tone="amber"
-                onClick={() => setUnderReviewOpen((value) => !value)}
+                onClick={() => setOpenPanel((current) => current === 'under_review' ? null : 'under_review')}
               />
               <QuickActionCard
                 title="ดูงานรอรับช่วงต่อ"
@@ -469,13 +467,13 @@ export default function MyTasks() {
                 subtitle={`${doneTasks.length} งานที่เปิดดูหรือซ่อนออกจากหน้าหลักได้`}
                 buttonLabel="ดูงานเสร็จ"
                 tone="green"
-                onClick={() => setDoneOpen((value) => !value)}
+                onClick={() => setOpenPanel((current) => current === 'done' ? null : 'done')}
               />
             </section>
 
             <section className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
               <button
-                onClick={() => setUnderReviewOpen((value) => !value)}
+                onClick={() => setOpenPanel((current) => current === 'under_review' ? null : 'under_review')}
                 className="w-full px-4 py-4 flex items-center justify-between text-left"
               >
                 <div>
@@ -487,10 +485,10 @@ export default function MyTasks() {
                   </div>
                   <p className="text-sm text-slate-400 mt-1">ดูรายการงานที่ส่งแล้วและกำลังรอหัวหน้าตรวจได้จากตรงนี้</p>
                 </div>
-                <span className="text-lg text-slate-500">{underReviewOpen ? '−' : '+'}</span>
+                <span className="text-lg text-slate-500">{openPanel === 'under_review' ? '−' : '+'}</span>
               </button>
 
-              {underReviewOpen && (
+              {openPanel === 'under_review' && (
                 <div className="px-4 pb-4 border-t border-slate-800">
                   {underReviewTasks.length === 0 ? (
                     <StateBox
@@ -518,7 +516,7 @@ export default function MyTasks() {
 
             <section className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
               <button
-                onClick={() => setDoneOpen((value) => !value)}
+                onClick={() => setOpenPanel((current) => current === 'done' ? null : 'done')}
                 className="w-full px-4 py-4 flex items-center justify-between text-left"
               >
                 <div>
@@ -530,10 +528,10 @@ export default function MyTasks() {
                   </div>
                   <p className="text-sm text-slate-400 mt-1">เปิดดูงานที่จบแล้ว หรือซ่อนออกจากหน้าหลักเมื่อไม่ต้องดูบ่อย</p>
                 </div>
-                <span className="text-lg text-slate-500">{doneOpen ? '−' : '+'}</span>
+                <span className="text-lg text-slate-500">{openPanel === 'done' ? '−' : '+'}</span>
               </button>
 
-              {doneOpen && (
+              {openPanel === 'done' && (
                 <div className="px-4 pb-4 border-t border-slate-800">
                   {doneTasks.length === 0 ? (
                     <StateBox
@@ -633,7 +631,7 @@ export default function MyTasks() {
 
             <section className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
               <button
-                onClick={() => setHiddenOpen((value) => !value)}
+                onClick={() => setOpenPanel((current) => current === 'hidden' ? null : 'hidden')}
                 className="w-full px-4 py-4 flex items-center justify-between text-left"
               >
                 <div>
@@ -647,10 +645,10 @@ export default function MyTasks() {
                   </div>
                   <p className="text-sm text-slate-400 mt-1">เอาไว้จัดหน้าจอให้โล่ง แต่ข้อมูลยังไม่หาย</p>
                 </div>
-                <span className="text-lg text-slate-500">{hiddenOpen ? '−' : '+'}</span>
+                <span className="text-lg text-slate-500">{openPanel === 'hidden' ? '−' : '+'}</span>
               </button>
 
-              {hiddenOpen && (
+              {openPanel === 'hidden' && (
                 <div className="px-4 pb-4 space-y-4 border-t border-slate-800">
                   {hiddenLoading ? (
                     <div className="text-sm text-slate-500 py-3">กำลังโหลดรายการที่ซ่อนไว้...</div>
@@ -1125,3 +1123,4 @@ function TaskCard({
     </div>
   );
 }
+
