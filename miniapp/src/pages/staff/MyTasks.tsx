@@ -687,6 +687,8 @@ function isApprovedNotification(item: Pick<NotificationItem, 'title' | 'message'
   return (
     item.title.includes('งานเสร็จแล้ว')
     || item.title.includes('งานได้รับอนุมัติแล้ว')
+    || item.message.includes('หัวหน้าอนุมัติงาน')
+    || item.message.includes('อนุมัติงาน ')
     || item.message.includes('อนุมัติงานแล้ว')
     || item.message.includes('ผ่านการตรวจสอบแล้ว')
     || item.message.includes('เสร็จสมบูรณ์แล้ว')
