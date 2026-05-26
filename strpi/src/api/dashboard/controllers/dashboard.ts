@@ -1,11 +1,16 @@
 import { factories } from '@strapi/strapi';
 import { resolveImageUrl } from '../../../services/supabase';
 
+const userUid = 'plugin::users-permissions.user' as any;
+const taskUid = 'api::task.task' as any;
+const taskLogUid = 'api::task-log.task-log' as any;
+
 type TaskLog = {
   id: number;
   action: 'created' | 'submitted' | 'approved' | 'rejected' | 'handover' | 'picked_up' | 'progress_update';
   note?: string;
   createdAt?: string;
+  task?: { id: number } | null;
 };
 
 type TaskEntity = {
@@ -195,18 +200,43 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
     const windowStart = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
     const recentActivityStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    const staffList = await strapi.entityService.findMany('plugin::users-permissions.user', {
-      filters: { role_app: 'staff', is_approved: true },
-      fields: ['id', 'display_name', 'username', 'telegram_id'],
-      limit: -1,
-      sort: ['display_name:asc', 'username:asc'],
+    const staffList = await strapi.db.query(userUid).findMany({
+      where: { role_app: 'staff', is_approved: true },
+      select: ['id', 'display_name', 'username', 'telegram_id'],
+      orderBy: [{ display_name: 'asc' }, { username: 'asc' }],
     }) as StaffEntity[];
 
-    const tasks = await strapi.entityService.findMany('api::task.task', {
-      populate: ['current_owner', 'project', 'task_log'],
-      limit: -1,
-      sort: ['updatedAt:desc', 'id:desc'],
+    const tasks = await strapi.db.query(taskUid).findMany({
+      select: ['id', 'name', 'status_task', 'createdAt', 'updatedAt'],
+      populate: {
+        current_owner: {
+          select: ['id', 'display_name', 'username'],
+        },
+        project: {
+          select: ['id', 'name', 'deadline', 'status_project'],
+        },
+      },
+      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
     }) as TaskEntity[];
+
+    const taskLogs = await strapi.db.query(taskLogUid).findMany({
+      select: ['id', 'action', 'note', 'createdAt'],
+      populate: {
+        task: {
+          select: ['id'],
+        },
+      },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    }) as TaskLog[];
+
+    const logsByTaskId = new Map<number, TaskLog[]>();
+    for (const log of taskLogs) {
+      const taskId = Number(log.task?.id);
+      if (!Number.isFinite(taskId)) continue;
+      const bucket = logsByTaskId.get(taskId) ?? [];
+      bucket.push(log);
+      logsByTaskId.set(taskId, bucket);
+    }
 
     const staffMap = new Map<number, ReturnType<typeof createEmptyKpi>>();
     for (const member of staffList) {
@@ -220,9 +250,7 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
       const entry = staffMap.get(ownerId)!;
       entry.tasks_total += 1;
 
-      const logs = [...(task.task_log ?? [])].sort(
-        (a, b) => toTime(a.createdAt) - toTime(b.createdAt),
-      );
+      const logs = logsByTaskId.get(task.id) ?? [];
 
       if (task.status_task === 'in_progress') entry.active_in_progress += 1;
       if (task.status_task === 'under_review') entry.active_under_review += 1;
