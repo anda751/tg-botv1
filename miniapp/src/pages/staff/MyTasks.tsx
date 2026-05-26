@@ -608,7 +608,7 @@ export default function MyTasks() {
                                   isUrgentProjectNotification(item)
                                     ? 'text-red-100 text-[15px]'
                                     : isApprovedNotification(item)
-                                      ? 'text-green-100 text-[15px]'
+                                      ? 'text-blue-100 text-[15px]'
                                       : 'text-slate-100'
                                 }`}>{getNotificationDisplayTitle(item)}</p>
                                 <div className="mt-1">
@@ -617,7 +617,7 @@ export default function MyTasks() {
                                     isUrgentProjectNotification(item)
                                       ? 'urgent'
                                       : isApprovedNotification(item)
-                                        ? 'success'
+                                        ? 'approved'
                                         : 'default',
                                   )}
                                 </div>
@@ -703,7 +703,7 @@ function normalizeNotificationMessage(message: string) {
   return message.replace(/\*/g, '').trim();
 }
 
-function renderNotificationMessage(message: string, tone: 'urgent' | 'success' | 'default' = 'default') {
+function renderNotificationMessage(message: string, tone: 'urgent' | 'approved' | 'default' = 'default') {
   const lines = normalizeNotificationMessage(message).split('\n').filter((line) => line.trim().length > 0);
 
   return (
@@ -728,8 +728,8 @@ function renderNotificationMessage(message: string, tone: 'urgent' | 'success' |
             className={
               tone === 'urgent'
                 ? 'text-sm font-semibold text-red-100 leading-relaxed'
-                : tone === 'success'
-                  ? 'text-sm font-semibold text-green-100 leading-relaxed'
+                : tone === 'approved'
+                  ? 'text-sm font-semibold text-blue-100 leading-relaxed'
                   : 'text-sm text-slate-300'
             }
           >
@@ -843,7 +843,7 @@ function NotificationCard({
 }) {
   const urgent = isUrgentProjectNotification(item);
   const success = isApprovedNotification(item);
-  const tone = urgent ? 'urgent' : success ? 'success' : 'default';
+  const tone = urgent ? 'urgent' : success ? 'approved' : 'default';
   const displayTitle = getNotificationDisplayTitle(item);
 
   return (
@@ -855,8 +855,8 @@ function NotificationCard({
             : 'border-red-800 bg-red-950/50'
           : success
             ? item.is_read
-              ? 'border-green-900/60 bg-green-950/20'
-              : 'border-green-800 bg-green-950/40'
+              ? 'border-blue-900/60 bg-blue-950/20'
+              : 'border-blue-800 bg-blue-950/40'
           : item.is_read
             ? 'border-slate-800 bg-slate-900'
             : 'border-blue-900 bg-blue-950/30'
@@ -865,8 +865,8 @@ function NotificationCard({
       <div className="flex items-start justify-between gap-3">
         <button onClick={onOpen} className="min-w-0 flex-1 text-left">
           <div className="flex items-center gap-2 mb-1">
-            <span className={`w-2.5 h-2.5 rounded-full ${urgent ? 'bg-red-400' : success ? 'bg-green-400' : item.is_read ? 'bg-slate-600' : 'bg-blue-500'}`} />
-            <p className={`font-semibold ${urgent ? 'text-red-100 text-[15px]' : success ? 'text-green-100 text-[15px]' : 'text-slate-100'}`}>{displayTitle}</p>
+            <span className={`w-2.5 h-2.5 rounded-full ${urgent ? 'bg-red-400' : success ? 'bg-blue-400' : item.is_read ? 'bg-slate-600' : 'bg-blue-500'}`} />
+            <p className={`font-semibold ${urgent ? 'text-red-100 text-[15px]' : success ? 'text-blue-100 text-[15px]' : 'text-slate-100'}`}>{displayTitle}</p>
           </div>
           {renderNotificationMessage(item.message, tone)}
         </button>
