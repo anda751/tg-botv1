@@ -17,48 +17,45 @@ type Summary = {
 }
 
 export default function Reports() {
-  const [summary, setSummary] = useState<Summary | null>(null);
-  const [staff, setStaff] = useState<StaffStat[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [summary, setSummary] = useState<Summary | null>(null)
+  const [staff, setStaff] = useState<StaffStat[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    loadData();
-  }, []);
+    void loadData()
+  }, [])
 
   async function loadData() {
-    setLoading(true);
-    setError('');
+    setLoading(true)
+    setError('')
     try {
-      const [summaryRes, staffRes] = await Promise.all([
-        dashboardApi.summary(),
-        dashboardApi.staffOverview(),
-      ]);
-      setSummary(summaryRes.data);
-      setStaff(Array.isArray(staffRes.data) ? staffRes.data : []);
+      const { data } = await dashboardApi.reports()
+      setSummary(data?.summary ?? null)
+      setStaff(Array.isArray(data?.staff) ? data.staff : [])
     } catch (err) {
-      setSummary(null);
-      setStaff([]);
-      setError(extractMessage(err, 'โหลดรายงานไม่สำเร็จ'));
+      setSummary(null)
+      setStaff([])
+      setError(extractMessage(err, 'โหลดรายงานไม่สำเร็จ'))
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
   }
 
   const sortedStaff = useMemo(
     () => [...staff].sort((a, b) => b.active_tasks - a.active_tasks),
     [staff],
-  );
+  )
 
   const doneRate = summary?.tasks.total
     ? Math.round((summary.tasks.done / summary.tasks.total) * 100)
-    : 0;
+    : 0
 
   const activeLoad = summary
     ? summary.tasks.in_progress + summary.tasks.under_review + summary.tasks.waiting_pickup
-    : 0;
+    : 0
 
-  const focusItems = buildFocusItems(summary);
+  const focusItems = buildFocusItems(summary)
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col">
@@ -69,7 +66,7 @@ export default function Reports() {
             <p className="text-sm text-slate-400 mt-1">สรุปภาพรวมทีมแบบอ่านง่ายและเห็นจุดที่ต้องตามต่อ</p>
           </div>
           <button
-            onClick={loadData}
+            onClick={() => void loadData()}
             className="w-9 h-9 rounded-full flex items-center justify-center text-slate-300 bg-slate-800 active:bg-slate-700 transition"
             title="รีเฟรช"
             aria-label="รีเฟรช"
@@ -89,22 +86,12 @@ export default function Reports() {
             ))}
           </div>
         ) : error ? (
-          <StateBox title="โหลดรายงานไม่สำเร็จ" message={error} actionLabel="ลองใหม่" onAction={loadData} />
+          <StateBox title="โหลดรายงานไม่สำเร็จ" message={error} actionLabel="ลองใหม่" onAction={() => void loadData()} />
         ) : summary ? (
           <>
             <section className="grid grid-cols-2 gap-3">
-              <SummaryCard
-                title="งานทั้งหมด"
-                value={summary.tasks.total}
-                hint={`${activeLoad} งานยังอยู่ระหว่างดำเนินการ`}
-                tone="blue"
-              />
-              <SummaryCard
-                title="งานเสร็จแล้ว"
-                value={summary.tasks.done}
-                hint={`คิดเป็น ${doneRate}% ของงานทั้งหมด`}
-                tone="green"
-              />
+              <SummaryCard title="งานทั้งหมด" value={summary.tasks.total} hint={`${activeLoad} งานยังอยู่ระหว่างดำเนินการ`} tone="blue" />
+              <SummaryCard title="งานเสร็จแล้ว" value={summary.tasks.done} hint={`คิดเป็น ${doneRate}% ของงานทั้งหมด`} tone="green" />
               <SummaryCard
                 title="รอหัวหน้าตรวจ"
                 value={summary.tasks.under_review}
@@ -180,7 +167,7 @@ export default function Reports() {
               <div>
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">ภาระงานทีม</p>
                 <h2 className="text-base font-semibold text-white mt-2">ใครกำลังรับงานมากที่สุด</h2>
-                <p className="text-sm text-slate-500 mt-1">ใช้ดูการกระจายงานคร่าว ๆ ว่าตอนนี้ทีมเอนไปทางไหน</p>
+                <p className="text-sm text-slate-500 mt-1">ใช้ดูกระจายงานคร่าว ๆ ว่าตอนนี้ทีมเอนไปทางไหน</p>
               </div>
 
               {sortedStaff.length === 0 ? (
@@ -188,13 +175,13 @@ export default function Reports() {
               ) : (
                 <div className="space-y-2">
                   {sortedStaff.map((member, index) => {
-                    const maxTasks = sortedStaff[0]?.active_tasks || 1;
-                    const fill = member.active_tasks === 0 ? 0 : Math.max(8, Math.round((member.active_tasks / maxTasks) * 100));
+                    const maxTasks = sortedStaff[0]?.active_tasks || 1
+                    const fill = member.active_tasks === 0 ? 0 : Math.max(8, Math.round((member.active_tasks / maxTasks) * 100))
                     const tone =
                       member.active_tasks >= 4 ? 'bg-red-500'
                         : member.active_tasks >= 2 ? 'bg-amber-400'
                           : member.active_tasks >= 1 ? 'bg-blue-500'
-                            : 'bg-slate-700';
+                            : 'bg-slate-700'
 
                     return (
                       <div key={member.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
@@ -226,7 +213,7 @@ export default function Reports() {
                           <div className={`h-full rounded-full ${tone}`} style={{ width: `${fill}%` }} />
                         </div>
                       </div>
-                    );
+                    )
                   })}
                 </div>
               )}
@@ -235,47 +222,47 @@ export default function Reports() {
         ) : null}
       </div>
     </div>
-  );
+  )
 }
 
 function buildFocusItems(summary: Summary | null) {
-  if (!summary) return [];
+  if (!summary) return []
 
-  const items: Array<{ text: string; tone: 'green' | 'red' | 'amber' | 'blue' }> = [];
+  const items: Array<{ text: string; tone: 'green' | 'red' | 'amber' | 'blue' }> = []
 
   if (summary.projects.overdue > 0) {
     items.push({
       text: `มี ${summary.projects.overdue} โปรเจกต์เกินกำหนด ควรเช็กเดดไลน์และติดตามความคืบหน้า`,
       tone: 'red',
-    });
+    })
   }
 
   if (summary.tasks.under_review > 0) {
     items.push({
       text: `มี ${summary.tasks.under_review} งานรอหัวหน้าตรวจ ถ้าเคลียร์ชุดนี้ได้ flow งานจะเดินต่อเร็วขึ้น`,
       tone: 'amber',
-    });
+    })
   }
 
   if (summary.tasks.waiting_pickup > 0) {
     items.push({
       text: `มี ${summary.tasks.waiting_pickup} งานรอคนรับช่วงต่อ อาจต้องช่วยกระจายงานในทีม`,
       tone: 'blue',
-    });
+    })
   }
 
   if (items.length === 0) {
     items.push({
       text: 'ตอนนี้ภาพรวมค่อนข้างนิ่ง ไม่มีงานค้างสำคัญที่ต้องเร่งตามต่อ',
       tone: 'green',
-    });
+    })
   }
 
-  return items;
+  return items
 }
 
 function extractMessage(error: any, fallback: string) {
-  return error?.response?.data?.error?.message || error?.response?.data?.message || fallback;
+  return error?.response?.data?.error?.message || error?.response?.data?.message || fallback
 }
 
 function SummaryCard({
@@ -297,7 +284,7 @@ function SummaryCard({
     amber: 'border-amber-800/60 bg-amber-950/30 text-amber-300',
     red: 'border-red-800/60 bg-red-950/30 text-red-300',
     slate: 'border-slate-800 bg-slate-900 text-slate-200',
-  } as const;
+  } as const
 
   return (
     <div className={`rounded-2xl border p-4 ${toneMap[tone]}`}>
@@ -310,7 +297,7 @@ function SummaryCard({
       </div>
       <p className="text-xs text-slate-400 mt-3">{hint}</p>
     </div>
-  );
+  )
 }
 
 function FocusItem({
@@ -325,13 +312,13 @@ function FocusItem({
     red: 'border-red-800/60 bg-red-950/30 text-red-200',
     amber: 'border-amber-800/60 bg-amber-950/30 text-amber-200',
     blue: 'border-blue-800/60 bg-blue-950/30 text-blue-200',
-  } as const;
+  } as const
 
   return (
     <div className={`rounded-xl border px-4 py-3 ${toneMap[tone]}`}>
       <p className="text-sm font-medium leading-relaxed">{text}</p>
     </div>
-  );
+  )
 }
 
 function StatusStat({
@@ -348,14 +335,14 @@ function StatusStat({
     amber: 'text-amber-300 bg-amber-950/30 border-amber-900',
     orange: 'text-orange-300 bg-orange-950/30 border-orange-900',
     green: 'text-green-300 bg-green-950/30 border-green-900',
-  } as const;
+  } as const
 
   return (
     <div className={`rounded-xl border p-3 ${toneMap[tone]}`}>
       <p className="text-xl font-bold">{value}</p>
       <p className="text-xs text-slate-400 mt-1">{label}</p>
     </div>
-  );
+  )
 }
 
 function MiniStat({ label, value, color }: { label: string; value: number; color: string }) {
@@ -364,13 +351,13 @@ function MiniStat({ label, value, color }: { label: string; value: number; color
       <p className={`text-2xl font-bold ${color}`}>{value}</p>
       <p className="text-xs text-slate-500 mt-1">{label}</p>
     </div>
-  );
+  )
 }
 
 function ProgressBar({ value, total, color }: { value: number; total: number; color: string }) {
-  if (!total || !value) return null;
-  const pct = Math.max(2, Math.round((value / total) * 100));
-  return <div className={`${color} h-full`} style={{ width: `${pct}%` }} />;
+  if (!total || !value) return null
+  const pct = Math.max(2, Math.round((value / total) * 100))
+  return <div className={`${color} h-full`} style={{ width: `${pct}%` }} />
 }
 
 function StateBox({
@@ -397,5 +384,5 @@ function StateBox({
         </button>
       )}
     </div>
-  );
+  )
 }

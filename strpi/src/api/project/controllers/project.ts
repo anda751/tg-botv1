@@ -1,18 +1,32 @@
 import { factories } from '@strapi/strapi';
 
-export default factories.createCoreController('api::project.project', ({ strapi }) => ({
-  async all(ctx) {
-    const projects = await strapi.entityService.findMany('api::project.project', {
-      populate: ['creator', 'members'],
-      sort: ['updatedAt:desc', 'id:desc'],
-    }) as any[];
+const projectUid = 'api::project.project' as any;
+const taskUid = 'api::task.task' as any;
+const userUid = 'plugin::users-permissions.user' as any;
+const joinRequestUid = 'api::project-join-request.project-join-request' as any;
 
-    return ctx.send(projects);
+export default factories.createCoreController(projectUid, ({ strapi }) => ({
+  async home(ctx) {
+    ensureManager(ctx);
+
+    const [projects, requests] = await Promise.all([
+      buildAllProjects(strapi),
+      buildPendingJoinRequests(strapi),
+    ]);
+
+    return ctx.send({
+      projects,
+      requests,
+    });
+  },
+
+  async all(ctx) {
+    return ctx.send(await buildAllProjects(strapi));
   },
 
   async create(ctx) {
     const user = ctx.state.user;
-    if (user.role_app !== 'manager') return ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
+    ensureManager(ctx);
 
     const bodyData = ctx.request.body?.data ?? {};
     const name = typeof bodyData.name === 'string' ? bodyData.name.trim() : '';
@@ -27,7 +41,7 @@ export default factories.createCoreController('api::project.project', ({ strapi 
       return ctx.badRequest('รูปแบบวันครบกำหนดไม่ถูกต้อง');
     }
 
-    const created = await strapi.entityService.create('api::project.project', {
+    const created = await strapi.db.query(projectUid).create({
       data: {
         ...bodyData,
         name,
@@ -45,27 +59,29 @@ export default factories.createCoreController('api::project.project', ({ strapi 
   },
 
   async closeProject(ctx) {
-    const user = ctx.state.user;
-    const { id } = ctx.params;
+    ensureManager(ctx);
+    const projectId = Number(ctx.params.id);
 
-    if (user.role_app !== 'manager') return ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
-
-    const project = await strapi.entityService.findOne('api::project.project', id) as any;
+    const project = await strapi.db.query(projectUid).findOne({
+      where: { id: projectId },
+    }) as any;
     if (!project) return ctx.notFound('ไม่พบโปรเจกต์นี้');
     if (project.status_project === 'closed') return ctx.badRequest('โปรเจกต์นี้ถูกปิดแล้ว');
 
-    const pendingTasks = await strapi.entityService.findMany('api::task.task', {
-      filters: {
-        project: { id: { $eq: id } },
+    const pendingTasks = await strapi.db.query(taskUid).findMany({
+      where: {
+        project: projectId,
         status_task: { $ne: 'done' },
       },
+      select: ['id'],
     }) as any[];
 
     if (pendingTasks.length) {
       return ctx.badRequest(`ยังมีงานค้างอยู่ ${pendingTasks.length} งาน กรุณาปิดงานให้ครบก่อน`);
     }
 
-    await strapi.entityService.update('api::project.project', id, {
+    await strapi.db.query(projectUid).update({
+      where: { id: projectId },
       data: { status_project: 'closed' },
     });
 
@@ -77,36 +93,40 @@ export default factories.createCoreController('api::project.project', ({ strapi 
   },
 
   async addMember(ctx) {
-    const user = ctx.state.user;
-    const { id } = ctx.params;
-    const { userId } = ctx.request.body;
+    ensureManager(ctx);
+    const projectId = Number(ctx.params.id);
+    const memberId = Number(ctx.request.body?.userId);
 
-    if (user.role_app !== 'manager') return ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
-
-    const project = await strapi.entityService.findOne('api::project.project', id, {
-      populate: ['members'],
+    const project = await strapi.db.query(projectUid).findOne({
+      where: { id: projectId },
+      populate: {
+        members: {
+          select: ['id'],
+        },
+      },
     }) as any;
 
     if (!project) return ctx.notFound('ไม่พบโปรเจกต์นี้');
 
-    const target = await strapi.entityService.findOne(
-      'plugin::users-permissions.user',
-      userId,
-    ) as any;
+    const target = await strapi.db.query(userUid).findOne({
+      where: { id: memberId },
+      select: ['id', 'is_approved'],
+    }) as any;
 
     if (!target) return ctx.notFound('ไม่พบผู้ใช้งานนี้');
     if (!target.is_approved) return ctx.badRequest('ผู้ใช้งานนี้ยังไม่พร้อมใช้งาน');
 
-    const alreadyMember = project.members?.some((m: any) => m.id === Number(userId));
+    const alreadyMember = project.members?.some((member: any) => Number(member.id) === memberId);
     if (alreadyMember) return ctx.badRequest('ผู้ใช้งานนี้เป็นสมาชิกโปรเจกต์อยู่แล้ว');
 
-    const currentMembers = project.members?.map((m: any) => m.id) ?? [];
-    await strapi.entityService.update('api::project.project', id, {
-      data: { members: [...currentMembers, userId] } as any,
+    const currentMembers = project.members?.map((member: any) => Number(member.id)) ?? [];
+    await strapi.db.query(projectUid).update({
+      where: { id: projectId },
+      data: { members: [...currentMembers, memberId] } as any,
     });
 
     await strapi.service('api::task.task').notifyStaff({
-      userId,
+      userId: memberId,
       title: 'ถูกเพิ่มเข้าโปรเจกต์',
       message: `คุณถูกเพิ่มเข้าโปรเจกต์ *${project.name}*`,
       type: 'project',
@@ -117,22 +137,27 @@ export default factories.createCoreController('api::project.project', ({ strapi 
   },
 
   async removeMember(ctx) {
-    const user = ctx.state.user;
-    const { id, userId } = ctx.params;
+    ensureManager(ctx);
+    const projectId = Number(ctx.params.id);
+    const memberId = Number(ctx.params.userId);
 
-    if (user.role_app !== 'manager') return ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
-
-    const project = await strapi.entityService.findOne('api::project.project', id, {
-      populate: ['members'],
+    const project = await strapi.db.query(projectUid).findOne({
+      where: { id: projectId },
+      populate: {
+        members: {
+          select: ['id'],
+        },
+      },
     }) as any;
 
     if (!project) return ctx.notFound('ไม่พบโปรเจกต์นี้');
 
-    const currentMembers = project.members?.map((m: any) => m.id) ?? [];
-    const updated = currentMembers.filter((mId: number) => mId !== Number(userId));
+    const updatedMembers = (project.members?.map((member: any) => Number(member.id)) ?? [])
+      .filter((id: number) => id !== memberId);
 
-    await strapi.entityService.update('api::project.project', id, {
-      data: { members: updated },
+    await strapi.db.query(projectUid).update({
+      where: { id: projectId },
+      data: { members: updatedMembers } as any,
     });
 
     return ctx.send({ message: 'ลบสมาชิกเรียบร้อย' });
@@ -141,13 +166,20 @@ export default factories.createCoreController('api::project.project', ({ strapi 
   async myProjects(ctx) {
     const user = ctx.state.user;
 
-    const projects = await strapi.entityService.findMany('api::project.project', {
-      filters: {
-        members: { id: { $eq: user.id } },
+    const projects = await strapi.db.query(projectUid).findMany({
+      where: {
+        members: { id: user.id },
         status_project: 'active',
       },
-      populate: ['creator', 'members'],
-      sort: ['updatedAt:desc', 'id:desc'],
+      populate: {
+        creator: {
+          select: ['id', 'display_name', 'username'],
+        },
+        members: {
+          select: ['id', 'display_name', 'username'],
+        },
+      },
+      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
     }) as any[];
 
     return ctx.send(projects);
@@ -155,45 +187,45 @@ export default factories.createCoreController('api::project.project', ({ strapi 
 
   async requestJoin(ctx) {
     const user = ctx.state.user;
-    const { id } = ctx.params;
-    const { note } = ctx.request.body ?? {};
+    const projectId = Number(ctx.params.id);
+    const note = typeof ctx.request.body?.note === 'string' ? ctx.request.body.note.trim() : '';
 
     if (user.role_app !== 'staff') return ctx.forbidden('เฉพาะพนักงานเท่านั้น');
 
-    const project = await strapi.entityService.findOne('api::project.project', id, {
-      populate: ['members'],
+    const project = await strapi.db.query(projectUid).findOne({
+      where: { id: projectId },
+      populate: {
+        members: {
+          select: ['id'],
+        },
+      },
     }) as any;
 
     if (!project) return ctx.notFound('ไม่พบโปรเจกต์');
     if (project.status_project !== 'active') return ctx.badRequest('โปรเจกต์นี้ยังไม่เปิดใช้งาน');
 
-    const alreadyMember = project.members?.some((m: any) => m.id === user.id);
+    const alreadyMember = project.members?.some((member: any) => Number(member.id) === user.id);
     if (alreadyMember) return ctx.badRequest('คุณเป็นสมาชิกของโปรเจกต์นี้อยู่แล้ว');
 
-    const existingPending = await (strapi.entityService as any).findMany(
-      'api::project-join-request.project-join-request',
-      {
-        filters: {
-          project: { id: { $eq: id } },
-          requested_by: { id: { $eq: user.id } },
-          status_request: 'pending',
-        },
-        limit: 1,
+    const existingPending = await strapi.db.query(joinRequestUid).findMany({
+      where: {
+        project: projectId,
+        requested_by: user.id,
+        status_request: 'pending',
       },
-    ) as any[];
+      select: ['id'],
+      limit: 1,
+    }) as any[];
     if (existingPending.length) return ctx.badRequest('คุณส่งคำขอเข้าร่วมโปรเจกต์นี้ไว้แล้ว');
 
-    const request = await (strapi.entityService as any).create(
-      'api::project-join-request.project-join-request',
-      {
-        data: {
-          project: Number(id),
-          requested_by: user.id,
-          note: typeof note === 'string' ? note.trim() : '',
-          status_request: 'pending',
-        },
+    const request = await strapi.db.query(joinRequestUid).create({
+      data: {
+        project: projectId,
+        requested_by: user.id,
+        note,
+        status_request: 'pending',
       },
-    ) as any;
+    }) as any;
 
     await strapi.service('api::task.task').notifyManager({
       taskId: '',
@@ -207,44 +239,44 @@ export default factories.createCoreController('api::project.project', ({ strapi 
   },
 
   async pendingJoinRequests(ctx) {
-    const user = ctx.state.user;
-    if (user.role_app !== 'manager') return ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
-
-    const requests = await (strapi.entityService as any).findMany(
-      'api::project-join-request.project-join-request',
-      {
-        filters: { status_request: 'pending' },
-        populate: ['project', 'requested_by'],
-        sort: ['createdAt:asc'],
-        limit: -1,
-      },
-    ) as any[];
-
-    return ctx.send(requests);
+    ensureManager(ctx);
+    return ctx.send(await buildPendingJoinRequests(strapi));
   },
 
   async approveJoinRequest(ctx) {
     const user = ctx.state.user;
-    const { id } = ctx.params;
-    if (user.role_app !== 'manager') return ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
+    ensureManager(ctx);
+    const requestId = Number(ctx.params.id);
 
-    const request = await (strapi.entityService as any).findOne(
-      'api::project-join-request.project-join-request',
-      id,
-      { populate: ['project', 'requested_by', 'project.members'] },
-    ) as any;
+    const request = await strapi.db.query(joinRequestUid).findOne({
+      where: { id: requestId },
+      populate: {
+        project: {
+          populate: {
+            members: {
+              select: ['id'],
+            },
+          },
+        },
+        requested_by: {
+          select: ['id', 'display_name', 'username'],
+        },
+      },
+    }) as any;
+
     if (!request) return ctx.notFound('ไม่พบคำขอเข้าร่วมโปรเจกต์');
     if (request.status_request !== 'pending') return ctx.badRequest('คำขอนี้ไม่ได้อยู่ในสถานะรออนุมัติ');
 
-    const members = request.project?.members?.map((m: any) => m.id) ?? [];
-    const alreadyMember = members.includes(request.requested_by.id);
-    if (!alreadyMember) {
-      await strapi.entityService.update('api::project.project', request.project.id, {
-        data: { members: [...members, request.requested_by.id] } as any,
+    const memberIds = request.project?.members?.map((member: any) => Number(member.id)) ?? [];
+    if (!memberIds.includes(Number(request.requested_by.id))) {
+      await strapi.db.query(projectUid).update({
+        where: { id: request.project.id },
+        data: { members: [...memberIds, request.requested_by.id] } as any,
       });
     }
 
-    await (strapi.entityService as any).update('api::project-join-request.project-join-request', id, {
+    await strapi.db.query(joinRequestUid).update({
+      where: { id: requestId },
       data: {
         status_request: 'approved',
         reviewed_by: user.id,
@@ -264,23 +296,31 @@ export default factories.createCoreController('api::project.project', ({ strapi 
 
   async rejectJoinRequest(ctx) {
     const user = ctx.state.user;
-    const { id } = ctx.params;
-    const { reason } = ctx.request.body ?? {};
-    if (user.role_app !== 'manager') return ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
+    ensureManager(ctx);
+    const requestId = Number(ctx.params.id);
+    const reason = typeof ctx.request.body?.reason === 'string' ? ctx.request.body.reason.trim() : '';
 
-    const request = await (strapi.entityService as any).findOne(
-      'api::project-join-request.project-join-request',
-      id,
-      { populate: ['project', 'requested_by'] },
-    ) as any;
+    const request = await strapi.db.query(joinRequestUid).findOne({
+      where: { id: requestId },
+      populate: {
+        project: {
+          select: ['id', 'name'],
+        },
+        requested_by: {
+          select: ['id'],
+        },
+      },
+    }) as any;
+
     if (!request) return ctx.notFound('ไม่พบคำขอเข้าร่วมโปรเจกต์');
     if (request.status_request !== 'pending') return ctx.badRequest('คำขอนี้ไม่ได้อยู่ในสถานะรออนุมัติ');
 
-    await (strapi.entityService as any).update('api::project-join-request.project-join-request', id, {
+    await strapi.db.query(joinRequestUid).update({
+      where: { id: requestId },
       data: {
         status_request: 'rejected',
         reviewed_by: user.id,
-        review_note: typeof reason === 'string' ? reason.trim() : '',
+        review_note: reason,
       },
     });
 
@@ -295,3 +335,38 @@ export default factories.createCoreController('api::project.project', ({ strapi 
     return ctx.send({ message: 'ปฏิเสธคำขอเข้าร่วมโปรเจกต์แล้ว' });
   },
 }));
+
+function ensureManager(ctx: any) {
+  if (ctx.state.user.role_app !== 'manager') {
+    throw ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
+  }
+}
+
+async function buildAllProjects(strapi: any) {
+  return strapi.db.query(projectUid).findMany({
+    populate: {
+      creator: {
+        select: ['id', 'display_name', 'username'],
+      },
+      members: {
+        select: ['id', 'display_name', 'username'],
+      },
+    },
+    orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+  });
+}
+
+async function buildPendingJoinRequests(strapi: any) {
+  return strapi.db.query(joinRequestUid).findMany({
+    where: { status_request: 'pending' },
+    populate: {
+      project: {
+        select: ['id', 'name'],
+      },
+      requested_by: {
+        select: ['id', 'display_name', 'username'],
+      },
+    },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+  });
+}

@@ -45,6 +45,8 @@ export const taskApi = {
 
 // ===== Projects =====
 export const projectApi = {
+  getHome: () => axios.get('/projects/home'),
+
   getMyProjects: () => axios.get('/projects/my'),
 
   getAll: () => axios.get('/projects/all'),
@@ -91,6 +93,8 @@ export const handoverApi = {
 
 // ===== Dashboard =====
 export const dashboardApi = {
+  home: () => axios.get('/dashboard/home'),
+  reports: () => axios.get('/dashboard/reports'),
   summary: () => axios.get('/dashboard/summary'),
   pendingTasks: () => axios.get('/dashboard/pending-tasks'),
   underReview: () => axios.get('/dashboard/under-review'),

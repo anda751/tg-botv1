@@ -4,6 +4,9 @@ import { resolveImageUrl } from '../../../services/supabase';
 const userUid = 'plugin::users-permissions.user' as any;
 const taskUid = 'api::task.task' as any;
 const taskLogUid = 'api::task-log.task-log' as any;
+const projectUid = 'api::project.project' as any;
+const proofImageUid = 'api::proof-image.proof-image' as any;
+const notificationUid = 'api::notification.notification' as any;
 
 type TaskLog = {
   id: number;
@@ -21,12 +24,6 @@ type TaskEntity = {
   updatedAt?: string;
   current_owner?: { id: number; display_name?: string; username?: string } | null;
   project?: { id: number; name: string; deadline?: string | null; status_project?: string } | null;
-  task_log?: TaskLog[];
-  proof_images?: Array<{
-    image_url?: string;
-    report_text?: string;
-    submitted_at?: string;
-  }>;
 };
 
 type StaffEntity = {
@@ -37,62 +34,55 @@ type StaffEntity = {
 };
 
 export default factories.createCoreController('api::task.task', ({ strapi }) => ({
-  async summary(ctx) {
-    const user = ctx.state.user;
-    if (user.role_app !== 'manager') return ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
+  async home(ctx) {
+    ensureManager(ctx);
 
-    const tasks = await strapi.entityService.findMany('api::task.task', {
-      populate: ['current_owner'],
-      limit: -1,
-    }) as any[];
-
-    const projects = await strapi.entityService.findMany('api::project.project', {
-      limit: -1,
-    }) as any[];
-
-    const staffList = await strapi.entityService.findMany('plugin::users-permissions.user', {
-      filters: { role_app: 'staff', is_approved: true },
-      limit: -1,
-    }) as any[];
-
-    const tasksByStatus = tasks.reduce((acc: Record<string, number>, task: any) => {
-      acc[task.status_task] = (acc[task.status_task] ?? 0) + 1;
-      return acc;
-    }, {});
-
-    const now = new Date();
-    const overdueProjects = projects.filter(
-      (project: any) => project.status_project === 'active' && new Date(project.deadline) < now,
-    );
+    const [summary, underReview, notifications] = await Promise.all([
+      buildSummary(strapi),
+      buildUnderReview(strapi),
+      buildNotifications(strapi, ctx.state.user.id),
+    ]);
 
     return ctx.send({
-      tasks: {
-        total: tasks.length,
-        in_progress: tasksByStatus.in_progress ?? 0,
-        under_review: tasksByStatus.under_review ?? 0,
-        waiting_pickup: tasksByStatus.waiting_pickup ?? 0,
-        done: tasksByStatus.done ?? 0,
-      },
-      projects: {
-        total: projects.length,
-        active: projects.filter((project: any) => project.status_project === 'active').length,
-        overdue: overdueProjects.length,
-      },
-      staff: {
-        total: staffList.length,
-      },
+      summary,
+      under_review: underReview,
+      notifications,
     });
   },
 
-  async pendingTasks(ctx) {
-    const user = ctx.state.user;
-    if (user.role_app !== 'manager') return ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
+  async reports(ctx) {
+    ensureManager(ctx);
 
-    const tasks = await strapi.entityService.findMany('api::task.task', {
-      filters: { status_task: { $ne: 'done' } },
-      populate: ['current_owner', 'task_log'],
-      sort: { createdAt: 'asc' },
-      limit: -1,
+    const [summary, staff] = await Promise.all([
+      buildSummary(strapi),
+      buildStaffOverview(strapi),
+    ]);
+
+    return ctx.send({
+      summary,
+      staff,
+    });
+  },
+
+  async summary(ctx) {
+    ensureManager(ctx);
+    return ctx.send(await buildSummary(strapi));
+  },
+
+  async pendingTasks(ctx) {
+    ensureManager(ctx);
+
+    const tasks = await strapi.db.query(taskUid).findMany({
+      where: { status_task: { $ne: 'done' } },
+      populate: {
+        current_owner: {
+          select: ['id', 'display_name', 'username'],
+        },
+        task_log: {
+          select: ['id'],
+        },
+      },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     }) as any[];
 
     return ctx.send(
@@ -114,86 +104,17 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
   },
 
   async underReview(ctx) {
-    const user = ctx.state.user;
-    if (user.role_app !== 'manager') return ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
-
-    const tasks = await strapi.entityService.findMany('api::task.task', {
-      filters: { status_task: 'under_review' },
-      populate: ['current_owner', 'proof_images'],
-      sort: { updatedAt: 'asc' },
-      limit: -1,
-    }) as any[];
-
-    const result = [];
-    for (const task of tasks) {
-      const latestProof = task.proof_images?.sort(
-        (a: any, b: any) => new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime(),
-      )[0] ?? null;
-
-      let imageUrl: string | null = null;
-      if (latestProof?.image_url) {
-        try {
-          imageUrl = await resolveImageUrl(latestProof.image_url);
-        } catch {
-          imageUrl = null;
-        }
-      }
-
-      result.push({
-        id: task.id,
-        name: task.name,
-        current_owner: task.current_owner
-          ? { id: task.current_owner.id, display_name: task.current_owner.display_name }
-          : null,
-        latest_proof: latestProof
-          ? {
-              image_url: imageUrl,
-              report_text: latestProof.report_text,
-              submitted_at: latestProof.submitted_at,
-            }
-          : null,
-      });
-    }
-
-    return ctx.send(result);
+    ensureManager(ctx);
+    return ctx.send(await buildUnderReview(strapi));
   },
 
   async staffOverview(ctx) {
-    const user = ctx.state.user;
-    if (user.role_app !== 'manager') return ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
-
-    const staffList = await strapi.entityService.findMany('plugin::users-permissions.user', {
-      filters: { role_app: 'staff', is_approved: true },
-      limit: -1,
-    }) as any[];
-
-    const activeTasks = await strapi.entityService.findMany('api::task.task', {
-      filters: { status_task: { $ne: 'done' } },
-      populate: ['current_owner'],
-      limit: -1,
-    }) as any[];
-
-    const taskCount: Record<number, number> = {};
-    for (const task of activeTasks) {
-      if (task.current_owner) {
-        taskCount[task.current_owner.id] = (taskCount[task.current_owner.id] ?? 0) + 1;
-      }
-    }
-
-    return ctx.send(
-      staffList.map((member: any) => ({
-        id: member.id,
-        display_name: member.display_name,
-        username: member.username,
-        telegram_id: member.telegram_id,
-        active_tasks: taskCount[member.id] ?? 0,
-      })),
-    );
+    ensureManager(ctx);
+    return ctx.send(await buildStaffOverview(strapi));
   },
 
   async staffKpi(ctx) {
-    const user = ctx.state.user;
-    if (user.role_app !== 'manager') return ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
+    ensureManager(ctx);
 
     const days = normalizeRangeDays(ctx.request.query?.days);
     const now = new Date();
@@ -313,6 +234,170 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
     });
   },
 }));
+
+function ensureManager(ctx: any) {
+  if (ctx.state.user.role_app !== 'manager') {
+    throw ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
+  }
+}
+
+async function buildSummary(strapi: any) {
+  const [tasks, projects, staffList] = await Promise.all([
+    strapi.db.query(taskUid).findMany({
+      select: ['id', 'status_task'],
+    }),
+    strapi.db.query(projectUid).findMany({
+      select: ['id', 'deadline', 'status_project'],
+    }),
+    strapi.db.query(userUid).findMany({
+      where: { role_app: 'staff', is_approved: true },
+      select: ['id'],
+    }),
+  ]) as [any[], any[], any[]];
+
+  const tasksByStatus = tasks.reduce((acc: Record<string, number>, task: any) => {
+    acc[task.status_task] = (acc[task.status_task] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  const now = new Date();
+  const overdueProjects = projects.filter(
+    (project: any) => project.status_project === 'active' && new Date(project.deadline) < now,
+  );
+
+  return {
+    tasks: {
+      total: tasks.length,
+      in_progress: tasksByStatus.in_progress ?? 0,
+      under_review: tasksByStatus.under_review ?? 0,
+      waiting_pickup: tasksByStatus.waiting_pickup ?? 0,
+      done: tasksByStatus.done ?? 0,
+    },
+    projects: {
+      total: projects.length,
+      active: projects.filter((project: any) => project.status_project === 'active').length,
+      overdue: overdueProjects.length,
+    },
+    staff: {
+      total: staffList.length,
+    },
+  };
+}
+
+async function buildUnderReview(strapi: any) {
+  const tasks = await strapi.db.query(taskUid).findMany({
+    where: { status_task: 'under_review' },
+    populate: {
+      current_owner: {
+        select: ['id', 'display_name'],
+      },
+    },
+    orderBy: [{ updatedAt: 'asc' }, { id: 'asc' }],
+  }) as any[];
+
+  const proofs = await strapi.db.query(proofImageUid).findMany({
+    select: ['id', 'image_url', 'report_text', 'submitted_at'],
+    populate: {
+      task: {
+        select: ['id'],
+      },
+    },
+    orderBy: [{ submitted_at: 'desc' }, { id: 'desc' }],
+  }) as any[];
+
+  const latestProofByTaskId = new Map<number, any>();
+  for (const proof of proofs) {
+    const taskId = Number(proof.task?.id);
+    if (!Number.isFinite(taskId) || latestProofByTaskId.has(taskId)) continue;
+    latestProofByTaskId.set(taskId, proof);
+  }
+
+  const result = [];
+  for (const task of tasks) {
+    const latestProof = latestProofByTaskId.get(task.id) ?? null;
+    let imageUrl: string | null = null;
+
+    if (latestProof?.image_url) {
+      try {
+        imageUrl = await resolveImageUrl(latestProof.image_url);
+      } catch {
+        imageUrl = null;
+      }
+    }
+
+    result.push({
+      id: task.id,
+      name: task.name,
+      current_owner: task.current_owner
+        ? { id: task.current_owner.id, display_name: task.current_owner.display_name }
+        : null,
+      latest_proof: latestProof
+        ? {
+            image_url: imageUrl,
+            report_text: latestProof.report_text,
+            submitted_at: latestProof.submitted_at,
+          }
+        : null,
+    });
+  }
+
+  return result;
+}
+
+async function buildStaffOverview(strapi: any) {
+  const [staffList, activeTasks] = await Promise.all([
+    strapi.db.query(userUid).findMany({
+      where: { role_app: 'staff', is_approved: true },
+      select: ['id', 'display_name', 'username', 'telegram_id'],
+      orderBy: [{ display_name: 'asc' }, { username: 'asc' }],
+    }),
+    strapi.db.query(taskUid).findMany({
+      where: { status_task: { $ne: 'done' } },
+      populate: {
+        current_owner: {
+          select: ['id'],
+        },
+      },
+      select: ['id'],
+    }),
+  ]) as [any[], any[]];
+
+  const taskCount: Record<number, number> = {};
+  for (const task of activeTasks) {
+    const ownerId = Number(task.current_owner?.id);
+    if (Number.isFinite(ownerId)) {
+      taskCount[ownerId] = (taskCount[ownerId] ?? 0) + 1;
+    }
+  }
+
+  return staffList.map((member: any) => ({
+    id: member.id,
+    display_name: member.display_name,
+    username: member.username,
+    telegram_id: member.telegram_id,
+    active_tasks: taskCount[member.id] ?? 0,
+  }));
+}
+
+async function buildNotifications(strapi: any, userId: number) {
+  const notifications = await strapi.db.query(notificationUid).findMany({
+    where: {
+      recipient: userId,
+      is_hidden: false,
+    },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    limit: 5,
+  }) as any[];
+
+  return notifications.map((notification) => ({
+    id: notification.id,
+    title: notification.title,
+    message: notification.message,
+    link: notification.link || '',
+    is_read: !!notification.is_read,
+    createdAt: notification.createdAt,
+  }));
+}
 
 function normalizeRangeDays(value: unknown) {
   const parsed = Number(value);

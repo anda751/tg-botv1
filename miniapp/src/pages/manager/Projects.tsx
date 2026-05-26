@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
-import ManagerNav from '../../components/ManagerNav';
-import { projectApi } from '../../api';
+import { useEffect, useMemo, useState } from 'react'
+import ManagerNav from '../../components/ManagerNav'
+import { projectApi } from '../../api'
 
 type Project = {
   id: number
@@ -18,137 +18,120 @@ type JoinRequest = {
 }
 
 export default function Projects() {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [requests, setRequests] = useState<JoinRequest[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
-  const [approvingId, setApprovingId] = useState<number | null>(null);
-  const [rejectingId, setRejectingId] = useState<number | null>(null);
-  const [newName, setNewName] = useState('');
-  const [newDeadline, setNewDeadline] = useState('');
-  const [formError, setFormError] = useState('');
-  const [projectsError, setProjectsError] = useState('');
-  const [requestsError, setRequestsError] = useState('');
-  const [actionError, setActionError] = useState('');
-  const [actionSuccess, setActionSuccess] = useState('');
-  const [filter, setFilter] = useState<'active' | 'closed' | 'all'>('active');
+  const [projects, setProjects] = useState<Project[]>([])
+  const [requests, setRequests] = useState<JoinRequest[]>([])
+  const [loading, setLoading] = useState(true)
+  const [creating, setCreating] = useState(false)
+  const [approvingId, setApprovingId] = useState<number | null>(null)
+  const [rejectingId, setRejectingId] = useState<number | null>(null)
+  const [newName, setNewName] = useState('')
+  const [newDeadline, setNewDeadline] = useState('')
+  const [formError, setFormError] = useState('')
+  const [pageError, setPageError] = useState('')
+  const [actionError, setActionError] = useState('')
+  const [actionSuccess, setActionSuccess] = useState('')
+  const [filter, setFilter] = useState<'active' | 'closed' | 'all'>('active')
 
   useEffect(() => {
-    loadAll();
-  }, []);
+    void loadAll()
+  }, [])
 
   async function loadAll() {
-    setLoading(true);
-    setProjectsError('');
-    setRequestsError('');
-    setActionError('');
-
-    const [projectRes, requestRes] = await Promise.allSettled([
-      projectApi.getAll(),
-      projectApi.getPendingJoinRequests(),
-    ]);
-
-    if (projectRes.status === 'fulfilled') {
-      const projectList = Array.isArray(projectRes.value.data)
-        ? projectRes.value.data
-        : (projectRes.value.data.data ?? []);
-      setProjects(projectList);
-    } else {
-      setProjects([]);
-      setProjectsError(extractMessage(projectRes.reason, 'โหลดรายการโปรเจกต์ไม่สำเร็จ'));
+    setLoading(true)
+    setPageError('')
+    setActionError('')
+    try {
+      const { data } = await projectApi.getHome()
+      setProjects(Array.isArray(data?.projects) ? data.projects : [])
+      setRequests(Array.isArray(data?.requests) ? data.requests : [])
+    } catch (err: any) {
+      const message = extractMessage(err, 'โหลดข้อมูลโปรเจกต์ไม่สำเร็จ')
+      setProjects([])
+      setRequests([])
+      setPageError(message)
+    } finally {
+      setLoading(false)
     }
-
-    if (requestRes.status === 'fulfilled') {
-      const requestList = Array.isArray(requestRes.value.data)
-        ? requestRes.value.data
-        : (requestRes.value.data.data ?? []);
-      setRequests(requestList);
-    } else {
-      setRequests([]);
-      setRequestsError(extractMessage(requestRes.reason, 'โหลดคำขอเข้าร่วมโปรเจกต์ไม่สำเร็จ'));
-    }
-
-    setLoading(false);
   }
 
   async function handleCreate() {
     if (!newName.trim() || !newDeadline) {
-      setFormError('กรอกชื่อโปรเจกต์และกำหนดส่งให้ครบ');
-      return;
+      setFormError('กรอกชื่อโปรเจกต์และกำหนดส่งให้ครบ')
+      return
     }
 
-    setCreating(true);
-    setFormError('');
-    setActionError('');
-    setActionSuccess('');
+    setCreating(true)
+    setFormError('')
+    setActionError('')
+    setActionSuccess('')
     try {
       await projectApi.create({
         name: newName.trim(),
         deadline: new Date(newDeadline).toISOString(),
-      });
-      setNewName('');
-      setNewDeadline('');
-      setActionSuccess('สร้างโปรเจกต์เรียบร้อย');
-      await loadAll();
+      })
+      setNewName('')
+      setNewDeadline('')
+      setActionSuccess('สร้างโปรเจกต์เรียบร้อย')
+      await loadAll()
     } catch (err: any) {
-      setFormError(extractMessage(err, 'สร้างโปรเจกต์ไม่สำเร็จ'));
+      setFormError(extractMessage(err, 'สร้างโปรเจกต์ไม่สำเร็จ'))
     } finally {
-      setCreating(false);
+      setCreating(false)
     }
   }
 
   async function handleCloseProject(projectId: number) {
-    if (!confirm('ปิดโปรเจกต์นี้?')) return;
+    if (!confirm('ปิดโปรเจกต์นี้?')) return
 
-    setActionError('');
-    setActionSuccess('');
+    setActionError('')
+    setActionSuccess('')
     try {
-      await projectApi.close(projectId);
-      setActionSuccess('ปิดโปรเจกต์เรียบร้อย');
-      await loadAll();
+      await projectApi.close(projectId)
+      setActionSuccess('ปิดโปรเจกต์เรียบร้อย')
+      await loadAll()
     } catch (err: any) {
-      setActionError(extractMessage(err, 'ปิดโปรเจกต์ไม่สำเร็จ'));
+      setActionError(extractMessage(err, 'ปิดโปรเจกต์ไม่สำเร็จ'))
     }
   }
 
   async function handleApproveRequest(requestId: number) {
-    setApprovingId(requestId);
-    setActionError('');
-    setActionSuccess('');
+    setApprovingId(requestId)
+    setActionError('')
+    setActionSuccess('')
     try {
-      await projectApi.approveJoinRequest(requestId);
-      setActionSuccess('อนุมัติคำขอเข้าร่วมเรียบร้อย');
-      await loadAll();
+      await projectApi.approveJoinRequest(requestId)
+      setActionSuccess('อนุมัติคำขอเข้าร่วมเรียบร้อย')
+      await loadAll()
     } catch (err: any) {
-      setActionError(extractMessage(err, 'อนุมัติคำขอไม่สำเร็จ'));
+      setActionError(extractMessage(err, 'อนุมัติคำขอไม่สำเร็จ'))
     } finally {
-      setApprovingId(null);
+      setApprovingId(null)
     }
   }
 
   async function handleRejectRequest(requestId: number) {
-    const reason = prompt('เหตุผลการปฏิเสธ (ไม่บังคับ)') ?? '';
-    setRejectingId(requestId);
-    setActionError('');
-    setActionSuccess('');
+    const reason = prompt('เหตุผลการปฏิเสธ (ไม่บังคับ)') ?? ''
+    setRejectingId(requestId)
+    setActionError('')
+    setActionSuccess('')
     try {
-      await projectApi.rejectJoinRequest(requestId, reason);
-      setActionSuccess('ปฏิเสธคำขอเข้าร่วมเรียบร้อย');
-      await loadAll();
+      await projectApi.rejectJoinRequest(requestId, reason)
+      setActionSuccess('ปฏิเสธคำขอเข้าร่วมเรียบร้อย')
+      await loadAll()
     } catch (err: any) {
-      setActionError(extractMessage(err, 'ปฏิเสธคำขอไม่สำเร็จ'));
+      setActionError(extractMessage(err, 'ปฏิเสธคำขอไม่สำเร็จ'))
     } finally {
-      setRejectingId(null);
+      setRejectingId(null)
     }
   }
 
   const visibleProjects = useMemo(() => {
-    if (filter === 'all') return projects;
-    return projects.filter((p) => p.status_project === filter);
-  }, [projects, filter]);
+    if (filter === 'all') return projects
+    return projects.filter((project) => project.status_project === filter)
+  }, [projects, filter])
 
-  const activeCount = projects.filter((p) => p.status_project === 'active').length;
-  const closedCount = projects.filter((p) => p.status_project === 'closed').length;
+  const activeCount = projects.filter((project) => project.status_project === 'active').length
+  const closedCount = projects.filter((project) => project.status_project === 'closed').length
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col">
@@ -159,7 +142,7 @@ export default function Projects() {
             <p className="text-xs text-slate-400 mt-0.5">จัดการโปรเจกต์และคำขอเข้าร่วม</p>
           </div>
           <button
-            onClick={loadAll}
+            onClick={() => void loadAll()}
             className="w-9 h-9 rounded-full flex items-center justify-center text-slate-300 bg-slate-800 active:bg-slate-700 transition"
             title="รีเฟรช"
             aria-label="รีเฟรช"
@@ -171,6 +154,7 @@ export default function Projects() {
       </div>
 
       <div className="px-4 py-4 space-y-4 pb-8">
+        {pageError && <InlineNotice tone="red" title="โหลดข้อมูลไม่สำเร็จ" message={pageError} />}
         {actionError && <InlineNotice tone="red" title="ทำรายการไม่สำเร็จ" message={actionError} />}
         {actionSuccess && <InlineNotice tone="green" title="ทำรายการสำเร็จ" message={actionSuccess} />}
 
@@ -198,7 +182,7 @@ export default function Projects() {
             />
             {formError && <p className="text-xs text-red-400">{formError}</p>}
             <button
-              onClick={handleCreate}
+              onClick={() => void handleCreate()}
               disabled={creating}
               className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600 disabled:opacity-50"
             >
@@ -214,33 +198,31 @@ export default function Projects() {
           </div>
           {loading ? (
             <div className="h-12 bg-slate-800 rounded-xl animate-pulse" />
-          ) : requestsError ? (
-            <PanelState title="โหลดคำขอไม่สำเร็จ" message={requestsError} actionLabel="ลองใหม่" onAction={loadAll} />
           ) : requests.length === 0 ? (
             <PanelState title="ไม่มีคำขอค้าง" message="เมื่อมีพนักงานส่งคำขอเข้าร่วม โปรเจกต์จะแสดงที่นี่" />
           ) : (
             <div className="space-y-2">
-              {requests.map((r) => (
-                <div key={r.id} className="bg-slate-800 border border-slate-700 rounded-xl p-3">
+              {requests.map((request) => (
+                <div key={request.id} className="bg-slate-800 border border-slate-700 rounded-xl p-3">
                   <p className="text-sm text-white leading-snug">
-                    {(r.requested_by?.display_name || r.requested_by?.username || 'ไม่ทราบชื่อ')} ขอเข้าโปรเจกต์{' '}
-                    <span className="font-semibold">{r.project?.name || '-'}</span>
+                    {(request.requested_by?.display_name || request.requested_by?.username || 'ไม่ทราบชื่อ')} ขอเข้าโปรเจกต์{' '}
+                    <span className="font-semibold">{request.project?.name || '-'}</span>
                   </p>
-                  {r.note && <p className="text-xs text-slate-400 mt-1">หมายเหตุ: {r.note}</p>}
+                  {request.note && <p className="text-xs text-slate-400 mt-1">หมายเหตุ: {request.note}</p>}
                   <div className="flex gap-2 mt-3">
                     <button
-                      onClick={() => handleRejectRequest(r.id)}
-                      disabled={rejectingId === r.id}
+                      onClick={() => void handleRejectRequest(request.id)}
+                      disabled={rejectingId === request.id}
                       className="flex-1 py-2 rounded-lg text-xs font-semibold text-red-300 bg-red-950/40 border border-red-800/60 disabled:opacity-40"
                     >
-                      {rejectingId === r.id ? 'กำลังส่ง...' : 'ปฏิเสธ'}
+                      {rejectingId === request.id ? 'กำลังส่ง...' : 'ปฏิเสธ'}
                     </button>
                     <button
-                      onClick={() => handleApproveRequest(r.id)}
-                      disabled={approvingId === r.id}
+                      onClick={() => void handleApproveRequest(request.id)}
+                      disabled={approvingId === request.id}
                       className="flex-1 py-2 rounded-lg text-xs font-semibold text-white bg-green-600 disabled:opacity-40"
                     >
-                      {approvingId === r.id ? 'กำลังอนุมัติ...' : 'อนุมัติ'}
+                      {approvingId === request.id ? 'กำลังอนุมัติ...' : 'อนุมัติ'}
                     </button>
                   </div>
                 </div>
@@ -269,8 +251,6 @@ export default function Projects() {
 
           {loading ? (
             <div className="h-16 bg-slate-800 rounded-xl animate-pulse" />
-          ) : projectsError ? (
-            <PanelState title="โหลดโปรเจกต์ไม่สำเร็จ" message={projectsError} actionLabel="ลองใหม่" onAction={loadAll} />
           ) : visibleProjects.length === 0 ? (
             <PanelState
               title={filter === 'all' ? 'ยังไม่มีโปรเจกต์' : 'ไม่มีโปรเจกต์ในหมวดนี้'}
@@ -278,28 +258,28 @@ export default function Projects() {
             />
           ) : (
             <div className="space-y-2">
-              {visibleProjects.map((p) => (
-                <ProjectCard key={p.id} project={p} onClose={handleCloseProject} />
+              {visibleProjects.map((project) => (
+                <ProjectCard key={project.id} project={project} onClose={handleCloseProject} />
               ))}
             </div>
           )}
         </div>
       </div>
     </div>
-  );
+  )
 }
 
 function extractMessage(error: any, fallback: string) {
-  return error?.response?.data?.error?.message || error?.response?.data?.message || fallback;
+  return error?.response?.data?.error?.message || error?.response?.data?.message || fallback
 }
 
 function isOverdue(project: Project) {
-  return project.status_project === 'active' && new Date(project.deadline).getTime() < Date.now();
+  return project.status_project === 'active' && new Date(project.deadline).getTime() < Date.now()
 }
 
 function ProjectCard({ project, onClose }: { project: Project; onClose: (id: number) => void }) {
-  const overdue = isOverdue(project);
-  const titleColor = overdue ? 'text-red-400' : 'text-green-400';
+  const overdue = isOverdue(project)
+  const titleColor = overdue ? 'text-red-400' : 'text-green-400'
 
   return (
     <div className="bg-slate-800 border border-slate-700 rounded-xl p-3">
@@ -323,7 +303,7 @@ function ProjectCard({ project, onClose }: { project: Project; onClose: (id: num
         )}
       </div>
     </div>
-  );
+  )
 }
 
 function StatCard({ label, value }: { label: string; value: string }) {
@@ -332,7 +312,7 @@ function StatCard({ label, value }: { label: string; value: string }) {
       <p className="text-[11px] text-slate-400">{label}</p>
       <p className="text-lg font-bold text-white leading-tight">{value}</p>
     </div>
-  );
+  )
 }
 
 function InlineNotice({
@@ -346,14 +326,14 @@ function InlineNotice({
 }) {
   const toneClass = tone === 'green'
     ? 'border-green-800/70 bg-green-950/40 text-green-100'
-    : 'border-red-800/70 bg-red-950/40 text-red-100';
+    : 'border-red-800/70 bg-red-950/40 text-red-100'
 
   return (
     <div className={`rounded-2xl border px-4 py-3 ${toneClass}`}>
       <p className="text-sm font-semibold">{title}</p>
       <p className="text-xs mt-1 opacity-90">{message}</p>
     </div>
-  );
+  )
 }
 
 function PanelState({
@@ -380,5 +360,5 @@ function PanelState({
         </button>
       )}
     </div>
-  );
+  )
 }

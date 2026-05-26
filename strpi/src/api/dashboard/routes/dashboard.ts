@@ -2,6 +2,18 @@ export default {
   routes: [
     {
       method: 'GET',
+      path: '/dashboard/home',
+      handler: 'dashboard.home',
+      config: { auth: false },
+    },
+    {
+      method: 'GET',
+      path: '/dashboard/reports',
+      handler: 'dashboard.reports',
+      config: { auth: false },
+    },
+    {
+      method: 'GET',
       path: '/dashboard/summary',
       handler: 'dashboard.summary',
       config: { auth: false },
