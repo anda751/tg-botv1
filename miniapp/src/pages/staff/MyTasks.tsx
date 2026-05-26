@@ -610,7 +610,7 @@ export default function MyTasks() {
                                     : isApprovedNotification(item)
                                       ? 'text-green-100 text-[15px]'
                                       : 'text-slate-100'
-                                }`}>{item.title}</p>
+                                }`}>{getNotificationDisplayTitle(item)}</p>
                                 <div className="mt-1">
                                   {renderNotificationMessage(
                                     item.message,
@@ -693,8 +693,18 @@ function isApprovedNotification(item: Pick<NotificationItem, 'title' | 'message'
   );
 }
 
+function getNotificationDisplayTitle(item: Pick<NotificationItem, 'title' | 'message'>) {
+  if (isUrgentProjectNotification(item)) return 'โปรเจกต์ที่คุณอยู่เกินกำหนด';
+  if (isApprovedNotification(item)) return 'งานเสร็จแล้ว';
+  return item.title;
+}
+
+function normalizeNotificationMessage(message: string) {
+  return message.replace(/\*/g, '').trim();
+}
+
 function renderNotificationMessage(message: string, tone: 'urgent' | 'success' | 'default' = 'default') {
-  const lines = message.split('\n').filter((line) => line.trim().length > 0);
+  const lines = normalizeNotificationMessage(message).split('\n').filter((line) => line.trim().length > 0);
 
   return (
     <div className="space-y-1">
@@ -834,6 +844,7 @@ function NotificationCard({
   const urgent = isUrgentProjectNotification(item);
   const success = isApprovedNotification(item);
   const tone = urgent ? 'urgent' : success ? 'success' : 'default';
+  const displayTitle = getNotificationDisplayTitle(item);
 
   return (
     <div
@@ -855,7 +866,7 @@ function NotificationCard({
         <button onClick={onOpen} className="min-w-0 flex-1 text-left">
           <div className="flex items-center gap-2 mb-1">
             <span className={`w-2.5 h-2.5 rounded-full ${urgent ? 'bg-red-400' : success ? 'bg-green-400' : item.is_read ? 'bg-slate-600' : 'bg-blue-500'}`} />
-            <p className={`font-semibold ${urgent ? 'text-red-100 text-[15px]' : success ? 'text-green-100 text-[15px]' : 'text-slate-100'}`}>{item.title}</p>
+            <p className={`font-semibold ${urgent ? 'text-red-100 text-[15px]' : success ? 'text-green-100 text-[15px]' : 'text-slate-100'}`}>{displayTitle}</p>
           </div>
           {renderNotificationMessage(item.message, tone)}
         </button>
