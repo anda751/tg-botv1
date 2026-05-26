@@ -929,11 +929,15 @@ function TaskCard({
   onHide: () => void
 }) {
   const status = statusLabel[task.status_task];
-  const latestRejectedNote = getLatestRejectedNote(task);
+  const latestRejectedNote = task.status_task === 'in_progress' ? getLatestRejectedNote(task) : undefined;
 
   return (
     <div className={`rounded-xl p-4 shadow-sm border ${
-      latestRejectedNote ? 'bg-red-950/20 border-red-900/60' : 'bg-slate-950 border-slate-800'
+      latestRejectedNote
+        ? 'bg-red-950/20 border-red-900/60'
+        : task.status_task === 'done'
+          ? 'bg-green-950/10 border-green-900/40'
+          : 'bg-slate-950 border-slate-800'
     }`}
     >
       <div className="flex items-start justify-between gap-2 mb-3">
@@ -970,7 +974,10 @@ function TaskCard({
 
       {task.status_task === 'done' && (
         <div className="flex items-center justify-between gap-3 py-2">
-          <div className="text-sm text-green-300">งานเสร็จสมบูรณ์</div>
+          <div>
+            <div className="text-sm font-semibold text-green-300">งานเสร็จสมบูรณ์</div>
+            <div className="text-xs text-slate-400 mt-1">งานนี้ผ่านการอนุมัติแล้ว</div>
+          </div>
           <button
             onClick={onHide}
             disabled={isHiding}
