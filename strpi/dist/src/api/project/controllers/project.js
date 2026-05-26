@@ -32,7 +32,6 @@ exports.default = strapi_1.factories.createCoreController('api::project.project'
                 creator: user.id,
                 status_project: 'active',
             },
-            populate: ['creator', 'members'],
         });
         await strapi.service('api::task.task').notifyGroup({
             message: `โปรเจกต์ใหม่: *${name}*\nกำหนดส่ง: ${deadlineDate.toLocaleDateString('th-TH')}\nสร้างโดย: ${user.username}`,
@@ -163,7 +162,6 @@ exports.default = strapi_1.factories.createCoreController('api::project.project'
                 note: typeof note === 'string' ? note.trim() : '',
                 status_request: 'pending',
             },
-            populate: ['project', 'requested_by'],
         });
         await strapi.service('api::task.task').notifyManager({
             taskId: '',

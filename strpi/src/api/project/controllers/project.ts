@@ -35,7 +35,6 @@ export default factories.createCoreController('api::project.project', ({ strapi 
         creator: user.id,
         status_project: 'active',
       } as any,
-      populate: ['creator', 'members'],
     }) as any;
 
     await strapi.service('api::task.task').notifyGroup({
@@ -193,7 +192,6 @@ export default factories.createCoreController('api::project.project', ({ strapi 
           note: typeof note === 'string' ? note.trim() : '',
           status_request: 'pending',
         },
-        populate: ['project', 'requested_by'],
       },
     ) as any;
 

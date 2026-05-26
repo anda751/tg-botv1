@@ -73,7 +73,6 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
         creator: user.id,
         status_task: 'in_progress',
       },
-      populate: ['project', 'current_owner'],
     }) as any;
 
     await strapi.entityService.create('api::task-log.task-log', {
