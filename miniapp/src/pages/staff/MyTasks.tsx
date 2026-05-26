@@ -59,6 +59,7 @@ export default function MyTasks() {
   const [restoringTaskId, setRestoringTaskId] = useState<number | null>(null);
   const [restoringAllNotifications, setRestoringAllNotifications] = useState(false);
   const [restoringAllTasks, setRestoringAllTasks] = useState(false);
+  const [underReviewOpen, setUnderReviewOpen] = useState(false);
   const [doneOpen, setDoneOpen] = useState(false);
   const [hiddenOpen, setHiddenOpen] = useState(false);
   const [activityExpanded, setActivityExpanded] = useState(false);
@@ -448,7 +449,14 @@ export default function MyTasks() {
               </div>
             </section>
 
-            <section className="grid grid-cols-2 gap-3">
+            <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <QuickActionCard
+                title="งานรอตรวจ"
+                subtitle={`${underReviewTasks.length} งานที่ส่งแล้วและกำลังรอหัวหน้าตรวจ`}
+                buttonLabel="เปิดรายการ"
+                tone="amber"
+                onClick={() => setUnderReviewOpen((value) => !value)}
+              />
               <QuickActionCard
                 title="ดูงานรอรับช่วงต่อ"
                 subtitle="เช็กว่ามีงานไหนขอคนช่วยต่อ"
@@ -463,6 +471,49 @@ export default function MyTasks() {
                 tone="green"
                 onClick={() => setDoneOpen((value) => !value)}
               />
+            </section>
+
+            <section className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
+              <button
+                onClick={() => setUnderReviewOpen((value) => !value)}
+                className="w-full px-4 py-4 flex items-center justify-between text-left"
+              >
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-base font-semibold text-white">งานรอตรวจ</h2>
+                    <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-200 text-xs font-semibold">
+                      {underReviewTasks.length}
+                    </span>
+                  </div>
+                  <p className="text-sm text-slate-400 mt-1">ดูรายการงานที่ส่งแล้วและกำลังรอหัวหน้าตรวจได้จากตรงนี้</p>
+                </div>
+                <span className="text-lg text-slate-500">{underReviewOpen ? '−' : '+'}</span>
+              </button>
+
+              {underReviewOpen && (
+                <div className="px-4 pb-4 border-t border-slate-800">
+                  {underReviewTasks.length === 0 ? (
+                    <StateBox
+                      title="ยังไม่มีงานรอตรวจ"
+                      message="เมื่่อส่งงานแล้ว รายการที่กำลังรอหัวหน้าตรวจจะมาแสดงที่ส่วนนี้"
+                    />
+                  ) : (
+                    <div className="space-y-3 pt-4">
+                      {underReviewTasks.map((task) => (
+                        <TaskCard
+                          key={task.id}
+                          task={task}
+                          isHiding={false}
+                          onProgress={() => undefined}
+                          onSubmit={() => undefined}
+                          onHandover={() => undefined}
+                          onHide={() => undefined}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </section>
 
             <section className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
@@ -837,12 +888,13 @@ function QuickActionCard({
   title: string
   subtitle: string
   buttonLabel: string
-  tone: 'orange' | 'green'
+  tone: 'orange' | 'green' | 'amber'
   onClick: () => void
 }) {
   const tones = {
     orange: 'border-orange-800/60 bg-orange-950/30 text-orange-200',
     green: 'border-green-800/60 bg-green-950/30 text-green-200',
+    amber: 'border-amber-800/60 bg-amber-950/30 text-amber-200',
   } as const;
 
   return (
