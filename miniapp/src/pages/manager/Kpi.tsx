@@ -52,6 +52,7 @@ export default function Kpi() {
   const [showFormula, setShowFormula] = useState(false)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | Tone>('all')
+  const [openMemberId, setOpenMemberId] = useState<number | null>(null)
 
   useEffect(() => {
     void loadKpi(days)
@@ -62,9 +63,12 @@ export default function Kpi() {
     setError('')
     try {
       const response = await dashboardApi.staffKpi(rangeDays)
-      setData(response.data)
+      const nextData = response.data as ResponseShape
+      setData(nextData)
+      setOpenMemberId((current) => nextData.staff.some((member) => member.id === current) ? current : null)
     } catch (err) {
       setData(null)
+      setOpenMemberId(null)
       setError(extractMessage(err, 'โหลด KPI รายคนไม่สำเร็จ'))
     } finally {
       setLoading(false)
@@ -72,6 +76,7 @@ export default function Kpi() {
   }
 
   const team = data?.staff ?? []
+
   const averageScore = useMemo(() => {
     if (!team.length) return 0
     return Math.round(team.reduce((sum, member) => sum + member.total_score, 0) / team.length)
@@ -233,7 +238,7 @@ export default function Kpi() {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">คะแนนรายคน</p>
-                  <h2 className="text-base font-semibold text-white mt-1">ดูคะแนนก่อน แล้วค่อยดูเหตุผล</h2>
+                  <h2 className="text-base font-semibold text-white mt-1">กดดูรายละเอียดทีละคน เพื่อลดความรกของหน้า</h2>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
                   <input
@@ -272,7 +277,13 @@ export default function Kpi() {
               ) : (
                 <div className="space-y-3">
                   {filteredStaff.map((member, index) => (
-                    <StaffKpiRow key={member.id} member={member} rank={index + 1} />
+                    <StaffKpiRow
+                      key={member.id}
+                      member={member}
+                      rank={index + 1}
+                      expanded={openMemberId === member.id}
+                      onToggle={() => setOpenMemberId((current) => current === member.id ? null : member.id)}
+                    />
                   ))}
                 </div>
               )}
@@ -315,7 +326,17 @@ function SummaryCard({
   )
 }
 
-function StaffKpiRow({ member, rank }: { member: StaffKpi; rank: number }) {
+function StaffKpiRow({
+  member,
+  rank,
+  expanded,
+  onToggle,
+}: {
+  member: StaffKpi
+  rank: number
+  expanded: boolean
+  onToggle: () => void
+}) {
   const statusTone = {
     green: 'text-green-200 bg-green-950/20 border-green-800/60',
     blue: 'text-blue-200 bg-blue-950/20 border-blue-800/60',
@@ -324,52 +345,68 @@ function StaffKpiRow({ member, rank }: { member: StaffKpi; rank: number }) {
   } as const
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex items-start gap-3">
-          <div className="w-8 h-8 rounded-full bg-slate-800 text-slate-200 text-xs font-bold flex items-center justify-center shrink-0">
-            {rank}
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="text-base font-semibold text-white truncate">{member.display_name}</h3>
-              <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${statusTone[member.status.tone]}`}>
-                {member.status.label}
-              </span>
+    <div className="rounded-2xl border border-slate-800 bg-slate-900 overflow-hidden">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={expanded}
+        className="w-full p-4 text-left active:bg-slate-800/60 transition"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex items-start gap-3">
+            <div className="w-8 h-8 rounded-full bg-slate-800 text-slate-200 text-xs font-bold flex items-center justify-center shrink-0">
+              {rank}
             </div>
-            <p className="text-sm text-slate-500 mt-1">@{member.username}</p>
-            <p className="text-sm text-slate-300 mt-2 leading-relaxed">{member.focus_note}</p>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-base font-semibold text-white truncate">{member.display_name}</h3>
+                <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${statusTone[member.status.tone]}`}>
+                  {member.status.label}
+                </span>
+              </div>
+              <p className="text-sm text-slate-500 mt-1">@{member.username}</p>
+              <p className="text-sm text-slate-300 mt-2 leading-relaxed">{member.focus_note}</p>
+            </div>
+          </div>
+
+          <div className="text-right shrink-0 flex flex-col items-end gap-2">
+            <div>
+              <p className="text-3xl font-bold text-white">{member.total_score}</p>
+              <p className="text-xs text-slate-500 mt-1">คะแนนรวม</p>
+            </div>
+            <span className="w-8 h-8 rounded-full border border-slate-700 bg-slate-950 text-slate-300 flex items-center justify-center text-sm font-bold">
+              {expanded ? '−' : '+'}
+            </span>
           </div>
         </div>
+      </button>
 
-        <div className="text-right shrink-0">
-          <p className="text-3xl font-bold text-white">{member.total_score}</p>
-          <p className="text-xs text-slate-500 mt-1">คะแนนรวม</p>
+      {expanded && (
+        <div className="border-t border-slate-800 px-4 pb-4 pt-3 space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <MetricBox label="งานเสร็จ" value={`${member.completed_tasks}/${member.output_target}`} />
+            <MetricBox label="ตีกลับ" value={member.rejection_rate > 0 ? `${member.rejection_rate}%` : '-'} />
+            <MetricBox label="ตรงเวลา" value={member.on_time_rate !== null ? `${member.on_time_rate}%` : '-'} />
+            <MetricBox label="อัปเดตงาน" value={`${member.update_rate}%`} />
+          </div>
+
+          <div className="grid grid-cols-5 gap-2">
+            <ScoreChip label="Output" value={member.output_score} />
+            <ScoreChip label="Quality" value={member.quality_score} />
+            <ScoreChip label="Time" value={member.on_time_score} />
+            <ScoreChip label="Speed" value={member.speed_score} />
+            <ScoreChip label="Update" value={member.update_score} />
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <MiniTag label="กำลังทำ" value={member.active_in_progress} />
+            <MiniTag label="รอตรวจ" value={member.active_under_review} />
+            <MiniTag label="รอรับต่อ" value={member.active_waiting_pickup} />
+            <MiniTag label="งานค้างนิ่ง" value={member.stale_active_tasks} alert={member.stale_active_tasks > 0} />
+            <MiniTag label="ปิดงานเฉลี่ย" value={member.avg_completion_hours !== null ? `${member.avg_completion_hours} ชม.` : '-'} />
+          </div>
         </div>
-      </div>
-
-      <div className="mt-4 grid grid-cols-2 gap-3">
-        <MetricBox label="งานเสร็จ" value={`${member.completed_tasks}/${member.output_target}`} />
-        <MetricBox label="ตีกลับ" value={member.rejection_rate > 0 ? `${member.rejection_rate}%` : '-'} />
-        <MetricBox label="ตรงเวลา" value={member.on_time_rate !== null ? `${member.on_time_rate}%` : '-'} />
-        <MetricBox label="อัปเดตงาน" value={`${member.update_rate}%`} />
-      </div>
-
-      <div className="mt-4 grid grid-cols-5 gap-2">
-        <ScoreChip label="Output" value={member.output_score} />
-        <ScoreChip label="Quality" value={member.quality_score} />
-        <ScoreChip label="Time" value={member.on_time_score} />
-        <ScoreChip label="Speed" value={member.speed_score} />
-        <ScoreChip label="Update" value={member.update_score} />
-      </div>
-
-      <div className="mt-4 flex flex-wrap gap-2">
-        <MiniTag label="กำลังทำ" value={member.active_in_progress} />
-        <MiniTag label="รอตรวจ" value={member.active_under_review} />
-        <MiniTag label="รอรับต่อ" value={member.active_waiting_pickup} />
-        <MiniTag label="งานค้างนิ่ง" value={member.stale_active_tasks} alert={member.stale_active_tasks > 0} />
-        <MiniTag label="ปิดงานเฉลี่ย" value={member.avg_completion_hours !== null ? `${member.avg_completion_hours} ชม.` : '-'} />
-      </div>
+      )}
     </div>
   )
 }
