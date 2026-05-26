@@ -5,6 +5,7 @@ const TABS = [
   { label: 'Projects', path: '/projects' },
   { label: 'Tasks', path: '/tasks' },
   { label: 'Staff', path: '/staff' },
+  { label: 'KPI', path: '/kpi' },
   { label: 'Reports', path: '/reports' },
   { label: 'Settings', path: '/settings' },
 ]

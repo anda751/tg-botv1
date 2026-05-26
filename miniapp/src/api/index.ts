@@ -92,6 +92,7 @@ export const dashboardApi = {
   pendingTasks: () => axios.get('/dashboard/pending-tasks'),
   underReview: () => axios.get('/dashboard/under-review'),
   staffOverview: () => axios.get('/dashboard/staff'),
+  staffKpi: (days = 30) => axios.get('/dashboard/staff-kpi', { params: { days } }),
 }
 
 // ===== Notifications =====

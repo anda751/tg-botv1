@@ -24,5 +24,11 @@ export default {
       handler: 'dashboard.staffOverview',
       config: { auth: false },
     },
+    {
+      method: 'GET',
+      path: '/dashboard/staff-kpi',
+      handler: 'dashboard.staffKpi',
+      config: { auth: false },
+    },
   ],
 };
