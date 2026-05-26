@@ -413,21 +413,33 @@ export default function MyTasks() {
             ) : (
               <div className="space-y-3">
                 {notifications.map((item) => (
+                  (() => {
+                    const urgent = isUrgentProjectNotification(item);
+                    return (
                   <div
                     key={item.id}
                     className={`rounded-xl border p-4 transition ${
-                      item.is_read
-                        ? 'border-slate-800 bg-slate-900'
-                        : 'border-blue-900 bg-blue-950/30'
+                      urgent
+                        ? item.is_read
+                          ? 'border-red-900/70 bg-red-950/30'
+                          : 'border-red-800 bg-red-950/50'
+                        : item.is_read
+                          ? 'border-slate-800 bg-slate-900'
+                          : 'border-blue-900 bg-blue-950/30'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <button onClick={() => handleOpenNotification(item)} className="min-w-0 flex-1 text-left">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className={`w-2.5 h-2.5 rounded-full ${item.is_read ? 'bg-slate-600' : 'bg-blue-500'}`} />
-                          <p className="font-semibold text-slate-100">{item.title}</p>
+                          <span className={`w-2.5 h-2.5 rounded-full ${
+                            urgent ? 'bg-red-400' : item.is_read ? 'bg-slate-600' : 'bg-blue-500'
+                          }`}
+                          />
+                          <p className={`font-semibold ${urgent ? 'text-red-100 text-[15px]' : 'text-slate-100'}`}>{item.title}</p>
                         </div>
-                        <p className="text-sm text-slate-300 whitespace-pre-line">{item.message}</p>
+                        <p className={`whitespace-pre-line ${urgent ? 'text-sm font-semibold text-red-100 leading-relaxed' : 'text-sm text-slate-300'}`}>
+                          {item.message}
+                        </p>
                       </button>
                       <div className="shrink-0 text-right flex flex-col items-end gap-2">
                         <p className="text-xs text-slate-500">{formatRelativeTime(item.createdAt)}</p>
@@ -446,6 +458,8 @@ export default function MyTasks() {
                       </div>
                     </div>
                   </div>
+                    );
+                  })()
                 ))}
               </div>
             )}
@@ -494,10 +508,19 @@ export default function MyTasks() {
                         </button>
                       </div>
                       {hidden.notifications.map((item) => (
-                        <div key={item.id} className="rounded-xl border border-slate-800 bg-slate-950 p-4 flex items-start justify-between gap-3">
+                        <div
+                          key={item.id}
+                          className={`rounded-xl border p-4 flex items-start justify-between gap-3 ${
+                            isUrgentProjectNotification(item)
+                              ? 'border-red-900/60 bg-red-950/20'
+                              : 'border-slate-800 bg-slate-950'
+                          }`}
+                        >
                           <div className="min-w-0">
-                            <p className="font-semibold text-slate-100">{item.title}</p>
-                            <p className="text-sm text-slate-300 whitespace-pre-line mt-1">{item.message}</p>
+                            <p className={`font-semibold ${isUrgentProjectNotification(item) ? 'text-red-100 text-[15px]' : 'text-slate-100'}`}>{item.title}</p>
+                            <p className={`whitespace-pre-line mt-1 ${isUrgentProjectNotification(item) ? 'text-sm font-semibold text-red-100 leading-relaxed' : 'text-sm text-slate-300'}`}>
+                              {item.message}
+                            </p>
                           </div>
                           <button
                             onClick={() => handleRestoreNotification(item.id)}
@@ -588,6 +611,10 @@ export default function MyTasks() {
 
 function extractMessage(error: any, fallback: string) {
   return error?.response?.data?.error?.message || error?.response?.data?.message || fallback;
+}
+
+function isUrgentProjectNotification(item: Pick<NotificationItem, 'title' | 'message'>) {
+  return item.title.includes('เกินกำหนด') || item.message.includes('เกินกำหนด');
 }
 
 function formatRelativeTime(value: string) {

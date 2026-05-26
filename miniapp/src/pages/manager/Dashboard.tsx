@@ -259,20 +259,34 @@ export default function Dashboard() {
                   </div>
                   <div className="divide-y divide-slate-800">
                     {notifications.slice(0, 5).map((item) => (
+                      (() => {
+                        const urgent = isUrgentProjectNotification(item);
+                        return (
                       <button
                         key={item.id}
                         onClick={() => handleOpenNotification(item)}
                         className={`w-full text-left px-4 py-3 transition ${
-                          item.is_read ? 'bg-slate-900' : 'bg-blue-950/20'
+                          urgent
+                            ? item.is_read
+                              ? 'bg-red-950/30'
+                              : 'bg-red-950/50'
+                            : item.is_read
+                              ? 'bg-slate-900'
+                              : 'bg-blue-950/20'
                         }`}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
-                              <span className={`w-2 h-2 rounded-full ${item.is_read ? 'bg-slate-600' : 'bg-blue-500'}`} />
-                              <p className="text-sm font-semibold text-white">{item.title}</p>
+                              <span className={`w-2 h-2 rounded-full ${
+                                urgent ? 'bg-red-400' : item.is_read ? 'bg-slate-600' : 'bg-blue-500'
+                              }`}
+                              />
+                              <p className={`${urgent ? 'text-sm font-bold text-red-100' : 'text-sm font-semibold text-white'}`}>{item.title}</p>
                             </div>
-                            <p className="text-xs text-slate-300 mt-1 whitespace-pre-line">{item.message}</p>
+                            <p className={`${urgent ? 'text-sm font-bold text-red-100 mt-1 whitespace-pre-line leading-relaxed' : 'text-xs text-slate-300 mt-1 whitespace-pre-line'}`}>
+                              {item.message}
+                            </p>
                           </div>
                           <div className="shrink-0 text-right">
                             <p className="text-[11px] text-slate-500">{formatRelativeTime(item.createdAt)}</p>
@@ -282,6 +296,8 @@ export default function Dashboard() {
                           </div>
                         </div>
                       </button>
+                        );
+                      })()
                     ))}
                   </div>
                 </div>
@@ -387,6 +403,10 @@ export default function Dashboard() {
 
 function extractMessage(error: any, fallback: string) {
   return error?.response?.data?.error?.message || error?.response?.data?.message || fallback;
+}
+
+function isUrgentProjectNotification(item: Pick<NotificationItem, 'title' | 'message'>) {
+  return item.title.includes('เกินกำหนด') || item.message.includes('เกินกำหนด');
 }
 
 function formatRelativeTime(value: string) {
