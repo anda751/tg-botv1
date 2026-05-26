@@ -9,5 +9,6 @@ exports.default = {
         { method: 'POST', path: '/notifications/:id/hide', handler: 'notification.hide', config: { auth: false } },
         { method: 'POST', path: '/notifications/hide-read', handler: 'notification.hideRead', config: { auth: false } },
         { method: 'POST', path: '/notifications/:id/restore', handler: 'notification.restore', config: { auth: false } },
+        { method: 'POST', path: '/notifications/restore-all', handler: 'notification.restoreAll', config: { auth: false } },
     ],
 };

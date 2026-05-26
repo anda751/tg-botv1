@@ -169,6 +169,35 @@ export default factories.createCoreController(notificationUid, ({ strapi }) => (
       notification: serializeNotification(updated),
     });
   },
+
+  async restoreAll(ctx) {
+    const user = ctx.state.user;
+    if (!user?.id) return ctx.unauthorized('กรุณาเข้าสู่ระบบ');
+
+    const notifications = await strapi.entityService.findMany(notificationUid, {
+      filters: {
+        recipient: { id: user.id },
+        is_hidden: true,
+      },
+      fields: ['id'],
+      limit: -1,
+    }) as any[];
+
+    await Promise.all(
+      notifications.map((notification) =>
+        strapi.entityService.update(notificationUid, notification.id, {
+          data: {
+            is_hidden: false,
+            hidden_at: null,
+          },
+        })),
+    );
+
+    return ctx.send({
+      message: 'กู้คืนการแจ้งเตือนทั้งหมดเรียบร้อย',
+      count: notifications.length,
+    });
+  },
 }));
 
 function serializeNotification(notification: any) {

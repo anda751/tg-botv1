@@ -16,5 +16,6 @@ exports.default = {
         { method: 'POST', path: '/tasks/:id/reject', handler: 'task.reject', config: { auth: false } },
         { method: 'POST', path: '/tasks/:id/hide', handler: 'task.hide', config: { auth: false } },
         { method: 'POST', path: '/tasks/:id/restore', handler: 'task.restore', config: { auth: false } },
+        { method: 'POST', path: '/tasks/restore-all', handler: 'task.restoreAll', config: { auth: false } },
     ],
 };

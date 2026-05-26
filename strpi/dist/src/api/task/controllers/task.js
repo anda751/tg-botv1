@@ -329,6 +329,27 @@ exports.default = strapi_1.factories.createCoreController('api::task.task', ({ s
         });
         return ctx.send({ message: 'กู้คืนงานเรียบร้อย' });
     },
+    async restoreAll(ctx) {
+        const user = ctx.state.user;
+        const tasks = await strapi.entityService.findMany('api::task.task', {
+            filters: {
+                current_owner: { id: user.id },
+                is_hidden_for_owner: true,
+            },
+            fields: ['id'],
+            limit: -1,
+        });
+        await Promise.all(tasks.map((task) => strapi.entityService.update('api::task.task', task.id, {
+            data: {
+                is_hidden_for_owner: false,
+                hidden_for_owner_at: null,
+            },
+        })));
+        return ctx.send({
+            message: 'กู้คืนงานที่ซ่อนไว้ทั้งหมดเรียบร้อย',
+            count: tasks.length,
+        });
+    },
 }));
 async function readUploadedFileBuffer(file) {
     if (!file)

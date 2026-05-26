@@ -35,6 +35,9 @@ export const taskApi = {
 
   restore: (taskId: number) =>
     axios.post(`/tasks/${taskId}/restore`),
+
+  restoreAll: () =>
+    axios.post('/tasks/restore-all'),
 }
 
 // ===== Projects =====
@@ -100,6 +103,7 @@ export const notificationApi = {
   hide: (notificationId: number) => axios.post(`/notifications/${notificationId}/hide`),
   hideRead: () => axios.post('/notifications/hide-read'),
   restore: (notificationId: number) => axios.post(`/notifications/${notificationId}/restore`),
+  restoreAll: () => axios.post('/notifications/restore-all'),
 }
 
 // ===== Users =====

@@ -53,6 +53,8 @@ export default function MyTasks() {
   const [hidingNotificationId, setHidingNotificationId] = useState<number | null>(null);
   const [restoringNotificationId, setRestoringNotificationId] = useState<number | null>(null);
   const [restoringTaskId, setRestoringTaskId] = useState<number | null>(null);
+  const [restoringAllNotifications, setRestoringAllNotifications] = useState(false);
+  const [restoringAllTasks, setRestoringAllTasks] = useState(false);
   const [hiddenOpen, setHiddenOpen] = useState(false);
 
   useEffect(() => {
@@ -251,6 +253,47 @@ export default function MyTasks() {
     }
   }
 
+  async function handleRestoreAllNotifications() {
+    setRestoringAllNotifications(true);
+    try {
+      await notificationApi.restoreAll();
+      const restoredItems = hidden.notifications;
+      setHidden((current) => ({
+        ...current,
+        notifications: [],
+      }));
+      if (restoredItems.length) {
+        setNotifications((current) => [
+          ...restoredItems.map((item) => ({ ...item, is_hidden: false })),
+          ...current,
+        ]);
+      }
+    } catch (err) {
+      setHiddenError(extractMessage(err, 'กู้คืนกิจกรรมล่าสุดที่ซ่อนไว้ไม่สำเร็จ'));
+    } finally {
+      setRestoringAllNotifications(false);
+    }
+  }
+
+  async function handleRestoreAllTasks() {
+    setRestoringAllTasks(true);
+    try {
+      await taskApi.restoreAll();
+      const restoredTasks = hidden.tasks;
+      setHidden((current) => ({
+        ...current,
+        tasks: [],
+      }));
+      if (restoredTasks.length) {
+        setTasks((current) => [...restoredTasks, ...current]);
+      }
+    } catch (err) {
+      setHiddenError(extractMessage(err, 'กู้คืนงานที่ซ่อนไว้ไม่สำเร็จ'));
+    } finally {
+      setRestoringAllTasks(false);
+    }
+  }
+
   const filtered = useMemo(
     () => tasks.filter((t) => (filter === 'active' ? t.status_task !== 'done' : t.status_task === 'done')),
     [filter, tasks],
@@ -435,7 +478,16 @@ export default function MyTasks() {
                 <>
                   {hidden.notifications.length > 0 && (
                     <div className="space-y-2 pt-4">
-                      <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">กิจกรรมล่าสุด</p>
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">กิจกรรมล่าสุด</p>
+                        <button
+                          onClick={handleRestoreAllNotifications}
+                          disabled={restoringAllNotifications}
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-700 bg-blue-100 disabled:opacity-40"
+                        >
+                          {restoringAllNotifications ? 'กำลังกู้คืนทั้งหมด...' : 'กู้คืนทั้งหมด'}
+                        </button>
+                      </div>
                       {hidden.notifications.map((item) => (
                         <div key={item.id} className="rounded-xl border border-gray-200 bg-slate-50 p-4 flex items-start justify-between gap-3">
                           <div className="min-w-0">
@@ -456,7 +508,16 @@ export default function MyTasks() {
 
                   {hidden.tasks.length > 0 && (
                     <div className="space-y-2">
-                      <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">งานเสร็จแล้ว</p>
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">งานเสร็จแล้ว</p>
+                        <button
+                          onClick={handleRestoreAllTasks}
+                          disabled={restoringAllTasks}
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-700 bg-blue-100 disabled:opacity-40"
+                        >
+                          {restoringAllTasks ? 'กำลังกู้คืนทั้งหมด...' : 'กู้คืนทั้งหมด'}
+                        </button>
+                      </div>
                       {hidden.tasks.map((task) => (
                         <div key={task.id} className="rounded-xl border border-gray-200 bg-slate-50 p-4 flex items-start justify-between gap-3">
                           <div className="min-w-0">
