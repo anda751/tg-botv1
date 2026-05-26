@@ -34,16 +34,15 @@ export default factories.createCoreController('plugin::users-permissions.user', 
       return ctx.badRequest('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร');
     }
 
-    const [existingUsername, existingEmail] = await Promise.all([
-      strapi.entityService.findMany('plugin::users-permissions.user', {
-        filters: { username: normalizedUsername },
-        limit: 1,
-      }) as Promise<any[]>,
-      strapi.entityService.findMany('plugin::users-permissions.user', {
-        filters: { email: normalizedEmail },
-        limit: 1,
-      }) as Promise<any[]>,
-    ]);
+    const existingUsername = await strapi.entityService.findMany('plugin::users-permissions.user', {
+      filters: { username: normalizedUsername },
+      limit: 1,
+    }) as any[];
+
+    const existingEmail = await strapi.entityService.findMany('plugin::users-permissions.user', {
+      filters: { email: normalizedEmail },
+      limit: 1,
+    }) as any[];
 
     if (existingUsername.length) {
       return ctx.badRequest('ชื่อผู้ใช้นี้ถูกใช้งานแล้ว');

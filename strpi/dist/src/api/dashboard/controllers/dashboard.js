@@ -8,19 +8,17 @@ exports.default = strapi_1.factories.createCoreController('api::task.task', ({ s
         const user = ctx.state.user;
         if (user.role_app !== 'manager')
             return ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
-        const [tasks, projects, staffList] = await Promise.all([
-            strapi.entityService.findMany('api::task.task', {
-                populate: ['current_owner'],
-                limit: -1,
-            }),
-            strapi.entityService.findMany('api::project.project', {
-                limit: -1,
-            }),
-            strapi.entityService.findMany('plugin::users-permissions.user', {
-                filters: { role_app: 'staff', is_approved: true },
-                limit: -1,
-            }),
-        ]);
+        const tasks = await strapi.entityService.findMany('api::task.task', {
+            populate: ['current_owner'],
+            limit: -1,
+        });
+        const projects = await strapi.entityService.findMany('api::project.project', {
+            limit: -1,
+        });
+        const staffList = await strapi.entityService.findMany('plugin::users-permissions.user', {
+            filters: { role_app: 'staff', is_approved: true },
+            limit: -1,
+        });
         const tasksByStatus = tasks.reduce((acc, t) => {
             var _a;
             acc[t.status_task] = ((_a = acc[t.status_task]) !== null && _a !== void 0 ? _a : 0) + 1;
@@ -112,17 +110,15 @@ exports.default = strapi_1.factories.createCoreController('api::task.task', ({ s
         const user = ctx.state.user;
         if (user.role_app !== 'manager')
             return ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
-        const [staffList, activeTasks] = await Promise.all([
-            strapi.entityService.findMany('plugin::users-permissions.user', {
-                filters: { role_app: 'staff', is_approved: true },
-                limit: -1,
-            }),
-            strapi.entityService.findMany('api::task.task', {
-                filters: { status_task: { $ne: 'done' } },
-                populate: ['current_owner'],
-                limit: -1,
-            }),
-        ]);
+        const staffList = await strapi.entityService.findMany('plugin::users-permissions.user', {
+            filters: { role_app: 'staff', is_approved: true },
+            limit: -1,
+        });
+        const activeTasks = await strapi.entityService.findMany('api::task.task', {
+            filters: { status_task: { $ne: 'done' } },
+            populate: ['current_owner'],
+            limit: -1,
+        });
         const taskCount = {};
         for (const t of activeTasks) {
             if (t.current_owner) {

@@ -385,15 +385,14 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
       limit: -1,
     } as any) as any[];
 
-    await Promise.all(
-      tasks.map((task) =>
-        strapi.entityService.update('api::task.task', task.id, {
-          data: {
-            is_hidden_for_owner: false,
-            hidden_for_owner_at: null,
-          } as any,
-        })),
-    );
+    for (const task of tasks) {
+      await strapi.entityService.update('api::task.task', task.id, {
+        data: {
+          is_hidden_for_owner: false,
+          hidden_for_owner_at: null,
+        } as any,
+      });
+    }
 
     return ctx.send({
       message: 'กู้คืนงานที่ซ่อนไว้ทั้งหมดเรียบร้อย',

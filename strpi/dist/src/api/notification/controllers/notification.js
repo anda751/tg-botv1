@@ -69,12 +69,14 @@ exports.default = strapi_1.factories.createCoreController(notificationUid, ({ st
             fields: ['id'],
             limit: -1,
         });
-        await Promise.all(notifications.map((notification) => strapi.entityService.update(notificationUid, notification.id, {
-            data: {
-                is_read: true,
-                read_at: new Date(),
-            },
-        })));
+        for (const notification of notifications) {
+            await strapi.entityService.update(notificationUid, notification.id, {
+                data: {
+                    is_read: true,
+                    read_at: new Date(),
+                },
+            });
+        }
         return ctx.send({
             message: 'ทำเครื่องหมายว่าอ่านแล้วทั้งหมดเรียบร้อย',
             count: notifications.length,
@@ -117,12 +119,14 @@ exports.default = strapi_1.factories.createCoreController(notificationUid, ({ st
             fields: ['id'],
             limit: -1,
         });
-        await Promise.all(notifications.map((notification) => strapi.entityService.update(notificationUid, notification.id, {
-            data: {
-                is_hidden: true,
-                hidden_at: new Date(),
-            },
-        })));
+        for (const notification of notifications) {
+            await strapi.entityService.update(notificationUid, notification.id, {
+                data: {
+                    is_hidden: true,
+                    hidden_at: new Date(),
+                },
+            });
+        }
         return ctx.send({
             message: 'ซ่อนรายการที่อ่านแล้วเรียบร้อย',
             count: notifications.length,
@@ -164,12 +168,14 @@ exports.default = strapi_1.factories.createCoreController(notificationUid, ({ st
             fields: ['id'],
             limit: -1,
         });
-        await Promise.all(notifications.map((notification) => strapi.entityService.update(notificationUid, notification.id, {
-            data: {
-                is_hidden: false,
-                hidden_at: null,
-            },
-        })));
+        for (const notification of notifications) {
+            await strapi.entityService.update(notificationUid, notification.id, {
+                data: {
+                    is_hidden: false,
+                    hidden_at: null,
+                },
+            });
+        }
         return ctx.send({
             message: 'กู้คืนการแจ้งเตือนทั้งหมดเรียบร้อย',
             count: notifications.length,
