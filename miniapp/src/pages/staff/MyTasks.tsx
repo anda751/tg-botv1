@@ -59,6 +59,7 @@ export default function MyTasks() {
   const [restoringTaskId, setRestoringTaskId] = useState<number | null>(null);
   const [restoringAllNotifications, setRestoringAllNotifications] = useState(false);
   const [restoringAllTasks, setRestoringAllTasks] = useState(false);
+  const [doneOpen, setDoneOpen] = useState(false);
   const [hiddenOpen, setHiddenOpen] = useState(false);
   const [activityExpanded, setActivityExpanded] = useState(false);
 
@@ -428,11 +429,54 @@ export default function MyTasks() {
               />
               <QuickActionCard
                 title="งานเสร็จแล้ว"
-                subtitle={`${doneTasks.length} งานที่เก็บซ่อนหรือจัดการต่อได้`}
+                subtitle={`${doneTasks.length} งานที่เปิดดูหรือซ่อนออกจากหน้าหลักได้`}
                 buttonLabel="ดูงานเสร็จ"
                 tone="green"
-                onClick={() => setHiddenOpen(true)}
+                onClick={() => setDoneOpen((value) => !value)}
               />
+            </section>
+
+            <section className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
+              <button
+                onClick={() => setDoneOpen((value) => !value)}
+                className="w-full px-4 py-4 flex items-center justify-between text-left"
+              >
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-base font-semibold text-white">งานเสร็จแล้ว</h2>
+                    <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-200 text-xs font-semibold">
+                      {doneTasks.length}
+                    </span>
+                  </div>
+                  <p className="text-sm text-slate-400 mt-1">เปิดดูงานที่จบแล้ว หรือซ่อนออกจากหน้าหลักเมื่อไม่ต้องดูบ่อย</p>
+                </div>
+                <span className="text-lg text-slate-500">{doneOpen ? '−' : '+'}</span>
+              </button>
+
+              {doneOpen && (
+                <div className="px-4 pb-4 border-t border-slate-800">
+                  {doneTasks.length === 0 ? (
+                    <StateBox
+                      title="ยังไม่มีงานที่เสร็จแล้ว"
+                      message="เมื่องานผ่านการอนุมัติแล้ว รายการจะมาแสดงที่ส่วนนี้"
+                    />
+                  ) : (
+                    <div className="space-y-3 pt-4">
+                      {doneTasks.map((task) => (
+                        <TaskCard
+                          key={task.id}
+                          task={task}
+                          isHiding={hidingTaskId === task.id}
+                          onProgress={() => undefined}
+                          onSubmit={() => undefined}
+                          onHandover={() => undefined}
+                          onHide={() => handleHideTask(task.id)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </section>
 
             <section className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
