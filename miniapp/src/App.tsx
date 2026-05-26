@@ -39,6 +39,7 @@ axios.defaults.baseURL = `${import.meta.env.VITE_STRAPI_URL}/api`;
 export default function App() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<AppUser | null>(null);
+  const [confirmLogout, setConfirmLogout] = useState(false);
 
   useEffect(() => {
     initAuth();
@@ -76,6 +77,7 @@ export default function App() {
     localStorage.removeItem(AUTH_TOKEN_KEY);
     delete axios.defaults.headers.common.Authorization;
     setUser(null);
+    setConfirmLogout(false);
   }
 
   if (loading) return <Loading />;
@@ -102,14 +104,31 @@ export default function App() {
                   {user.display_name || user.username} · {roleLabel}
                 </p>
               </div>
-              <button
-                onClick={handleLogout}
-                className="shrink-0 flex h-10 w-10 items-center justify-center rounded-full border border-red-800 bg-red-950/80 text-base font-semibold text-red-200 transition active:bg-red-900"
-                title="ออกจากระบบ"
-                aria-label="ออกจากระบบ"
-              >
-                ⎋
-              </button>
+              {confirmLogout ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setConfirmLogout(false)}
+                    className="shrink-0 rounded-full border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 transition active:bg-slate-700"
+                  >
+                    ยกเลิก
+                  </button>
+                  <button
+                    onClick={handleLogout}
+                    className="shrink-0 rounded-full border border-red-800 bg-red-950/80 px-3 py-2 text-xs font-semibold text-red-200 transition active:bg-red-900"
+                  >
+                    ออก
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setConfirmLogout(true)}
+                  className="shrink-0 flex h-10 w-10 items-center justify-center rounded-full border border-red-800 bg-red-950/80 text-base font-semibold text-red-200 transition active:bg-red-900"
+                  title="ออกจากระบบ"
+                  aria-label="ออกจากระบบ"
+                >
+                  ⎋
+                </button>
+              )}
             </div>
           </div>
           <Routes>
