@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { notificationApi, taskApi } from '../../api';
+import { useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { notificationApi, taskApi } from '../../api'
 
 type Task = {
   id: number
@@ -30,328 +30,345 @@ type HiddenPanelState = {
   tasks: Task[]
 }
 
+type OpenPanel = 'under_review' | 'done' | 'hidden' | null
+
 const statusLabel: Record<Task['status_task'], { text: string; tone: string }> = {
   in_progress: { text: 'กำลังทำ', tone: 'bg-blue-950/40 text-blue-200 border border-blue-900' },
   under_review: { text: 'รอตรวจ', tone: 'bg-amber-950/40 text-amber-200 border border-amber-900' },
   waiting_pickup: { text: 'รอรับช่วงต่อ', tone: 'bg-orange-950/40 text-orange-200 border border-orange-900' },
   done: { text: 'เสร็จแล้ว', tone: 'bg-green-950/40 text-green-200 border border-green-900' },
-};
+}
 
 export default function MyTasks() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-  const [hidden, setHidden] = useState<HiddenPanelState>({ notifications: [], tasks: [] });
-  const [loading, setLoading] = useState(true);
-  const [notificationsLoading, setNotificationsLoading] = useState(true);
-  const [hiddenLoading, setHiddenLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [notificationsError, setNotificationsError] = useState('');
-  const [hiddenError, setHiddenError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
-  const [markingAllRead, setMarkingAllRead] = useState(false);
-  const [hidingRead, setHidingRead] = useState(false);
-  const [hidingTaskId, setHidingTaskId] = useState<number | null>(null);
-  const [openingNotificationId, setOpeningNotificationId] = useState<number | null>(null);
-  const [hidingNotificationId, setHidingNotificationId] = useState<number | null>(null);
-  const [restoringNotificationId, setRestoringNotificationId] = useState<number | null>(null);
-  const [restoringTaskId, setRestoringTaskId] = useState<number | null>(null);
-  const [restoringAllNotifications, setRestoringAllNotifications] = useState(false);
-  const [restoringAllTasks, setRestoringAllTasks] = useState(false);
-  const [openPanel, setOpenPanel] = useState<'under_review' | 'done' | 'hidden' | null>(null);
-  const [activityExpanded, setActivityExpanded] = useState(false);
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [notifications, setNotifications] = useState<NotificationItem[]>([])
+  const [hidden, setHidden] = useState<HiddenPanelState>({ notifications: [], tasks: [] })
+
+  const [loading, setLoading] = useState(true)
+  const [notificationsLoading, setNotificationsLoading] = useState(true)
+  const [hiddenLoading, setHiddenLoading] = useState(true)
+
+  const [error, setError] = useState('')
+  const [notificationsError, setNotificationsError] = useState('')
+  const [hiddenError, setHiddenError] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
+
+  const [markingAllRead, setMarkingAllRead] = useState(false)
+  const [hidingRead, setHidingRead] = useState(false)
+  const [hidingTaskId, setHidingTaskId] = useState<number | null>(null)
+  const [openingNotificationId, setOpeningNotificationId] = useState<number | null>(null)
+  const [hidingNotificationId, setHidingNotificationId] = useState<number | null>(null)
+  const [restoringNotificationId, setRestoringNotificationId] = useState<number | null>(null)
+  const [restoringTaskId, setRestoringTaskId] = useState<number | null>(null)
+  const [restoringAllNotifications, setRestoringAllNotifications] = useState(false)
+  const [restoringAllTasks, setRestoringAllTasks] = useState(false)
+
+  const [openPanel, setOpenPanel] = useState<OpenPanel>(null)
+  const [activityExpanded, setActivityExpanded] = useState(false)
 
   useEffect(() => {
-    const message = (location.state as any)?.successMessage;
+    const message = (location.state as any)?.successMessage
     if (typeof message === 'string' && message.trim()) {
-      setSuccessMessage(message);
-      navigate(location.pathname, { replace: true, state: {} });
+      setSuccessMessage(message)
+      navigate(location.pathname, { replace: true, state: {} })
     }
-  }, [location.pathname, location.state, navigate]);
+  }, [location.pathname, location.state, navigate])
 
   useEffect(() => {
-    void loadInitialData();
-  }, []);
+    void loadInitialData()
+  }, [])
 
   async function loadInitialData() {
-    setLoading(true);
-    setNotificationsLoading(true);
-    setHiddenLoading(true);
-    setError('');
-    setNotificationsError('');
-    setHiddenError('');
+    setLoading(true)
+    setNotificationsLoading(true)
+    setHiddenLoading(true)
+    setError('')
+    setNotificationsError('')
+    setHiddenError('')
 
     try {
-      const { data } = await taskApi.getHome();
-      const payload = data?.data ?? data ?? {};
+      const { data } = await taskApi.getHome()
+      const payload = data?.data ?? data ?? {}
 
-      setTasks(Array.isArray(payload.tasks) ? payload.tasks : []);
-      setNotifications(Array.isArray(payload.notifications) ? payload.notifications : []);
+      setTasks(Array.isArray(payload.tasks) ? payload.tasks : [])
+      setNotifications(Array.isArray(payload.notifications) ? payload.notifications : [])
       setHidden({
         notifications: Array.isArray(payload.hidden_notifications) ? payload.hidden_notifications : [],
         tasks: Array.isArray(payload.hidden_tasks) ? payload.hidden_tasks : [],
-      });
+      })
     } catch (err) {
-      const message = extractMessage(err, 'โหลดข้อมูลงานไม่สำเร็จ');
-      setTasks([]);
-      setNotifications([]);
-      setHidden({ notifications: [], tasks: [] });
-      setError(message);
-      setNotificationsError(message);
-      setHiddenError(message);
+      const message = extractMessage(err, 'โหลดข้อมูลงานไม่สำเร็จ')
+      setTasks([])
+      setNotifications([])
+      setHidden({ notifications: [], tasks: [] })
+      setError(message)
+      setNotificationsError(message)
+      setHiddenError(message)
     } finally {
-      setLoading(false);
-      setNotificationsLoading(false);
-      setHiddenLoading(false);
+      setLoading(false)
+      setNotificationsLoading(false)
+      setHiddenLoading(false)
     }
   }
 
   async function loadTasks() {
-    setLoading(true);
-    setError('');
+    setLoading(true)
+    setError('')
     try {
-      const { data } = await taskApi.getMyTasks();
-      const list = Array.isArray(data) ? data : (data.data ?? []);
-      setTasks(list);
+      const { data } = await taskApi.getMyTasks()
+      const list = Array.isArray(data) ? data : (data.data ?? [])
+      setTasks(list)
     } catch (err) {
-      setTasks([]);
-      setError(extractMessage(err, 'โหลดรายการงานไม่สำเร็จ'));
+      setTasks([])
+      setError(extractMessage(err, 'โหลดรายการงานไม่สำเร็จ'))
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
   }
 
   async function loadNotifications() {
-    setNotificationsLoading(true);
-    setNotificationsError('');
+    setNotificationsLoading(true)
+    setNotificationsError('')
     try {
-      const { data } = await notificationApi.getMy();
-      const list = Array.isArray(data) ? data : (data.data ?? []);
-      setNotifications(list);
+      const { data } = await notificationApi.getMy()
+      const list = Array.isArray(data) ? data : (data.data ?? [])
+      setNotifications(list)
     } catch (err) {
-      setNotifications([]);
-      setNotificationsError(extractMessage(err, 'โหลดกิจกรรมล่าสุดไม่สำเร็จ'));
+      setNotifications([])
+      setNotificationsError(extractMessage(err, 'โหลดกิจกรรมล่าสุดไม่สำเร็จ'))
     } finally {
-      setNotificationsLoading(false);
+      setNotificationsLoading(false)
     }
   }
 
   async function loadHidden() {
-    setHiddenLoading(true);
-    setHiddenError('');
+    setHiddenLoading(true)
+    setHiddenError('')
     try {
-      const hiddenNotificationsRes = await notificationApi.getHidden();
-      const hiddenTasksRes = await taskApi.getHiddenTasks();
+      const hiddenNotificationsRes = await notificationApi.getHidden()
+      const hiddenTasksRes = await taskApi.getHiddenTasks()
 
       const hiddenNotifications = Array.isArray(hiddenNotificationsRes.data)
         ? hiddenNotificationsRes.data
-        : (hiddenNotificationsRes.data.data ?? []);
+        : (hiddenNotificationsRes.data.data ?? [])
       const hiddenTasks = Array.isArray(hiddenTasksRes.data)
         ? hiddenTasksRes.data
-        : (hiddenTasksRes.data.data ?? []);
+        : (hiddenTasksRes.data.data ?? [])
 
       setHidden({
         notifications: hiddenNotifications,
         tasks: hiddenTasks,
-      });
+      })
     } catch (err) {
-      setHiddenError(extractMessage(err, 'โหลดรายการที่ซ่อนไว้ไม่สำเร็จ'));
-      setHidden({ notifications: [], tasks: [] });
+      setHiddenError(extractMessage(err, 'โหลดรายการที่ซ่อนไว้ไม่สำเร็จ'))
+      setHidden({ notifications: [], tasks: [] })
     } finally {
-      setHiddenLoading(false);
+      setHiddenLoading(false)
     }
   }
 
   async function handleMarkAllRead() {
-    setMarkingAllRead(true);
+    setMarkingAllRead(true)
     try {
-      await notificationApi.markAllRead();
-      setNotifications((items) => items.map((item) => ({ ...item, is_read: true })));
+      await notificationApi.markAllRead()
+      setNotifications((items) => items.map((item) => ({ ...item, is_read: true })))
     } catch (err) {
-      setNotificationsError(extractMessage(err, 'อัปเดตสถานะการแจ้งเตือนไม่สำเร็จ'));
+      setNotificationsError(extractMessage(err, 'อัปเดตสถานะการแจ้งเตือนไม่สำเร็จ'))
     } finally {
-      setMarkingAllRead(false);
+      setMarkingAllRead(false)
     }
   }
 
   async function handleOpenNotification(item: NotificationItem) {
-    setOpeningNotificationId(item.id);
+    setOpeningNotificationId(item.id)
     try {
       if (!item.is_read) {
-        await notificationApi.markRead(item.id);
+        await notificationApi.markRead(item.id)
         setNotifications((items) =>
           items.map((current) => current.id === item.id ? { ...current, is_read: true } : current),
-        );
+        )
       }
+
       if (item.link && item.link !== location.pathname) {
-        navigate(item.link);
+        navigate(item.link)
       }
     } catch (err) {
-      setNotificationsError(extractMessage(err, 'เปิดการแจ้งเตือนไม่สำเร็จ'));
+      setNotificationsError(extractMessage(err, 'เปิดการแจ้งเตือนไม่สำเร็จ'))
     } finally {
-      setOpeningNotificationId(null);
+      setOpeningNotificationId(null)
     }
   }
 
   async function handleHideNotification(notificationId: number) {
-    setHidingNotificationId(notificationId);
+    setHidingNotificationId(notificationId)
     try {
-      await notificationApi.hide(notificationId);
-      const hiddenItem = notifications.find((item) => item.id === notificationId);
-      setNotifications((items) => items.filter((item) => item.id !== notificationId));
+      await notificationApi.hide(notificationId)
+      const hiddenItem = notifications.find((item) => item.id === notificationId)
+      setNotifications((items) => items.filter((item) => item.id !== notificationId))
       if (hiddenItem) {
         setHidden((current) => ({
           ...current,
           notifications: [{ ...hiddenItem, is_hidden: true }, ...current.notifications],
-        }));
+        }))
       }
     } catch (err) {
-      setNotificationsError(extractMessage(err, 'ซ่อนการแจ้งเตือนไม่สำเร็จ'));
+      setNotificationsError(extractMessage(err, 'ซ่อนการแจ้งเตือนไม่สำเร็จ'))
     } finally {
-      setHidingNotificationId(null);
+      setHidingNotificationId(null)
     }
   }
 
   async function handleHideRead() {
-    setHidingRead(true);
+    setHidingRead(true)
     try {
-      await notificationApi.hideRead();
-      const movedItems = notifications.filter((item) => item.is_read);
-      setNotifications((items) => items.filter((item) => !item.is_read));
+      await notificationApi.hideRead()
+      const movedItems = notifications.filter((item) => item.is_read)
+      setNotifications((items) => items.filter((item) => !item.is_read))
       if (movedItems.length) {
         setHidden((current) => ({
           ...current,
           notifications: [...movedItems.map((item) => ({ ...item, is_hidden: true })), ...current.notifications],
-        }));
+        }))
       }
     } catch (err) {
-      setNotificationsError(extractMessage(err, 'ซ่อนรายการที่อ่านแล้วไม่สำเร็จ'));
+      setNotificationsError(extractMessage(err, 'ซ่อนรายการที่อ่านแล้วไม่สำเร็จ'))
     } finally {
-      setHidingRead(false);
+      setHidingRead(false)
     }
   }
 
   async function handleHideTask(taskId: number) {
-    setHidingTaskId(taskId);
+    setHidingTaskId(taskId)
     try {
-      await taskApi.hide(taskId);
-      const hiddenTask = tasks.find((item) => item.id === taskId);
-      setTasks((items) => items.filter((item) => item.id !== taskId));
+      await taskApi.hide(taskId)
+      const hiddenTask = tasks.find((item) => item.id === taskId)
+      setTasks((items) => items.filter((item) => item.id !== taskId))
       if (hiddenTask) {
         setHidden((current) => ({
           ...current,
           tasks: [hiddenTask, ...current.tasks],
-        }));
+        }))
       }
     } catch (err) {
-      setError(extractMessage(err, 'ซ่อนงานไม่สำเร็จ'));
+      setError(extractMessage(err, 'ซ่อนงานไม่สำเร็จ'))
     } finally {
-      setHidingTaskId(null);
+      setHidingTaskId(null)
     }
   }
 
   async function handleRestoreNotification(notificationId: number) {
-    setRestoringNotificationId(notificationId);
+    setRestoringNotificationId(notificationId)
     try {
-      await notificationApi.restore(notificationId);
-      const restored = hidden.notifications.find((item) => item.id === notificationId);
+      await notificationApi.restore(notificationId)
+      const restored = hidden.notifications.find((item) => item.id === notificationId)
       setHidden((current) => ({
         ...current,
         notifications: current.notifications.filter((item) => item.id !== notificationId),
-      }));
+      }))
       if (restored) {
-        setNotifications((current) => [{ ...restored, is_hidden: false }, ...current]);
+        setNotifications((current) => [{ ...restored, is_hidden: false }, ...current])
       }
     } catch (err) {
-      setHiddenError(extractMessage(err, 'กู้คืนการแจ้งเตือนไม่สำเร็จ'));
+      setHiddenError(extractMessage(err, 'กู้คืนการแจ้งเตือนไม่สำเร็จ'))
     } finally {
-      setRestoringNotificationId(null);
+      setRestoringNotificationId(null)
     }
   }
 
   async function handleRestoreTask(taskId: number) {
-    setRestoringTaskId(taskId);
+    setRestoringTaskId(taskId)
     try {
-      await taskApi.restore(taskId);
-      const restored = hidden.tasks.find((item) => item.id === taskId);
+      await taskApi.restore(taskId)
+      const restored = hidden.tasks.find((item) => item.id === taskId)
       setHidden((current) => ({
         ...current,
         tasks: current.tasks.filter((item) => item.id !== taskId),
-      }));
+      }))
       if (restored) {
-        setTasks((current) => [restored, ...current]);
+        setTasks((current) => [restored, ...current])
       }
     } catch (err) {
-      setHiddenError(extractMessage(err, 'กู้คืนงานไม่สำเร็จ'));
+      setHiddenError(extractMessage(err, 'กู้คืนงานไม่สำเร็จ'))
     } finally {
-      setRestoringTaskId(null);
+      setRestoringTaskId(null)
     }
   }
 
   async function handleRestoreAllNotifications() {
-    setRestoringAllNotifications(true);
+    setRestoringAllNotifications(true)
     try {
-      await notificationApi.restoreAll();
-      const restoredItems = hidden.notifications;
-      setHidden((current) => ({ ...current, notifications: [] }));
+      await notificationApi.restoreAll()
+      const restoredItems = hidden.notifications
+      setHidden((current) => ({ ...current, notifications: [] }))
       if (restoredItems.length) {
         setNotifications((current) => [
           ...restoredItems.map((item) => ({ ...item, is_hidden: false })),
           ...current,
-        ]);
+        ])
       }
     } catch (err) {
-      setHiddenError(extractMessage(err, 'กู้คืนกิจกรรมล่าสุดที่ซ่อนไว้ไม่สำเร็จ'));
+      setHiddenError(extractMessage(err, 'กู้คืนกิจกรรมที่ซ่อนไว้ไม่สำเร็จ'))
     } finally {
-      setRestoringAllNotifications(false);
+      setRestoringAllNotifications(false)
     }
   }
 
   async function handleRestoreAllTasks() {
-    setRestoringAllTasks(true);
+    setRestoringAllTasks(true)
     try {
-      await taskApi.restoreAll();
-      const restoredTasks = hidden.tasks;
-      setHidden((current) => ({ ...current, tasks: [] }));
+      await taskApi.restoreAll()
+      const restoredTasks = hidden.tasks
+      setHidden((current) => ({ ...current, tasks: [] }))
       if (restoredTasks.length) {
-        setTasks((current) => [...restoredTasks, ...current]);
+        setTasks((current) => [...restoredTasks, ...current])
       }
     } catch (err) {
-      setHiddenError(extractMessage(err, 'กู้คืนงานที่ซ่อนไว้ไม่สำเร็จ'));
+      setHiddenError(extractMessage(err, 'กู้คืนงานที่ซ่อนไว้ไม่สำเร็จ'))
     } finally {
-      setRestoringAllTasks(false);
+      setRestoringAllTasks(false)
     }
   }
 
   const inProgressTasks = useMemo(
     () => tasks.filter((task) => task.status_task === 'in_progress'),
     [tasks],
-  );
+  )
+
   const urgentTasks = useMemo(
     () => inProgressTasks.filter((task) => getLatestRejectedNote(task)),
     [inProgressTasks],
-  );
+  )
+
   const normalTasks = useMemo(
     () => inProgressTasks.filter((task) => !getLatestRejectedNote(task)),
     [inProgressTasks],
-  );
+  )
+
   const underReviewTasks = useMemo(
     () => tasks.filter((task) => task.status_task === 'under_review'),
     [tasks],
-  );
+  )
+
   const doneTasks = useMemo(
     () => tasks.filter((task) => task.status_task === 'done'),
     [tasks],
-  );
+  )
+
   const visibleNotifications = useMemo(
     () => (activityExpanded ? notifications : notifications.slice(0, 3)),
     [activityExpanded, notifications],
-  );
+  )
 
-  const unreadCount = notifications.filter((item) => !item.is_read).length;
-  const readCount = notifications.filter((item) => item.is_read).length;
-  const hiddenCount = hidden.notifications.length + hidden.tasks.length;
+  const unreadCount = notifications.filter((item) => !item.is_read).length
+  const readCount = notifications.filter((item) => item.is_read).length
+  const hiddenCount = hidden.notifications.length + hidden.tasks.length
+
+  function togglePanel(panel: Exclude<OpenPanel, null>) {
+    setOpenPanel((current) => current === panel ? null : panel)
+  }
 
   return (
     <div className="min-h-screen bg-slate-950">
@@ -359,7 +376,7 @@ export default function MyTasks() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold text-white">งานของฉัน</h1>
-            <p className="text-sm text-slate-400 mt-1">เปิดมาแล้วเห็นทันทีว่างานไหนต้องทำก่อน</p>
+            <p className="text-sm text-slate-400 mt-1">เปิดมาแล้วเห็นทันทีว่าตอนนี้ควรทำอะไรต่อ</p>
           </div>
           <button
             onClick={() => navigate('/settings')}
@@ -379,9 +396,7 @@ export default function MyTasks() {
       </div>
 
       <div className="px-4 py-4 space-y-4 pb-24">
-        {successMessage && (
-          <NoticeBox tone="green" message={successMessage} />
-        )}
+        {successMessage && <NoticeBox tone="green" message={successMessage} />}
 
         {loading ? (
           <TaskSkeleton />
@@ -393,7 +408,7 @@ export default function MyTasks() {
               <div className="px-4 py-4 border-b border-slate-800 flex items-center justify-between gap-3">
                 <div>
                   <h2 className="text-base font-semibold text-white">งานที่ต้องทำตอนนี้</h2>
-                  <p className="text-sm text-slate-400 mt-1">เริ่มจากงานที่ถูกตีกลับก่อน แล้วค่อยไล่งานปกติ</p>
+                  <p className="text-sm text-slate-400 mt-1">งานตีกลับจะอยู่ก่อน แล้วค่อยตามด้วยงานที่กำลังทำปกติ</p>
                 </div>
                 <button
                   onClick={() => navigate('/create')}
@@ -441,121 +456,86 @@ export default function MyTasks() {
                 {urgentTasks.length === 0 && normalTasks.length === 0 && (
                   <StateBox
                     title="ยังไม่มีงานที่ต้องทำตอนนี้"
-                    message="เมื่อมีงานใหม่หรืองานถูกส่งกลับ รายการจะแสดงที่นี่"
+                    message="เมื่องานใหม่เข้ามาหรือมีงานถูกส่งกลับ รายการจะมาแสดงตรงนี้"
                   />
                 )}
               </div>
             </section>
 
-            <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <section className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <QuickActionCard
-                title="งานรอตรวจ"
-                subtitle={`${underReviewTasks.length} งานที่ส่งแล้วและกำลังรอหัวหน้าตรวจ`}
-                buttonLabel="เปิดรายการ"
-                tone="amber"
-                onClick={() => setOpenPanel((current) => current === 'under_review' ? null : 'under_review')}
-              />
-              <QuickActionCard
-                title="ดูงานรอรับช่วงต่อ"
-                subtitle="เช็กว่ามีงานไหนขอคนช่วยต่อ"
+                title="รับงานช่วงต่อ"
+                subtitle="ดูว่างานไหนกำลังรอคนช่วยต่อ"
                 buttonLabel="เปิดรายการ"
                 tone="orange"
                 onClick={() => navigate('/pickup')}
               />
               <QuickActionCard
-                title="งานเสร็จแล้ว"
-                subtitle={`${doneTasks.length} งานที่เปิดดูหรือซ่อนออกจากหน้าหลักได้`}
-                buttonLabel="ดูงานเสร็จ"
-                tone="green"
-                onClick={() => setOpenPanel((current) => current === 'done' ? null : 'done')}
+                title="ตั้งค่าโปรไฟล์"
+                subtitle="แก้ชื่อแสดงผลหรือเปลี่ยนรหัสผ่าน"
+                buttonLabel="เปิดตั้งค่า"
+                tone="slate"
+                onClick={() => navigate('/settings')}
               />
             </section>
 
-            <section className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
-              <button
-                onClick={() => setOpenPanel((current) => current === 'under_review' ? null : 'under_review')}
-                className="w-full px-4 py-4 flex items-center justify-between text-left"
-              >
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-base font-semibold text-white">งานรอตรวจ</h2>
-                    <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-200 text-xs font-semibold">
-                      {underReviewTasks.length}
-                    </span>
-                  </div>
-                  <p className="text-sm text-slate-400 mt-1">ดูรายการงานที่ส่งแล้วและกำลังรอหัวหน้าตรวจได้จากตรงนี้</p>
-                </div>
-                <span className="text-lg text-slate-500">{openPanel === 'under_review' ? '−' : '+'}</span>
-              </button>
-
-              {openPanel === 'under_review' && (
-                <div className="px-4 pb-4 border-t border-slate-800">
-                  {underReviewTasks.length === 0 ? (
-                    <StateBox
-                      title="ยังไม่มีงานรอตรวจ"
-                      message="เมื่่อส่งงานแล้ว รายการที่กำลังรอหัวหน้าตรวจจะมาแสดงที่ส่วนนี้"
+            <AccordionSection
+              title="งานรอตรวจ"
+              count={underReviewTasks.length}
+              description="ดูงานที่ส่งแล้วและกำลังรอหัวหน้าตรวจ"
+              open={openPanel === 'under_review'}
+              onToggle={() => togglePanel('under_review')}
+            >
+              {underReviewTasks.length === 0 ? (
+                <StateBox
+                  title="ยังไม่มีงานรอตรวจ"
+                  message="เมื่อส่งงานแล้ว รายการที่กำลังรอหัวหน้าตรวจจะมาแสดงในส่วนนี้"
+                />
+              ) : (
+                <div className="space-y-3">
+                  {underReviewTasks.map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      isHiding={false}
+                      onProgress={() => undefined}
+                      onSubmit={() => undefined}
+                      onHandover={() => undefined}
+                      onHide={() => undefined}
                     />
-                  ) : (
-                    <div className="space-y-3 pt-4">
-                      {underReviewTasks.map((task) => (
-                        <TaskCard
-                          key={task.id}
-                          task={task}
-                          isHiding={false}
-                          onProgress={() => undefined}
-                          onSubmit={() => undefined}
-                          onHandover={() => undefined}
-                          onHide={() => undefined}
-                        />
-                      ))}
-                    </div>
-                  )}
+                  ))}
                 </div>
               )}
-            </section>
+            </AccordionSection>
 
-            <section className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
-              <button
-                onClick={() => setOpenPanel((current) => current === 'done' ? null : 'done')}
-                className="w-full px-4 py-4 flex items-center justify-between text-left"
-              >
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-base font-semibold text-white">งานเสร็จแล้ว</h2>
-                    <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-200 text-xs font-semibold">
-                      {doneTasks.length}
-                    </span>
-                  </div>
-                  <p className="text-sm text-slate-400 mt-1">เปิดดูงานที่จบแล้ว หรือซ่อนออกจากหน้าหลักเมื่อไม่ต้องดูบ่อย</p>
-                </div>
-                <span className="text-lg text-slate-500">{openPanel === 'done' ? '−' : '+'}</span>
-              </button>
-
-              {openPanel === 'done' && (
-                <div className="px-4 pb-4 border-t border-slate-800">
-                  {doneTasks.length === 0 ? (
-                    <StateBox
-                      title="ยังไม่มีงานที่เสร็จแล้ว"
-                      message="เมื่องานผ่านการอนุมัติแล้ว รายการจะมาแสดงที่ส่วนนี้"
+            <AccordionSection
+              title="งานเสร็จแล้ว"
+              count={doneTasks.length}
+              description="เปิดดูงานที่ปิดแล้ว หรือซ่อนออกจากหน้าหลักเมื่อไม่ต้องดูบ่อย"
+              open={openPanel === 'done'}
+              onToggle={() => togglePanel('done')}
+            >
+              {doneTasks.length === 0 ? (
+                <StateBox
+                  title="ยังไม่มีงานที่เสร็จแล้ว"
+                  message="เมื่องานผ่านการอนุมัติแล้ว รายการจะมาแสดงในส่วนนี้"
+                />
+              ) : (
+                <div className="space-y-3">
+                  {doneTasks.map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      isHiding={hidingTaskId === task.id}
+                      onProgress={() => undefined}
+                      onSubmit={() => undefined}
+                      onHandover={() => undefined}
+                      onHide={() => handleHideTask(task.id)}
                     />
-                  ) : (
-                    <div className="space-y-3 pt-4">
-                      {doneTasks.map((task) => (
-                        <TaskCard
-                          key={task.id}
-                          task={task}
-                          isHiding={hidingTaskId === task.id}
-                          onProgress={() => undefined}
-                          onSubmit={() => undefined}
-                          onHandover={() => undefined}
-                          onHide={() => handleHideTask(task.id)}
-                        />
-                      ))}
-                    </div>
-                  )}
+                  ))}
                 </div>
               )}
-            </section>
+            </AccordionSection>
 
             <section className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
               <div className="px-4 py-4 border-b border-slate-800 flex items-start justify-between gap-3">
@@ -568,7 +548,7 @@ export default function MyTasks() {
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-slate-400 mt-1">อัปเดตสำคัญจะมาอยู่ตรงนี้ แต่ไม่แย่งงานหลักด้านบน</p>
+                  <p className="text-sm text-slate-400 mt-1">อัปเดตสำคัญของงานจะอยู่ตรงนี้</p>
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   <button
@@ -629,136 +609,120 @@ export default function MyTasks() {
               </div>
             </section>
 
-            <section className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
-              <button
-                onClick={() => setOpenPanel((current) => current === 'hidden' ? null : 'hidden')}
-                className="w-full px-4 py-4 flex items-center justify-between text-left"
-              >
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-base font-semibold text-white">รายการที่ซ่อนไว้</h2>
-                    {hiddenCount > 0 && (
-                      <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-200 text-xs font-semibold">
-                        {hiddenCount}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm text-slate-400 mt-1">เอาไว้จัดหน้าจอให้โล่ง แต่ข้อมูลยังไม่หาย</p>
-                </div>
-                <span className="text-lg text-slate-500">{openPanel === 'hidden' ? '−' : '+'}</span>
-              </button>
-
-              {openPanel === 'hidden' && (
-                <div className="px-4 pb-4 space-y-4 border-t border-slate-800">
-                  {hiddenLoading ? (
-                    <div className="text-sm text-slate-500 py-3">กำลังโหลดรายการที่ซ่อนไว้...</div>
-                  ) : hiddenError ? (
-                    <StateBox title="โหลดรายการที่ซ่อนไว้ไม่สำเร็จ" message={hiddenError} actionLabel="ลองใหม่" onAction={loadHidden} />
-                  ) : hiddenCount === 0 ? (
-                    <StateBox title="ยังไม่มีรายการที่ซ่อนไว้" message="เมื่อซ่อนกิจกรรมหรืองานเสร็จแล้ว รายการจะมาอยู่ที่นี่" />
-                  ) : (
-                    <>
-                      {hidden.notifications.length > 0 && (
-                        <div className="space-y-2 pt-4">
-                          <div className="flex items-center justify-between gap-3">
-                            <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">กิจกรรมล่าสุด</p>
-                            <button
-                              onClick={handleRestoreAllNotifications}
-                              disabled={restoringAllNotifications}
-                              className="px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-200 bg-blue-950/50 border border-blue-900 disabled:opacity-40"
-                            >
-                              {restoringAllNotifications ? 'กำลังกู้คืนทั้งหมด...' : 'กู้คืนทั้งหมด'}
-                            </button>
-                          </div>
-                          {hidden.notifications.map((item) => (
-                            <div
-                              key={item.id}
-                              className={`rounded-xl border p-4 flex items-start justify-between gap-3 ${
+            <AccordionSection
+              title="รายการที่ซ่อนไว้"
+              count={hiddenCount}
+              description="ซ่อนออกจากหน้าหลักได้ แต่ข้อมูลยังไม่หาย"
+              open={openPanel === 'hidden'}
+              onToggle={() => togglePanel('hidden')}
+            >
+              {hiddenLoading ? (
+                <div className="text-sm text-slate-500 py-1">กำลังโหลดรายการที่ซ่อนไว้...</div>
+              ) : hiddenError ? (
+                <StateBox title="โหลดรายการที่ซ่อนไว้ไม่สำเร็จ" message={hiddenError} actionLabel="ลองใหม่" onAction={loadHidden} />
+              ) : hiddenCount === 0 ? (
+                <StateBox title="ยังไม่มีรายการที่ซ่อนไว้" message="เมื่อซ่อนกิจกรรมหรืองาน รายการจะมาอยู่ที่ส่วนนี้" />
+              ) : (
+                <div className="space-y-4">
+                  {hidden.notifications.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">กิจกรรมล่าสุด</p>
+                        <button
+                          onClick={handleRestoreAllNotifications}
+                          disabled={restoringAllNotifications}
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-200 bg-blue-950/50 border border-blue-900 disabled:opacity-40"
+                        >
+                          {restoringAllNotifications ? 'กำลังกู้คืนทั้งหมด...' : 'กู้คืนทั้งหมด'}
+                        </button>
+                      </div>
+                      {hidden.notifications.map((item) => (
+                        <div
+                          key={item.id}
+                          className={`rounded-xl border p-4 flex items-start justify-between gap-3 ${
+                            isUrgentProjectNotification(item)
+                              ? 'border-red-900/60 bg-red-950/20'
+                              : isApprovedNotification(item)
+                                ? 'border-green-900/60 bg-green-950/20'
+                                : 'border-slate-800 bg-slate-950'
+                          }`}
+                        >
+                          <div className="min-w-0">
+                            <p className={`font-semibold ${
+                              isUrgentProjectNotification(item)
+                                ? 'text-red-100 text-[15px]'
+                                : isApprovedNotification(item)
+                                  ? 'text-blue-100 text-[15px]'
+                                  : 'text-slate-100'
+                            }`}>{getNotificationDisplayTitle(item)}</p>
+                            <div className="mt-1">
+                              {renderNotificationMessage(
+                                item.message,
                                 isUrgentProjectNotification(item)
-                                  ? 'border-red-900/60 bg-red-950/20'
+                                  ? 'urgent'
                                   : isApprovedNotification(item)
-                                    ? 'border-green-900/60 bg-green-950/20'
-                                  : 'border-slate-800 bg-slate-950'
-                              }`}
-                            >
-                              <div className="min-w-0">
-                                <p className={`font-semibold ${
-                                  isUrgentProjectNotification(item)
-                                    ? 'text-red-100 text-[15px]'
-                                    : isApprovedNotification(item)
-                                      ? 'text-blue-100 text-[15px]'
-                                      : 'text-slate-100'
-                                }`}>{getNotificationDisplayTitle(item)}</p>
-                                <div className="mt-1">
-                                  {renderNotificationMessage(
-                                    item.message,
-                                    isUrgentProjectNotification(item)
-                                      ? 'urgent'
-                                      : isApprovedNotification(item)
-                                        ? 'approved'
-                                        : 'default',
-                                  )}
-                                </div>
-                              </div>
-                              <button
-                                onClick={() => handleRestoreNotification(item.id)}
-                                disabled={restoringNotificationId === item.id}
-                                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-200 bg-blue-950/50 border border-blue-900 disabled:opacity-40"
-                              >
-                                {restoringNotificationId === item.id ? 'กำลังกู้คืน...' : 'กู้คืน'}
-                              </button>
+                                    ? 'approved'
+                                    : 'default',
+                              )}
                             </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {hidden.tasks.length > 0 && (
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between gap-3">
-                            <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">งานเสร็จแล้ว</p>
-                            <button
-                              onClick={handleRestoreAllTasks}
-                              disabled={restoringAllTasks}
-                              className="px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-200 bg-blue-950/50 border border-blue-900 disabled:opacity-40"
-                            >
-                              {restoringAllTasks ? 'กำลังกู้คืนทั้งหมด...' : 'กู้คืนทั้งหมด'}
-                            </button>
                           </div>
-                          {hidden.tasks.map((task) => (
-                            <div key={task.id} className="rounded-xl border border-slate-800 bg-slate-950 p-4 flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <p className="font-semibold text-slate-100">{task.name}</p>
-                                {task.project && <p className="text-xs text-slate-400 mt-1">โปรเจกต์: {task.project.name}</p>}
-                              </div>
-                              <button
-                                onClick={() => handleRestoreTask(task.id)}
-                                disabled={restoringTaskId === task.id}
-                                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-200 bg-blue-950/50 border border-blue-900 disabled:opacity-40"
-                              >
-                                {restoringTaskId === task.id ? 'กำลังกู้คืน...' : 'กู้คืน'}
-                              </button>
-                            </div>
-                          ))}
+                          <button
+                            onClick={() => handleRestoreNotification(item.id)}
+                            disabled={restoringNotificationId === item.id}
+                            className="px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-200 bg-blue-950/50 border border-blue-900 disabled:opacity-40"
+                          >
+                            {restoringNotificationId === item.id ? 'กำลังกู้คืน...' : 'กู้คืน'}
+                          </button>
                         </div>
-                      )}
-                    </>
+                      ))}
+                    </div>
+                  )}
+
+                  {hidden.tasks.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">งานเสร็จแล้ว</p>
+                        <button
+                          onClick={handleRestoreAllTasks}
+                          disabled={restoringAllTasks}
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-200 bg-blue-950/50 border border-blue-900 disabled:opacity-40"
+                        >
+                          {restoringAllTasks ? 'กำลังกู้คืนทั้งหมด...' : 'กู้คืนทั้งหมด'}
+                        </button>
+                      </div>
+                      {hidden.tasks.map((task) => (
+                        <div key={task.id} className="rounded-xl border border-slate-800 bg-slate-950 p-4 flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-slate-100">{task.name}</p>
+                            {task.project && <p className="text-xs text-slate-400 mt-1">โปรเจกต์: {task.project.name}</p>}
+                          </div>
+                          <button
+                            onClick={() => handleRestoreTask(task.id)}
+                            disabled={restoringTaskId === task.id}
+                            className="px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-200 bg-blue-950/50 border border-blue-900 disabled:opacity-40"
+                          >
+                            {restoringTaskId === task.id ? 'กำลังกู้คืน...' : 'กู้คืน'}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               )}
-            </section>
+            </AccordionSection>
           </>
         )}
       </div>
     </div>
-  );
+  )
 }
 
 function extractMessage(error: any, fallback: string) {
-  return error?.response?.data?.error?.message || error?.response?.data?.message || fallback;
+  return error?.response?.data?.error?.message || error?.response?.data?.message || fallback
 }
 
 function isUrgentProjectNotification(item: Pick<NotificationItem, 'title' | 'message'>) {
-  return item.title.includes('เกินกำหนด') || item.message.includes('เกินกำหนด');
+  return item.title.includes('เกินกำหนด') || item.message.includes('เกินกำหนด')
 }
 
 function isApprovedNotification(item: Pick<NotificationItem, 'title' | 'message'>) {
@@ -770,26 +734,26 @@ function isApprovedNotification(item: Pick<NotificationItem, 'title' | 'message'
     || item.message.includes('อนุมัติงานแล้ว')
     || item.message.includes('ผ่านการตรวจสอบแล้ว')
     || item.message.includes('เสร็จสมบูรณ์แล้ว')
-  );
+  )
 }
 
 function getNotificationDisplayTitle(item: Pick<NotificationItem, 'title' | 'message'>) {
-  if (isUrgentProjectNotification(item)) return 'โปรเจกต์ที่คุณอยู่เกินกำหนด';
-  if (isApprovedNotification(item)) return 'งานเสร็จแล้ว';
-  return item.title;
+  if (isUrgentProjectNotification(item)) return 'โปรเจกต์ที่คุณอยู่เกินกำหนด'
+  if (isApprovedNotification(item)) return 'งานเสร็จแล้ว'
+  return item.title
 }
 
 function normalizeNotificationMessage(message: string) {
-  return message.replace(/\*/g, '').trim();
+  return message.replace(/\*/g, '').trim()
 }
 
 function renderNotificationMessage(message: string, tone: 'urgent' | 'approved' | 'default' = 'default') {
-  const lines = normalizeNotificationMessage(message).split('\n').filter((line) => line.trim().length > 0);
+  const lines = normalizeNotificationMessage(message).split('\n').filter((line) => line.trim().length > 0)
 
   return (
     <div className="space-y-1">
       {lines.map((line, index) => {
-        const isReasonLine = line.trim().startsWith('เหตุผล:');
+        const isReasonLine = line.trim().startsWith('เหตุผล:')
 
         if (isReasonLine) {
           return (
@@ -799,7 +763,7 @@ function renderNotificationMessage(message: string, tone: 'urgent' | 'approved' 
             >
               <p className="text-sm font-bold text-green-100 whitespace-pre-line">{line}</p>
             </div>
-          );
+          )
         }
 
         return (
@@ -810,38 +774,38 @@ function renderNotificationMessage(message: string, tone: 'urgent' | 'approved' 
                 ? 'text-sm font-semibold text-red-100 leading-relaxed'
                 : tone === 'approved'
                   ? 'text-sm font-semibold text-blue-100 leading-relaxed'
-                  : 'text-sm text-slate-300'
+                  : 'text-sm text-slate-300 leading-relaxed'
             }
           >
             {line}
           </p>
-        );
+        )
       })}
     </div>
-  );
+  )
 }
 
 function formatRelativeTime(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '-';
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
 
-  const diffMs = Date.now() - date.getTime();
-  const diffMinutes = Math.max(1, Math.floor(diffMs / 60000));
-  if (diffMinutes < 60) return `${diffMinutes} นาทีที่แล้ว`;
+  const diffMs = Date.now() - date.getTime()
+  const diffMinutes = Math.max(1, Math.floor(diffMs / 60000))
+  if (diffMinutes < 60) return `${diffMinutes} นาทีที่แล้ว`
 
-  const diffHours = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) return `${diffHours} ชั่วโมงที่แล้ว`;
+  const diffHours = Math.floor(diffMinutes / 60)
+  if (diffHours < 24) return `${diffHours} ชั่วโมงที่แล้ว`
 
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffDays < 7) return `${diffDays} วันที่แล้ว`;
+  const diffDays = Math.floor(diffHours / 24)
+  if (diffDays < 7) return `${diffDays} วันที่แล้ว`
 
-  return date.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+  return date.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 function getLatestRejectedNote(task: Task) {
   return task.task_log
     ?.filter((item) => item.action === 'rejected' && typeof item.note === 'string' && item.note.trim())
-    .sort((a, b) => b.id - a.id)[0]?.note?.trim();
+    .sort((a, b) => b.id - a.id)[0]?.note?.trim()
 }
 
 function SummaryPill({
@@ -857,23 +821,23 @@ function SummaryPill({
     red: 'border-red-800/60 bg-red-950/30 text-red-200',
     blue: 'border-blue-800/60 bg-blue-950/30 text-blue-200',
     amber: 'border-amber-800/60 bg-amber-950/30 text-amber-200',
-  } as const;
+  } as const
 
   return (
     <div className={`rounded-2xl border px-4 py-3 ${tones[tone]}`}>
       <p className="text-xl font-bold">{value}</p>
       <p className="text-xs mt-1 opacity-90">{label}</p>
     </div>
-  );
+  )
 }
 
 function SectionLabel({ title, tone }: { title: string; tone: 'red' | 'blue' }) {
   const tones = {
     red: 'text-red-300',
     blue: 'text-blue-300',
-  } as const;
+  } as const
 
-  return <p className={`text-xs font-semibold uppercase tracking-widest ${tones[tone]}`}>{title}</p>;
+  return <p className={`text-xs font-semibold uppercase tracking-widest ${tones[tone]}`}>{title}</p>
 }
 
 function QuickActionCard({
@@ -886,14 +850,13 @@ function QuickActionCard({
   title: string
   subtitle: string
   buttonLabel: string
-  tone: 'orange' | 'green' | 'amber'
+  tone: 'orange' | 'slate'
   onClick: () => void
 }) {
   const tones = {
     orange: 'border-orange-800/60 bg-orange-950/30 text-orange-200',
-    green: 'border-green-800/60 bg-green-950/30 text-green-200',
-    amber: 'border-amber-800/60 bg-amber-950/30 text-amber-200',
-  } as const;
+    slate: 'border-slate-700 bg-slate-900 text-slate-200',
+  } as const
 
   return (
     <div className={`rounded-2xl border p-4 ${tones[tone]}`}>
@@ -906,7 +869,49 @@ function QuickActionCard({
         {buttonLabel}
       </button>
     </div>
-  );
+  )
+}
+
+function AccordionSection({
+  title,
+  description,
+  count,
+  open,
+  onToggle,
+  children,
+}: {
+  title: string
+  description: string
+  count: number
+  open: boolean
+  onToggle: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <section className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
+      <button
+        onClick={onToggle}
+        className="w-full px-4 py-4 flex items-center justify-between text-left"
+      >
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 className="text-base font-semibold text-white">{title}</h2>
+            <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-200 text-xs font-semibold">
+              {count}
+            </span>
+          </div>
+          <p className="text-sm text-slate-400 mt-1">{description}</p>
+        </div>
+        <span className="text-lg text-slate-500">{open ? '−' : '+'}</span>
+      </button>
+
+      {open && (
+        <div className="px-4 pb-4 border-t border-slate-800 pt-4">
+          {children}
+        </div>
+      )}
+    </section>
+  )
 }
 
 function NotificationCard({
@@ -922,10 +927,10 @@ function NotificationCard({
   onOpen: () => void
   onHide: () => void
 }) {
-  const urgent = isUrgentProjectNotification(item);
-  const success = isApprovedNotification(item);
-  const tone = urgent ? 'urgent' : success ? 'approved' : 'default';
-  const displayTitle = getNotificationDisplayTitle(item);
+  const urgent = isUrgentProjectNotification(item)
+  const success = isApprovedNotification(item)
+  const tone = urgent ? 'urgent' : success ? 'approved' : 'default'
+  const displayTitle = getNotificationDisplayTitle(item)
 
   return (
     <div
@@ -938,9 +943,9 @@ function NotificationCard({
             ? item.is_read
               ? 'border-blue-900/60 bg-blue-950/20'
               : 'border-blue-800 bg-blue-950/40'
-          : item.is_read
-            ? 'border-slate-800 bg-slate-900'
-            : 'border-blue-900 bg-blue-950/30'
+            : item.is_read
+              ? 'border-slate-800 bg-slate-900'
+              : 'border-blue-900 bg-blue-950/30'
       }`}
     >
       <div className="flex items-start justify-between gap-3">
@@ -967,7 +972,7 @@ function NotificationCard({
         </div>
       </div>
     </div>
-  );
+  )
 }
 
 function TaskSkeleton() {
@@ -985,7 +990,7 @@ function TaskSkeleton() {
         </div>
       ))}
     </div>
-  );
+  )
 }
 
 function NotificationSkeleton() {
@@ -999,20 +1004,20 @@ function NotificationSkeleton() {
         </div>
       ))}
     </div>
-  );
+  )
 }
 
 function NoticeBox({ message, tone }: { message: string; tone: 'green' | 'red' }) {
   const tones = {
     green: 'bg-green-950/40 border-green-800/70 text-green-100',
     red: 'bg-red-950/40 border-red-800/70 text-red-100',
-  } as const;
+  } as const
 
   return (
     <div className={`border text-sm px-4 py-3 rounded-xl ${tones[tone]}`}>
       {message}
     </div>
-  );
+  )
 }
 
 function StateBox({
@@ -1039,7 +1044,7 @@ function StateBox({
         </button>
       )}
     </div>
-  );
+  )
 }
 
 function TaskCard({
@@ -1057,8 +1062,8 @@ function TaskCard({
   onHandover: () => void
   onHide: () => void
 }) {
-  const status = statusLabel[task.status_task];
-  const latestRejectedNote = task.status_task === 'in_progress' ? getLatestRejectedNote(task) : undefined;
+  const status = statusLabel[task.status_task]
+  const latestRejectedNote = task.status_task === 'in_progress' ? getLatestRejectedNote(task) : undefined
 
   return (
     <div className={`rounded-xl p-4 shadow-sm border ${
@@ -1121,6 +1126,5 @@ function TaskCard({
         <div className="w-full text-center text-sm text-orange-300 py-2">งานนี้กำลังรอคนรับช่วงต่อ</div>
       )}
     </div>
-  );
+  )
 }
-
