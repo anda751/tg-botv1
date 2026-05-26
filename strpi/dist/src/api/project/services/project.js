@@ -4,66 +4,62 @@ const strapi_1 = require("@strapi/strapi");
 const projectUid = 'api::project.project';
 const notificationUid = 'api::notification.notification';
 exports.default = strapi_1.factories.createCoreService(projectUid, ({ strapi }) => ({
-    async syncOverdueNotifications() {
-        var _a, _b;
+    async syncOverdueNotificationsForUser(user) {
+        const userId = Number(user === null || user === void 0 ? void 0 : user.id);
+        if (!Number.isFinite(userId) || userId <= 0)
+            return;
         const now = new Date();
         const projects = await strapi.entityService.findMany(projectUid, {
             filters: {
                 status_project: 'active',
+                ...((user === null || user === void 0 ? void 0 : user.role_app) === 'manager'
+                    ? { creator: { id: userId } }
+                    : { members: { id: userId } }),
             },
-            populate: ['creator', 'members'],
+            fields: ['id', 'name', 'deadline'],
             limit: -1,
             sort: ['deadline:asc', 'id:asc'],
         });
-        const overdueProjects = projects.filter((project) => {
+        for (const project of projects) {
             const deadline = new Date(project.deadline);
-            return !Number.isNaN(deadline.getTime()) && deadline < now;
-        });
-        for (const project of overdueProjects) {
+            if (Number.isNaN(deadline.getTime()) || deadline >= now)
+                continue;
             const deadlineText = formatDeadline(project.deadline);
-            const recipients = new Map();
-            if ((_a = project.creator) === null || _a === void 0 ? void 0 : _a.id) {
-                recipients.set(Number(project.creator.id), {
+            const payload = (user === null || user === void 0 ? void 0 : user.role_app) === 'manager'
+                ? {
                     title: 'โปรเจกต์เกินกำหนด',
                     message: `โปรเจกต์ "${project.name}" เลยกำหนดแล้วตั้งแต่ ${deadlineText} กรุณาตรวจสอบและติดตามงานในโปรเจกต์นี้`,
                     link: '/projects',
-                });
-            }
-            for (const member of (_b = project.members) !== null && _b !== void 0 ? _b : []) {
-                if (!(member === null || member === void 0 ? void 0 : member.id))
-                    continue;
-                recipients.set(Number(member.id), {
+                }
+                : {
                     title: 'โปรเจกต์ที่คุณอยู่เกินกำหนด',
                     message: `โปรเจกต์ "${project.name}" เลยกำหนดแล้วตั้งแต่ ${deadlineText} กรุณาอัปเดตงานหรือประสานกับหัวหน้าโปรเจกต์`,
                     link: '/create',
-                });
-            }
-            for (const [recipientId, payload] of recipients.entries()) {
-                const existing = await strapi.entityService.findMany(notificationUid, {
-                    filters: {
-                        recipient: { id: recipientId },
-                        type: 'project',
-                        title: payload.title,
-                        message: payload.message,
-                        link: payload.link,
-                    },
-                    fields: ['id'],
-                    limit: 1,
-                });
-                if (existing.length > 0)
-                    continue;
-                await strapi.entityService.create(notificationUid, {
-                    data: {
-                        recipient: recipientId,
-                        title: payload.title,
-                        message: payload.message,
-                        type: 'project',
-                        link: payload.link,
-                        is_read: false,
-                        is_hidden: false,
-                    },
-                });
-            }
+                };
+            const existing = await strapi.entityService.findMany(notificationUid, {
+                filters: {
+                    recipient: { id: userId },
+                    type: 'project',
+                    title: payload.title,
+                    message: payload.message,
+                    link: payload.link,
+                },
+                fields: ['id'],
+                limit: 1,
+            });
+            if (existing.length > 0)
+                continue;
+            await strapi.entityService.create(notificationUid, {
+                data: {
+                    recipient: userId,
+                    title: payload.title,
+                    message: payload.message,
+                    type: 'project',
+                    link: payload.link,
+                    is_read: false,
+                    is_hidden: false,
+                },
+            });
         }
     },
 }));
