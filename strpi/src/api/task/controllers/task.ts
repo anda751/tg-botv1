@@ -11,7 +11,7 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
         current_owner: { id: user.id },
         is_hidden_for_owner: false,
       },
-      populate: ['project', 'current_owner'],
+      populate: ['project', 'current_owner', 'task_log'],
       sort: ['updatedAt:desc', 'id:desc'],
     });
 
@@ -26,7 +26,7 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
         current_owner: { id: user.id },
         is_hidden_for_owner: true,
       },
-      populate: ['project', 'current_owner'],
+      populate: ['project', 'current_owner', 'task_log'],
       sort: ['hidden_for_owner_at:desc', 'updatedAt:desc', 'id:desc'],
     } as any);
 

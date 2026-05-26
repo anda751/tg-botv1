@@ -7,6 +7,11 @@ type Task = {
   name: string
   status_task: 'in_progress' | 'under_review' | 'waiting_pickup' | 'done'
   project?: { name: string }
+  task_log?: Array<{
+    id: number
+    action: 'created' | 'submitted' | 'approved' | 'rejected' | 'handover' | 'picked_up' | 'progress_update'
+    note?: string
+  }>
 }
 
 type NotificationItem = {
@@ -304,8 +309,8 @@ export default function MyTasks() {
   const hiddenCount = hidden.notifications.length + hidden.tasks.length;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white px-4 pt-6 pb-4 shadow-sm">
+    <div className="min-h-screen bg-slate-950">
+      <div className="bg-slate-900 px-4 pt-6 pb-4 border-b border-slate-800">
         <div className="flex items-center justify-between mb-4 gap-3">
           <div>
             <h1 className="text-xl font-bold text-gray-800">งานของฉัน</h1>
@@ -314,7 +319,7 @@ export default function MyTasks() {
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={() => navigate('/settings')}
-              className="w-10 h-10 rounded-full text-lg font-medium bg-gray-100 text-gray-700 flex items-center justify-center"
+              className="w-10 h-10 rounded-full text-lg font-medium bg-slate-800 text-slate-300 flex items-center justify-center active:bg-slate-700 transition"
               title="ตั้งค่าโปรไฟล์"
               aria-label="ตั้งค่าโปรไฟล์"
             >
@@ -322,7 +327,7 @@ export default function MyTasks() {
             </button>
             <button
               onClick={() => navigate('/create')}
-              className="bg-blue-500 text-white text-sm px-4 py-2 rounded-full font-medium"
+              className="bg-blue-600 text-white text-sm px-4 py-2 rounded-full font-medium active:bg-blue-500 transition"
             >
               + สร้างงาน
             </button>
@@ -335,7 +340,7 @@ export default function MyTasks() {
               key={f}
               onClick={() => setFilter(f)}
               className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                filter === f ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600'
+                filter === f ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300'
               }`}
             >
               {f === 'active' ? 'กำลังดำเนินการ' : 'เสร็จแล้ว'}
@@ -346,13 +351,13 @@ export default function MyTasks() {
 
       <div className="px-4 py-4 space-y-4 pb-24">
         {successMessage && (
-          <div className="bg-green-50 border border-green-200 text-green-700 text-sm px-4 py-3 rounded-xl">
+          <div className="bg-green-950/40 border border-green-800/70 text-green-100 text-sm px-4 py-3 rounded-xl">
             {successMessage}
           </div>
         )}
 
-        <section className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-          <div className="px-4 py-4 border-b border-gray-100 flex items-start justify-between gap-3">
+        <section className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
+          <div className="px-4 py-4 border-b border-slate-800 flex items-start justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-base font-semibold text-gray-800">กิจกรรมล่าสุด</h2>
@@ -368,14 +373,14 @@ export default function MyTasks() {
               <button
                 onClick={handleMarkAllRead}
                 disabled={markingAllRead || unreadCount === 0}
-                className="px-3 py-2 rounded-xl text-sm font-semibold text-blue-700 bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-3 py-2 rounded-xl text-sm font-semibold text-blue-200 bg-blue-950/50 border border-blue-900 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {markingAllRead ? 'กำลังอัปเดต...' : 'อ่านแล้วทั้งหมด'}
               </button>
               <button
                 onClick={handleHideRead}
                 disabled={hidingRead || readCount === 0}
-                className="px-3 py-2 rounded-xl text-sm font-semibold text-slate-700 bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-3 py-2 rounded-xl text-sm font-semibold text-slate-200 bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {hidingRead ? 'กำลังซ่อน...' : 'ซ่อนที่อ่านแล้ว'}
               </button>
@@ -386,10 +391,10 @@ export default function MyTasks() {
             {notificationsLoading ? (
               <div className="space-y-3">
                 {[1, 2, 3].map((item) => (
-                  <div key={item} className="animate-pulse rounded-xl border border-gray-100 p-4">
-                    <div className="h-4 w-40 bg-gray-200 rounded mb-2" />
-                    <div className="h-3 w-full bg-gray-100 rounded mb-1.5" />
-                    <div className="h-3 w-2/3 bg-gray-100 rounded" />
+                  <div key={item} className="animate-pulse rounded-xl border border-slate-800 p-4">
+                    <div className="h-4 w-40 bg-slate-700 rounded mb-2" />
+                    <div className="h-3 w-full bg-slate-800 rounded mb-1.5" />
+                    <div className="h-3 w-2/3 bg-slate-800 rounded" />
                   </div>
                 ))}
               </div>
@@ -412,27 +417,27 @@ export default function MyTasks() {
                     key={item.id}
                     className={`rounded-xl border p-4 transition ${
                       item.is_read
-                        ? 'border-gray-200 bg-white'
-                        : 'border-blue-200 bg-blue-50/60'
+                        ? 'border-slate-800 bg-slate-900'
+                        : 'border-blue-900 bg-blue-950/30'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <button onClick={() => handleOpenNotification(item)} className="min-w-0 flex-1 text-left">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className={`w-2.5 h-2.5 rounded-full ${item.is_read ? 'bg-gray-300' : 'bg-blue-500'}`} />
-                          <p className="font-semibold text-gray-800">{item.title}</p>
+                          <span className={`w-2.5 h-2.5 rounded-full ${item.is_read ? 'bg-slate-600' : 'bg-blue-500'}`} />
+                          <p className="font-semibold text-slate-100">{item.title}</p>
                         </div>
-                        <p className="text-sm text-gray-600 whitespace-pre-line">{item.message}</p>
+                        <p className="text-sm text-slate-300 whitespace-pre-line">{item.message}</p>
                       </button>
                       <div className="shrink-0 text-right flex flex-col items-end gap-2">
-                        <p className="text-xs text-gray-400">{formatRelativeTime(item.createdAt)}</p>
+                        <p className="text-xs text-slate-500">{formatRelativeTime(item.createdAt)}</p>
                         {openingNotificationId === item.id && (
                           <p className="text-xs text-blue-500">กำลังเปิด...</p>
                         )}
                         <button
                           onClick={() => handleHideNotification(item.id)}
                           disabled={hidingNotificationId === item.id}
-                          className="w-8 h-8 rounded-full text-sm font-semibold text-slate-500 bg-white/80 border border-gray-200 disabled:opacity-40"
+                          className="w-8 h-8 rounded-full text-sm font-semibold text-slate-400 bg-slate-800 border border-slate-700 disabled:opacity-40"
                           title="ซ่อนรายการนี้"
                           aria-label="ซ่อนรายการนี้"
                         >
@@ -447,7 +452,7 @@ export default function MyTasks() {
           </div>
         </section>
 
-        <section className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+        <section className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
           <button
             onClick={() => setHiddenOpen((value) => !value)}
             className="w-full px-4 py-4 flex items-center justify-between text-left"
@@ -456,7 +461,7 @@ export default function MyTasks() {
               <div className="flex items-center gap-2">
                 <h2 className="text-base font-semibold text-gray-800">รายการที่ซ่อนไว้</h2>
                 {hiddenCount > 0 && (
-                  <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold">
+                  <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-200 text-xs font-semibold">
                     {hiddenCount}
                   </span>
                 )}
@@ -467,7 +472,7 @@ export default function MyTasks() {
           </button>
 
           {hiddenOpen && (
-            <div className="px-4 pb-4 space-y-4 border-t border-gray-100">
+            <div className="px-4 pb-4 space-y-4 border-t border-slate-800">
               {hiddenLoading ? (
                 <div className="text-sm text-gray-400 py-3">กำลังโหลดรายการที่ซ่อนไว้...</div>
               ) : hiddenError ? (
@@ -483,21 +488,21 @@ export default function MyTasks() {
                         <button
                           onClick={handleRestoreAllNotifications}
                           disabled={restoringAllNotifications}
-                          className="px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-700 bg-blue-100 disabled:opacity-40"
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-200 bg-blue-950/50 border border-blue-900 disabled:opacity-40"
                         >
                           {restoringAllNotifications ? 'กำลังกู้คืนทั้งหมด...' : 'กู้คืนทั้งหมด'}
                         </button>
                       </div>
                       {hidden.notifications.map((item) => (
-                        <div key={item.id} className="rounded-xl border border-gray-200 bg-slate-50 p-4 flex items-start justify-between gap-3">
+                        <div key={item.id} className="rounded-xl border border-slate-800 bg-slate-950 p-4 flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <p className="font-semibold text-gray-800">{item.title}</p>
-                            <p className="text-sm text-gray-600 whitespace-pre-line mt-1">{item.message}</p>
+                            <p className="font-semibold text-slate-100">{item.title}</p>
+                            <p className="text-sm text-slate-300 whitespace-pre-line mt-1">{item.message}</p>
                           </div>
                           <button
                             onClick={() => handleRestoreNotification(item.id)}
                             disabled={restoringNotificationId === item.id}
-                            className="px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-700 bg-blue-100 disabled:opacity-40"
+                            className="px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-200 bg-blue-950/50 border border-blue-900 disabled:opacity-40"
                           >
                             {restoringNotificationId === item.id ? 'กำลังกู้คืน...' : 'กู้คืน'}
                           </button>
@@ -513,21 +518,21 @@ export default function MyTasks() {
                         <button
                           onClick={handleRestoreAllTasks}
                           disabled={restoringAllTasks}
-                          className="px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-700 bg-blue-100 disabled:opacity-40"
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-200 bg-blue-950/50 border border-blue-900 disabled:opacity-40"
                         >
                           {restoringAllTasks ? 'กำลังกู้คืนทั้งหมด...' : 'กู้คืนทั้งหมด'}
                         </button>
                       </div>
                       {hidden.tasks.map((task) => (
-                        <div key={task.id} className="rounded-xl border border-gray-200 bg-slate-50 p-4 flex items-start justify-between gap-3">
+                        <div key={task.id} className="rounded-xl border border-slate-800 bg-slate-950 p-4 flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <p className="font-semibold text-gray-800">{task.name}</p>
-                            {task.project && <p className="text-xs text-gray-500 mt-1">โปรเจกต์: {task.project.name}</p>}
+                            <p className="font-semibold text-slate-100">{task.name}</p>
+                            {task.project && <p className="text-xs text-slate-400 mt-1">โปรเจกต์: {task.project.name}</p>}
                           </div>
                           <button
                             onClick={() => handleRestoreTask(task.id)}
                             disabled={restoringTaskId === task.id}
-                            className="px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-700 bg-blue-100 disabled:opacity-40"
+                            className="px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-200 bg-blue-950/50 border border-blue-900 disabled:opacity-40"
                           >
                             {restoringTaskId === task.id ? 'กำลังกู้คืน...' : 'กู้คืน'}
                           </button>
@@ -542,7 +547,7 @@ export default function MyTasks() {
         </section>
 
         {loading ? (
-          <div className="text-center py-12 text-gray-400">กำลังโหลด...</div>
+          <div className="text-center py-12 text-slate-500">กำลังโหลด...</div>
         ) : error ? (
           <StateBox title="โหลดงานไม่สำเร็จ" message={error} actionLabel="ลองใหม่" onAction={loadTasks} />
         ) : filtered.length === 0 ? (
@@ -572,7 +577,7 @@ export default function MyTasks() {
       <div className="fixed bottom-6 left-4 right-4">
         <button
           onClick={() => navigate('/pickup')}
-          className="w-full bg-orange-500 text-white py-3 rounded-xl font-medium shadow-lg"
+          className="w-full bg-gradient-to-r from-orange-500 to-amber-500 text-white py-3 rounded-xl font-medium shadow-lg"
         >
           ดูงานรอรับช่วงต่อ
         </button>
@@ -614,9 +619,9 @@ function StateBox({
   onAction?: () => void
 }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5 text-center">
-      <p className="font-semibold text-gray-800">{title}</p>
-      <p className="text-sm text-gray-500 mt-2">{message}</p>
+    <div className="bg-slate-900 rounded-xl border border-slate-800 p-5 text-center">
+      <p className="font-semibold text-white">{title}</p>
+      <p className="text-sm text-slate-400 mt-2">{message}</p>
       {actionLabel && onAction && (
         <button
           onClick={onAction}
@@ -645,25 +650,35 @@ function TaskCard({
   onHide: () => void
 }) {
   const status = statusLabel[task.status_task];
+  const latestRejectedNote = task.task_log
+    ?.filter((item) => item.action === 'rejected' && typeof item.note === 'string' && item.note.trim())
+    .sort((a, b) => b.id - a.id)[0]?.note?.trim();
 
   return (
-    <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+    <div className="bg-slate-900 rounded-xl p-4 shadow-sm border border-slate-800">
       <div className="flex items-start justify-between gap-2 mb-3">
-        <h3 className="font-medium text-gray-800 flex-1 leading-snug">{task.name}</h3>
+        <h3 className="font-medium text-white flex-1 leading-snug">{task.name}</h3>
         <span className={`text-xs px-2.5 py-1 rounded-full font-medium shrink-0 ${status.color}`}>{status.text}</span>
       </div>
 
-      {task.project && <p className="text-xs text-gray-400 mb-3">โปรเจกต์: {task.project.name}</p>}
+      {task.project && <p className="text-xs text-slate-400 mb-3">โปรเจกต์: {task.project.name}</p>}
+
+      {task.status_task === 'in_progress' && latestRejectedNote && (
+        <div className="mb-3 rounded-xl border border-green-800/70 bg-green-950/40 px-3 py-3 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-widest text-green-700">หมายเหตุจากหัวหน้า</p>
+          <p className="mt-1 text-sm font-medium text-green-800 whitespace-pre-line">{latestRejectedNote}</p>
+        </div>
+      )}
 
       {task.status_task === 'in_progress' && (
         <div className="grid grid-cols-3 gap-2">
-          <button onClick={onProgress} className="py-2 rounded-lg text-xs font-semibold text-blue-700 bg-blue-100">
+          <button onClick={onProgress} className="py-2 rounded-lg text-xs font-semibold text-blue-200 bg-blue-950/50 border border-blue-900">
             ความคืบหน้า
           </button>
-          <button onClick={onSubmit} className="py-2 rounded-lg text-xs font-semibold text-white bg-blue-500">
+          <button onClick={onSubmit} className="py-2 rounded-lg text-xs font-semibold text-white bg-blue-600">
             ส่งงาน
           </button>
-          <button onClick={onHandover} className="py-2 rounded-lg text-xs font-semibold text-gray-700 bg-gray-100">
+          <button onClick={onHandover} className="py-2 rounded-lg text-xs font-semibold text-slate-200 bg-slate-800">
             ส่งต่อ
           </button>
         </div>
@@ -678,7 +693,7 @@ function TaskCard({
           <button
             onClick={onHide}
             disabled={isHiding}
-            className="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 bg-slate-100 disabled:opacity-40"
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-200 bg-slate-800 disabled:opacity-40"
           >
             {isHiding ? 'กำลังซ่อน...' : 'ซ่อน'}
           </button>
