@@ -396,28 +396,34 @@ function validateTaskMutation(
   userId: number,
   mode: 'submit' | 'progress',
   reportText: string,
-  allowWithoutFile: boolean,
+  hasRequiredFile: boolean,
 ) {
-  return (ctx: any) => {
-    if (!task) return ctx.notFound('ไม่พบงาน');
-    if (task.current_owner?.id !== userId) return ctx.forbidden('คุณไม่ใช่ผู้รับผิดชอบงานนี้');
-    if (task.status_task !== 'in_progress') {
-      return ctx.badRequest(
+  if (!task) {
+    return (ctx: any) => ctx.notFound('ไม่พบงาน');
+  }
+  if (task.current_owner?.id !== userId) {
+    return (ctx: any) => ctx.forbidden('คุณไม่ใช่ผู้รับผิดชอบงานนี้');
+  }
+  if (task.status_task !== 'in_progress') {
+    return (ctx: any) =>
+      ctx.badRequest(
         mode === 'submit'
           ? 'งานนี้ไม่ได้อยู่ระหว่างดำเนินการ'
           : 'อัปเดตความคืบหน้าได้เฉพาะงานที่กำลังดำเนินการอยู่',
       );
-    }
-    if (!allowWithoutFile) return ctx.badRequest('กรุณาแนบรูปหลักฐาน');
-    if (!reportText || reportText.length < 5) {
-      return ctx.badRequest(
+  }
+  if (!hasRequiredFile) {
+    return (ctx: any) => ctx.badRequest('กรุณาแนบรูปหลักฐาน');
+  }
+  if (!reportText || reportText.length < 5) {
+    return (ctx: any) =>
+      ctx.badRequest(
         mode === 'submit'
           ? 'รายละเอียดงานต้องยาวอย่างน้อย 5 ตัวอักษร'
           : 'ข้อความอัปเดตต้องยาวอย่างน้อย 5 ตัวอักษร',
       );
-    }
-    return null;
-  };
+  }
+  return null;
 }
 
 function serializeNotification(notification: any) {
