@@ -30,11 +30,11 @@ type HiddenPanelState = {
   tasks: Task[]
 }
 
-const statusLabel: Record<Task['status_task'], { text: string; color: string }> = {
-  in_progress: { text: 'กำลังทำ', color: 'bg-blue-100 text-blue-700' },
-  under_review: { text: 'รอตรวจ', color: 'bg-amber-100 text-amber-700' },
-  waiting_pickup: { text: 'รอรับต่อ', color: 'bg-orange-100 text-orange-700' },
-  done: { text: 'เสร็จแล้ว', color: 'bg-green-100 text-green-700' },
+const statusLabel: Record<Task['status_task'], { text: string; tone: string }> = {
+  in_progress: { text: 'กำลังทำ', tone: 'bg-blue-950/40 text-blue-200 border border-blue-900' },
+  under_review: { text: 'รอตรวจ', tone: 'bg-amber-950/40 text-amber-200 border border-amber-900' },
+  waiting_pickup: { text: 'รอรับช่วงต่อ', tone: 'bg-orange-950/40 text-orange-200 border border-orange-900' },
+  done: { text: 'เสร็จแล้ว', tone: 'bg-green-950/40 text-green-200 border border-green-900' },
 };
 
 export default function MyTasks() {
@@ -49,8 +49,7 @@ export default function MyTasks() {
   const [error, setError] = useState('');
   const [notificationsError, setNotificationsError] = useState('');
   const [hiddenError, setHiddenError] = useState('');
-  const [filter, setFilter] = useState<'active' | 'done'>('active');
-  const [successMessage, setSuccessMessage] = useState<string>('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [markingAllRead, setMarkingAllRead] = useState(false);
   const [hidingRead, setHidingRead] = useState(false);
   const [hidingTaskId, setHidingTaskId] = useState<number | null>(null);
@@ -61,6 +60,7 @@ export default function MyTasks() {
   const [restoringAllNotifications, setRestoringAllNotifications] = useState(false);
   const [restoringAllTasks, setRestoringAllTasks] = useState(false);
   const [hiddenOpen, setHiddenOpen] = useState(false);
+  const [activityExpanded, setActivityExpanded] = useState(false);
 
   useEffect(() => {
     const message = (location.state as any)?.successMessage;
@@ -114,12 +114,14 @@ export default function MyTasks() {
         notificationApi.getHidden(),
         taskApi.getHiddenTasks(),
       ]);
+
       const hiddenNotifications = Array.isArray(hiddenNotificationsRes.data)
         ? hiddenNotificationsRes.data
         : (hiddenNotificationsRes.data.data ?? []);
       const hiddenTasks = Array.isArray(hiddenTasksRes.data)
         ? hiddenTasksRes.data
         : (hiddenTasksRes.data.data ?? []);
+
       setHidden({
         notifications: hiddenNotifications,
         tasks: hiddenTasks,
@@ -138,7 +140,7 @@ export default function MyTasks() {
       await notificationApi.markAllRead();
       setNotifications((items) => items.map((item) => ({ ...item, is_read: true })));
     } catch (err) {
-      setNotificationsError(extractMessage(err, 'อัปเดตสถานะแจ้งเตือนไม่สำเร็จ'));
+      setNotificationsError(extractMessage(err, 'อัปเดตสถานะการแจ้งเตือนไม่สำเร็จ'));
     } finally {
       setMarkingAllRead(false);
     }
@@ -263,10 +265,7 @@ export default function MyTasks() {
     try {
       await notificationApi.restoreAll();
       const restoredItems = hidden.notifications;
-      setHidden((current) => ({
-        ...current,
-        notifications: [],
-      }));
+      setHidden((current) => ({ ...current, notifications: [] }));
       if (restoredItems.length) {
         setNotifications((current) => [
           ...restoredItems.map((item) => ({ ...item, is_hidden: false })),
@@ -285,10 +284,7 @@ export default function MyTasks() {
     try {
       await taskApi.restoreAll();
       const restoredTasks = hidden.tasks;
-      setHidden((current) => ({
-        ...current,
-        tasks: [],
-      }));
+      setHidden((current) => ({ ...current, tasks: [] }));
       if (restoredTasks.length) {
         setTasks((current) => [...restoredTasks, ...current]);
       }
@@ -299,9 +295,29 @@ export default function MyTasks() {
     }
   }
 
-  const filtered = useMemo(
-    () => tasks.filter((t) => (filter === 'active' ? t.status_task !== 'done' : t.status_task === 'done')),
-    [filter, tasks],
+  const inProgressTasks = useMemo(
+    () => tasks.filter((task) => task.status_task === 'in_progress'),
+    [tasks],
+  );
+  const urgentTasks = useMemo(
+    () => inProgressTasks.filter((task) => getLatestRejectedNote(task)),
+    [inProgressTasks],
+  );
+  const normalTasks = useMemo(
+    () => inProgressTasks.filter((task) => !getLatestRejectedNote(task)),
+    [inProgressTasks],
+  );
+  const underReviewTasks = useMemo(
+    () => tasks.filter((task) => task.status_task === 'under_review'),
+    [tasks],
+  );
+  const doneTasks = useMemo(
+    () => tasks.filter((task) => task.status_task === 'done'),
+    [tasks],
+  );
+  const visibleNotifications = useMemo(
+    () => (activityExpanded ? notifications : notifications.slice(0, 3)),
+    [activityExpanded, notifications],
   );
 
   const unreadCount = notifications.filter((item) => !item.is_read).length;
@@ -311,299 +327,290 @@ export default function MyTasks() {
   return (
     <div className="min-h-screen bg-slate-950">
       <div className="bg-slate-900 px-4 pt-6 pb-4 border-b border-slate-800">
-        <div className="flex items-center justify-between mb-4 gap-3">
+        <div className="flex items-start justify-between gap-3">
           <div>
-            <h1 className="text-xl font-bold text-gray-800">งานของฉัน</h1>
-            <p className="text-sm text-gray-500 mt-1">ติดตามงานและอัปเดตล่าสุดได้จากหน้าเดียว</p>
+            <h1 className="text-2xl font-bold text-white">งานของฉัน</h1>
+            <p className="text-sm text-slate-400 mt-1">เปิดมาแล้วเห็นทันทีว่างานไหนต้องทำก่อน</p>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={() => navigate('/settings')}
-              className="w-10 h-10 rounded-full text-lg font-medium bg-slate-800 text-slate-300 flex items-center justify-center active:bg-slate-700 transition"
-              title="ตั้งค่าโปรไฟล์"
-              aria-label="ตั้งค่าโปรไฟล์"
-            >
-              ⚙
-            </button>
-            <button
-              onClick={() => navigate('/create')}
-              className="bg-blue-600 text-white text-sm px-4 py-2 rounded-full font-medium active:bg-blue-500 transition"
-            >
-              + สร้างงาน
-            </button>
-          </div>
+          <button
+            onClick={() => navigate('/settings')}
+            className="w-10 h-10 rounded-full text-lg font-medium bg-slate-800 text-slate-300 flex items-center justify-center active:bg-slate-700 transition"
+            title="ตั้งค่าโปรไฟล์"
+            aria-label="ตั้งค่าโปรไฟล์"
+          >
+            ⚙
+          </button>
         </div>
 
-        <div className="flex gap-2">
-          {(['active', 'done'] as const).map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                filter === f ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300'
-              }`}
-            >
-              {f === 'active' ? 'กำลังดำเนินการ' : 'เสร็จแล้ว'}
-            </button>
-          ))}
+        <div className="grid grid-cols-3 gap-3 mt-5">
+          <SummaryPill label="ต้องแก้ก่อน" value={urgentTasks.length} tone="red" />
+          <SummaryPill label="กำลังทำ" value={normalTasks.length} tone="blue" />
+          <SummaryPill label="รอตรวจ" value={underReviewTasks.length} tone="amber" />
         </div>
       </div>
 
       <div className="px-4 py-4 space-y-4 pb-24">
         {successMessage && (
-          <div className="bg-green-950/40 border border-green-800/70 text-green-100 text-sm px-4 py-3 rounded-xl">
-            {successMessage}
-          </div>
+          <NoticeBox tone="green" message={successMessage} />
         )}
-
-        <section className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
-          <div className="px-4 py-4 border-b border-slate-800 flex items-start justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base font-semibold text-gray-800">กิจกรรมล่าสุด</h2>
-                {unreadCount > 0 && (
-                  <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold">
-                    ยังไม่อ่าน {unreadCount}
-                  </span>
-                )}
-              </div>
-              <p className="text-sm text-gray-500 mt-1">อัปเดตที่เดิมเคยส่งผ่าน Telegram จะมาอยู่ตรงนี้แทน</p>
-            </div>
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <button
-                onClick={handleMarkAllRead}
-                disabled={markingAllRead || unreadCount === 0}
-                className="px-3 py-2 rounded-xl text-sm font-semibold text-blue-200 bg-blue-950/50 border border-blue-900 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {markingAllRead ? 'กำลังอัปเดต...' : 'อ่านแล้วทั้งหมด'}
-              </button>
-              <button
-                onClick={handleHideRead}
-                disabled={hidingRead || readCount === 0}
-                className="px-3 py-2 rounded-xl text-sm font-semibold text-slate-200 bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {hidingRead ? 'กำลังซ่อน...' : 'ซ่อนที่อ่านแล้ว'}
-              </button>
-            </div>
-          </div>
-
-          <div className="p-4">
-            {notificationsLoading ? (
-              <div className="space-y-3">
-                {[1, 2, 3].map((item) => (
-                  <div key={item} className="animate-pulse rounded-xl border border-slate-800 p-4">
-                    <div className="h-4 w-40 bg-slate-700 rounded mb-2" />
-                    <div className="h-3 w-full bg-slate-800 rounded mb-1.5" />
-                    <div className="h-3 w-2/3 bg-slate-800 rounded" />
-                  </div>
-                ))}
-              </div>
-            ) : notificationsError ? (
-              <StateBox
-                title="โหลดกิจกรรมล่าสุดไม่สำเร็จ"
-                message={notificationsError}
-                actionLabel="ลองใหม่"
-                onAction={loadNotifications}
-              />
-            ) : notifications.length === 0 ? (
-              <StateBox
-                title="ยังไม่มีกิจกรรมล่าสุด"
-                message="เมื่อมีการอนุมัติ ส่งกลับ หรือเพิ่มเข้าโปรเจกต์ ระบบจะแสดงไว้ที่นี่"
-              />
-            ) : (
-              <div className="space-y-3">
-                {notifications.map((item) => (
-                  (() => {
-                    const urgent = isUrgentProjectNotification(item);
-                    return (
-                  <div
-                    key={item.id}
-                    className={`rounded-xl border p-4 transition ${
-                      urgent
-                        ? item.is_read
-                          ? 'border-red-900/70 bg-red-950/30'
-                          : 'border-red-800 bg-red-950/50'
-                        : item.is_read
-                          ? 'border-slate-800 bg-slate-900'
-                          : 'border-blue-900 bg-blue-950/30'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <button onClick={() => handleOpenNotification(item)} className="min-w-0 flex-1 text-left">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className={`w-2.5 h-2.5 rounded-full ${
-                            urgent ? 'bg-red-400' : item.is_read ? 'bg-slate-600' : 'bg-blue-500'
-                          }`}
-                          />
-                          <p className={`font-semibold ${urgent ? 'text-red-100 text-[15px]' : 'text-slate-100'}`}>{item.title}</p>
-                        </div>
-                        <p className={`whitespace-pre-line ${urgent ? 'text-sm font-semibold text-red-100 leading-relaxed' : 'text-sm text-slate-300'}`}>
-                          {item.message}
-                        </p>
-                      </button>
-                      <div className="shrink-0 text-right flex flex-col items-end gap-2">
-                        <p className="text-xs text-slate-500">{formatRelativeTime(item.createdAt)}</p>
-                        {openingNotificationId === item.id && (
-                          <p className="text-xs text-blue-500">กำลังเปิด...</p>
-                        )}
-                        <button
-                          onClick={() => handleHideNotification(item.id)}
-                          disabled={hidingNotificationId === item.id}
-                          className="w-8 h-8 rounded-full text-sm font-semibold text-slate-400 bg-slate-800 border border-slate-700 disabled:opacity-40"
-                          title="ซ่อนรายการนี้"
-                          aria-label="ซ่อนรายการนี้"
-                        >
-                          {hidingNotificationId === item.id ? '…' : '×'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                    );
-                  })()
-                ))}
-              </div>
-            )}
-          </div>
-        </section>
-
-        <section className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
-          <button
-            onClick={() => setHiddenOpen((value) => !value)}
-            className="w-full px-4 py-4 flex items-center justify-between text-left"
-          >
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base font-semibold text-gray-800">รายการที่ซ่อนไว้</h2>
-                {hiddenCount > 0 && (
-                  <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-200 text-xs font-semibold">
-                    {hiddenCount}
-                  </span>
-                )}
-              </div>
-              <p className="text-sm text-gray-500 mt-1">ซ่อนไว้เพื่อลดความรก แต่ยังกู้คืนกลับมาได้</p>
-            </div>
-            <span className="text-lg text-slate-400">{hiddenOpen ? '−' : '+'}</span>
-          </button>
-
-          {hiddenOpen && (
-            <div className="px-4 pb-4 space-y-4 border-t border-slate-800">
-              {hiddenLoading ? (
-                <div className="text-sm text-gray-400 py-3">กำลังโหลดรายการที่ซ่อนไว้...</div>
-              ) : hiddenError ? (
-                <StateBox title="โหลดรายการที่ซ่อนไว้ไม่สำเร็จ" message={hiddenError} actionLabel="ลองใหม่" onAction={loadHidden} />
-              ) : hiddenCount === 0 ? (
-                <StateBox title="ยังไม่มีรายการที่ซ่อนไว้" message="เมื่อซ่อนกิจกรรมล่าสุดหรืองานเสร็จแล้ว รายการจะมาอยู่ตรงนี้" />
-              ) : (
-                <>
-                  {hidden.notifications.length > 0 && (
-                    <div className="space-y-2 pt-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">กิจกรรมล่าสุด</p>
-                        <button
-                          onClick={handleRestoreAllNotifications}
-                          disabled={restoringAllNotifications}
-                          className="px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-200 bg-blue-950/50 border border-blue-900 disabled:opacity-40"
-                        >
-                          {restoringAllNotifications ? 'กำลังกู้คืนทั้งหมด...' : 'กู้คืนทั้งหมด'}
-                        </button>
-                      </div>
-                      {hidden.notifications.map((item) => (
-                        <div
-                          key={item.id}
-                          className={`rounded-xl border p-4 flex items-start justify-between gap-3 ${
-                            isUrgentProjectNotification(item)
-                              ? 'border-red-900/60 bg-red-950/20'
-                              : 'border-slate-800 bg-slate-950'
-                          }`}
-                        >
-                          <div className="min-w-0">
-                            <p className={`font-semibold ${isUrgentProjectNotification(item) ? 'text-red-100 text-[15px]' : 'text-slate-100'}`}>{item.title}</p>
-                            <p className={`whitespace-pre-line mt-1 ${isUrgentProjectNotification(item) ? 'text-sm font-semibold text-red-100 leading-relaxed' : 'text-sm text-slate-300'}`}>
-                              {item.message}
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => handleRestoreNotification(item.id)}
-                            disabled={restoringNotificationId === item.id}
-                            className="px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-200 bg-blue-950/50 border border-blue-900 disabled:opacity-40"
-                          >
-                            {restoringNotificationId === item.id ? 'กำลังกู้คืน...' : 'กู้คืน'}
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {hidden.tasks.length > 0 && (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">งานเสร็จแล้ว</p>
-                        <button
-                          onClick={handleRestoreAllTasks}
-                          disabled={restoringAllTasks}
-                          className="px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-200 bg-blue-950/50 border border-blue-900 disabled:opacity-40"
-                        >
-                          {restoringAllTasks ? 'กำลังกู้คืนทั้งหมด...' : 'กู้คืนทั้งหมด'}
-                        </button>
-                      </div>
-                      {hidden.tasks.map((task) => (
-                        <div key={task.id} className="rounded-xl border border-slate-800 bg-slate-950 p-4 flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="font-semibold text-slate-100">{task.name}</p>
-                            {task.project && <p className="text-xs text-slate-400 mt-1">โปรเจกต์: {task.project.name}</p>}
-                          </div>
-                          <button
-                            onClick={() => handleRestoreTask(task.id)}
-                            disabled={restoringTaskId === task.id}
-                            className="px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-200 bg-blue-950/50 border border-blue-900 disabled:opacity-40"
-                          >
-                            {restoringTaskId === task.id ? 'กำลังกู้คืน...' : 'กู้คืน'}
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          )}
-        </section>
 
         {loading ? (
-          <div className="text-center py-12 text-slate-500">กำลังโหลด...</div>
+          <TaskSkeleton />
         ) : error ? (
           <StateBox title="โหลดงานไม่สำเร็จ" message={error} actionLabel="ลองใหม่" onAction={loadTasks} />
-        ) : filtered.length === 0 ? (
-          <StateBox
-            title={filter === 'active' ? 'ยังไม่มีงานที่กำลังทำ' : 'ยังไม่มีงานที่เสร็จแล้ว'}
-            message={
-              filter === 'active'
-                ? 'เริ่มต้นด้วยการสร้างงานใหม่ หรือรับงานต่อจากหน้าอื่น'
-                : 'เมื่องานเสร็จ รายการจะแสดงที่นี่'
-            }
-          />
         ) : (
-          filtered.map((task) => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              isHiding={hidingTaskId === task.id}
-              onProgress={() => navigate(`/progress/${task.id}`, { state: { task } })}
-              onSubmit={() => navigate(`/submit/${task.id}`, { state: { task } })}
-              onHandover={() => navigate(`/handover/${task.id}`, { state: { task } })}
-              onHide={() => handleHideTask(task.id)}
-            />
-          ))
-        )}
-      </div>
+          <>
+            <section className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
+              <div className="px-4 py-4 border-b border-slate-800 flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-base font-semibold text-white">งานที่ต้องทำตอนนี้</h2>
+                  <p className="text-sm text-slate-400 mt-1">เริ่มจากงานที่ถูกตีกลับก่อน แล้วค่อยไล่งานปกติ</p>
+                </div>
+                <button
+                  onClick={() => navigate('/create')}
+                  className="px-4 py-2 rounded-full text-sm font-semibold text-white bg-blue-600 active:bg-blue-500 transition shrink-0"
+                >
+                  + สร้างงาน
+                </button>
+              </div>
 
-      <div className="fixed bottom-6 left-4 right-4">
-        <button
-          onClick={() => navigate('/pickup')}
-          className="w-full bg-gradient-to-r from-orange-500 to-amber-500 text-white py-3 rounded-xl font-medium shadow-lg"
-        >
-          ดูงานรอรับช่วงต่อ
-        </button>
+              <div className="p-4 space-y-3">
+                {urgentTasks.length > 0 && (
+                  <div className="space-y-3">
+                    <SectionLabel title="ต้องแก้ก่อน" tone="red" />
+                    {urgentTasks.map((task) => (
+                      <TaskCard
+                        key={task.id}
+                        task={task}
+                        isHiding={false}
+                        onProgress={() => navigate(`/progress/${task.id}`, { state: { task } })}
+                        onSubmit={() => navigate(`/submit/${task.id}`, { state: { task } })}
+                        onHandover={() => navigate(`/handover/${task.id}`, { state: { task } })}
+                        onHide={() => undefined}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {normalTasks.length > 0 && (
+                  <div className="space-y-3">
+                    <SectionLabel title="กำลังทำ" tone="blue" />
+                    {normalTasks.map((task) => (
+                      <TaskCard
+                        key={task.id}
+                        task={task}
+                        isHiding={false}
+                        onProgress={() => navigate(`/progress/${task.id}`, { state: { task } })}
+                        onSubmit={() => navigate(`/submit/${task.id}`, { state: { task } })}
+                        onHandover={() => navigate(`/handover/${task.id}`, { state: { task } })}
+                        onHide={() => undefined}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {urgentTasks.length === 0 && normalTasks.length === 0 && (
+                  <StateBox
+                    title="ยังไม่มีงานที่ต้องทำตอนนี้"
+                    message="เมื่อมีงานใหม่หรืองานถูกส่งกลับ รายการจะแสดงที่นี่"
+                  />
+                )}
+              </div>
+            </section>
+
+            <section className="grid grid-cols-2 gap-3">
+              <QuickActionCard
+                title="ดูงานรอรับช่วงต่อ"
+                subtitle="เช็กว่ามีงานไหนขอคนช่วยต่อ"
+                buttonLabel="เปิดรายการ"
+                tone="orange"
+                onClick={() => navigate('/pickup')}
+              />
+              <QuickActionCard
+                title="งานเสร็จแล้ว"
+                subtitle={`${doneTasks.length} งานที่เก็บซ่อนหรือจัดการต่อได้`}
+                buttonLabel="ดูงานเสร็จ"
+                tone="green"
+                onClick={() => setHiddenOpen(true)}
+              />
+            </section>
+
+            <section className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
+              <div className="px-4 py-4 border-b border-slate-800 flex items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-base font-semibold text-white">กิจกรรมล่าสุด</h2>
+                    {unreadCount > 0 && (
+                      <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold">
+                        ยังไม่อ่าน {unreadCount}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-slate-400 mt-1">อัปเดตสำคัญจะมาอยู่ตรงนี้ แต่ไม่แย่งงานหลักด้านบน</p>
+                </div>
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <button
+                    onClick={handleMarkAllRead}
+                    disabled={markingAllRead || unreadCount === 0}
+                    className="px-3 py-2 rounded-xl text-sm font-semibold text-blue-200 bg-blue-950/50 border border-blue-900 disabled:opacity-40"
+                  >
+                    {markingAllRead ? 'กำลังอัปเดต...' : 'อ่านแล้วทั้งหมด'}
+                  </button>
+                  <button
+                    onClick={handleHideRead}
+                    disabled={hidingRead || readCount === 0}
+                    className="px-3 py-2 rounded-xl text-sm font-semibold text-slate-200 bg-slate-800 disabled:opacity-40"
+                  >
+                    {hidingRead ? 'กำลังซ่อน...' : 'ซ่อนที่อ่านแล้ว'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-4">
+                {notificationsLoading ? (
+                  <NotificationSkeleton />
+                ) : notificationsError ? (
+                  <StateBox
+                    title="โหลดกิจกรรมล่าสุดไม่สำเร็จ"
+                    message={notificationsError}
+                    actionLabel="ลองใหม่"
+                    onAction={loadNotifications}
+                  />
+                ) : notifications.length === 0 ? (
+                  <StateBox
+                    title="ยังไม่มีกิจกรรมล่าสุด"
+                    message="เมื่อมีการอนุมัติ ส่งกลับ หรืออัปเดตสำคัญ ระบบจะแสดงไว้ที่นี่"
+                  />
+                ) : (
+                  <div className="space-y-3">
+                    {visibleNotifications.map((item) => (
+                      <NotificationCard
+                        key={item.id}
+                        item={item}
+                        isOpening={openingNotificationId === item.id}
+                        isHiding={hidingNotificationId === item.id}
+                        onOpen={() => handleOpenNotification(item)}
+                        onHide={() => handleHideNotification(item.id)}
+                      />
+                    ))}
+
+                    {notifications.length > 3 && (
+                      <button
+                        onClick={() => setActivityExpanded((current) => !current)}
+                        className="w-full py-2.5 rounded-xl text-sm font-semibold text-slate-200 bg-slate-800 active:bg-slate-700 transition"
+                      >
+                        {activityExpanded ? 'ย่อกิจกรรมล่าสุด' : `ดูกิจกรรมทั้งหมด (${notifications.length})`}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <section className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
+              <button
+                onClick={() => setHiddenOpen((value) => !value)}
+                className="w-full px-4 py-4 flex items-center justify-between text-left"
+              >
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-base font-semibold text-white">รายการที่ซ่อนไว้</h2>
+                    {hiddenCount > 0 && (
+                      <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-200 text-xs font-semibold">
+                        {hiddenCount}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-slate-400 mt-1">เอาไว้จัดหน้าจอให้โล่ง แต่ข้อมูลยังไม่หาย</p>
+                </div>
+                <span className="text-lg text-slate-500">{hiddenOpen ? '−' : '+'}</span>
+              </button>
+
+              {hiddenOpen && (
+                <div className="px-4 pb-4 space-y-4 border-t border-slate-800">
+                  {hiddenLoading ? (
+                    <div className="text-sm text-slate-500 py-3">กำลังโหลดรายการที่ซ่อนไว้...</div>
+                  ) : hiddenError ? (
+                    <StateBox title="โหลดรายการที่ซ่อนไว้ไม่สำเร็จ" message={hiddenError} actionLabel="ลองใหม่" onAction={loadHidden} />
+                  ) : hiddenCount === 0 ? (
+                    <StateBox title="ยังไม่มีรายการที่ซ่อนไว้" message="เมื่อซ่อนกิจกรรมหรืองานเสร็จแล้ว รายการจะมาอยู่ที่นี่" />
+                  ) : (
+                    <>
+                      {hidden.notifications.length > 0 && (
+                        <div className="space-y-2 pt-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">กิจกรรมล่าสุด</p>
+                            <button
+                              onClick={handleRestoreAllNotifications}
+                              disabled={restoringAllNotifications}
+                              className="px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-200 bg-blue-950/50 border border-blue-900 disabled:opacity-40"
+                            >
+                              {restoringAllNotifications ? 'กำลังกู้คืนทั้งหมด...' : 'กู้คืนทั้งหมด'}
+                            </button>
+                          </div>
+                          {hidden.notifications.map((item) => (
+                            <div
+                              key={item.id}
+                              className={`rounded-xl border p-4 flex items-start justify-between gap-3 ${
+                                isUrgentProjectNotification(item)
+                                  ? 'border-red-900/60 bg-red-950/20'
+                                  : 'border-slate-800 bg-slate-950'
+                              }`}
+                            >
+                              <div className="min-w-0">
+                                <p className={`font-semibold ${isUrgentProjectNotification(item) ? 'text-red-100 text-[15px]' : 'text-slate-100'}`}>{item.title}</p>
+                                <div className="mt-1">
+                                  {renderNotificationMessage(item.message, isUrgentProjectNotification(item))}
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => handleRestoreNotification(item.id)}
+                                disabled={restoringNotificationId === item.id}
+                                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-200 bg-blue-950/50 border border-blue-900 disabled:opacity-40"
+                              >
+                                {restoringNotificationId === item.id ? 'กำลังกู้คืน...' : 'กู้คืน'}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {hidden.tasks.length > 0 && (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">งานเสร็จแล้ว</p>
+                            <button
+                              onClick={handleRestoreAllTasks}
+                              disabled={restoringAllTasks}
+                              className="px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-200 bg-blue-950/50 border border-blue-900 disabled:opacity-40"
+                            >
+                              {restoringAllTasks ? 'กำลังกู้คืนทั้งหมด...' : 'กู้คืนทั้งหมด'}
+                            </button>
+                          </div>
+                          {hidden.tasks.map((task) => (
+                            <div key={task.id} className="rounded-xl border border-slate-800 bg-slate-950 p-4 flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="font-semibold text-slate-100">{task.name}</p>
+                                {task.project && <p className="text-xs text-slate-400 mt-1">โปรเจกต์: {task.project.name}</p>}
+                              </div>
+                              <button
+                                onClick={() => handleRestoreTask(task.id)}
+                                disabled={restoringTaskId === task.id}
+                                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-200 bg-blue-950/50 border border-blue-900 disabled:opacity-40"
+                              >
+                                {restoringTaskId === task.id ? 'กำลังกู้คืน...' : 'กู้คืน'}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </section>
+          </>
+        )}
       </div>
     </div>
   );
@@ -615,6 +622,38 @@ function extractMessage(error: any, fallback: string) {
 
 function isUrgentProjectNotification(item: Pick<NotificationItem, 'title' | 'message'>) {
   return item.title.includes('เกินกำหนด') || item.message.includes('เกินกำหนด');
+}
+
+function renderNotificationMessage(message: string, urgent = false) {
+  const lines = message.split('\n').filter((line) => line.trim().length > 0);
+
+  return (
+    <div className="space-y-1">
+      {lines.map((line, index) => {
+        const isReasonLine = line.trim().startsWith('เหตุผล:');
+
+        if (isReasonLine) {
+          return (
+            <div
+              key={`${line}-${index}`}
+              className="inline-block rounded-lg bg-green-900/40 border border-green-800/70 px-2.5 py-1.5"
+            >
+              <p className="text-sm font-bold text-green-100 whitespace-pre-line">{line}</p>
+            </div>
+          );
+        }
+
+        return (
+          <p
+            key={`${line}-${index}`}
+            className={urgent ? 'text-sm font-semibold text-red-100 leading-relaxed' : 'text-sm text-slate-300'}
+          >
+            {line}
+          </p>
+        );
+      })}
+    </div>
+  );
 }
 
 function formatRelativeTime(value: string) {
@@ -632,6 +671,175 @@ function formatRelativeTime(value: string) {
   if (diffDays < 7) return `${diffDays} วันที่แล้ว`;
 
   return date.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function getLatestRejectedNote(task: Task) {
+  return task.task_log
+    ?.filter((item) => item.action === 'rejected' && typeof item.note === 'string' && item.note.trim())
+    .sort((a, b) => b.id - a.id)[0]?.note?.trim();
+}
+
+function SummaryPill({
+  label,
+  value,
+  tone,
+}: {
+  label: string
+  value: number
+  tone: 'red' | 'blue' | 'amber'
+}) {
+  const tones = {
+    red: 'border-red-800/60 bg-red-950/30 text-red-200',
+    blue: 'border-blue-800/60 bg-blue-950/30 text-blue-200',
+    amber: 'border-amber-800/60 bg-amber-950/30 text-amber-200',
+  } as const;
+
+  return (
+    <div className={`rounded-2xl border px-4 py-3 ${tones[tone]}`}>
+      <p className="text-xl font-bold">{value}</p>
+      <p className="text-xs mt-1 opacity-90">{label}</p>
+    </div>
+  );
+}
+
+function SectionLabel({ title, tone }: { title: string; tone: 'red' | 'blue' }) {
+  const tones = {
+    red: 'text-red-300',
+    blue: 'text-blue-300',
+  } as const;
+
+  return <p className={`text-xs font-semibold uppercase tracking-widest ${tones[tone]}`}>{title}</p>;
+}
+
+function QuickActionCard({
+  title,
+  subtitle,
+  buttonLabel,
+  tone,
+  onClick,
+}: {
+  title: string
+  subtitle: string
+  buttonLabel: string
+  tone: 'orange' | 'green'
+  onClick: () => void
+}) {
+  const tones = {
+    orange: 'border-orange-800/60 bg-orange-950/30 text-orange-200',
+    green: 'border-green-800/60 bg-green-950/30 text-green-200',
+  } as const;
+
+  return (
+    <div className={`rounded-2xl border p-4 ${tones[tone]}`}>
+      <p className="text-sm font-semibold">{title}</p>
+      <p className="text-xs text-slate-400 mt-1">{subtitle}</p>
+      <button
+        onClick={onClick}
+        className="mt-4 w-full py-2.5 rounded-xl text-sm font-semibold bg-white/10 text-white active:bg-white/20 transition"
+      >
+        {buttonLabel}
+      </button>
+    </div>
+  );
+}
+
+function NotificationCard({
+  item,
+  isOpening,
+  isHiding,
+  onOpen,
+  onHide,
+}: {
+  item: NotificationItem
+  isOpening: boolean
+  isHiding: boolean
+  onOpen: () => void
+  onHide: () => void
+}) {
+  const urgent = isUrgentProjectNotification(item);
+
+  return (
+    <div
+      className={`rounded-xl border p-4 transition ${
+        urgent
+          ? item.is_read
+            ? 'border-red-900/70 bg-red-950/30'
+            : 'border-red-800 bg-red-950/50'
+          : item.is_read
+            ? 'border-slate-800 bg-slate-900'
+            : 'border-blue-900 bg-blue-950/30'
+      }`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <button onClick={onOpen} className="min-w-0 flex-1 text-left">
+          <div className="flex items-center gap-2 mb-1">
+            <span className={`w-2.5 h-2.5 rounded-full ${urgent ? 'bg-red-400' : item.is_read ? 'bg-slate-600' : 'bg-blue-500'}`} />
+            <p className={`font-semibold ${urgent ? 'text-red-100 text-[15px]' : 'text-slate-100'}`}>{item.title}</p>
+          </div>
+          {renderNotificationMessage(item.message, urgent)}
+        </button>
+
+        <div className="shrink-0 text-right flex flex-col items-end gap-2">
+          <p className="text-xs text-slate-500">{formatRelativeTime(item.createdAt)}</p>
+          {isOpening && <p className="text-xs text-blue-300">กำลังเปิด...</p>}
+          <button
+            onClick={onHide}
+            disabled={isHiding}
+            className="w-8 h-8 rounded-full text-sm font-semibold text-slate-400 bg-slate-800 border border-slate-700 disabled:opacity-40"
+            title="ซ่อนรายการนี้"
+            aria-label="ซ่อนรายการนี้"
+          >
+            {isHiding ? '…' : '×'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TaskSkeleton() {
+  return (
+    <div className="space-y-3">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="bg-slate-900 border border-slate-800 rounded-2xl p-4 animate-pulse">
+          <div className="h-4 w-40 bg-slate-700 rounded mb-3" />
+          <div className="h-3 w-24 bg-slate-800 rounded mb-4" />
+          <div className="grid grid-cols-3 gap-2">
+            <div className="h-10 rounded-xl bg-slate-800" />
+            <div className="h-10 rounded-xl bg-slate-800" />
+            <div className="h-10 rounded-xl bg-slate-800" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function NotificationSkeleton() {
+  return (
+    <div className="space-y-3">
+      {[1, 2, 3].map((item) => (
+        <div key={item} className="animate-pulse rounded-xl border border-slate-800 p-4">
+          <div className="h-4 w-40 bg-slate-700 rounded mb-2" />
+          <div className="h-3 w-full bg-slate-800 rounded mb-1.5" />
+          <div className="h-3 w-2/3 bg-slate-800 rounded" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function NoticeBox({ message, tone }: { message: string; tone: 'green' | 'red' }) {
+  const tones = {
+    green: 'bg-green-950/40 border-green-800/70 text-green-100',
+    red: 'bg-red-950/40 border-red-800/70 text-red-100',
+  } as const;
+
+  return (
+    <div className={`border text-sm px-4 py-3 rounded-xl ${tones[tone]}`}>
+      {message}
+    </div>
+  );
 }
 
 function StateBox({
@@ -652,7 +860,7 @@ function StateBox({
       {actionLabel && onAction && (
         <button
           onClick={onAction}
-          className="mt-4 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-blue-500 active:bg-blue-600 transition"
+          className="mt-4 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-blue-600 active:bg-blue-700 transition"
         >
           {actionLabel}
         </button>
@@ -677,23 +885,24 @@ function TaskCard({
   onHide: () => void
 }) {
   const status = statusLabel[task.status_task];
-  const latestRejectedNote = task.task_log
-    ?.filter((item) => item.action === 'rejected' && typeof item.note === 'string' && item.note.trim())
-    .sort((a, b) => b.id - a.id)[0]?.note?.trim();
+  const latestRejectedNote = getLatestRejectedNote(task);
 
   return (
-    <div className="bg-slate-900 rounded-xl p-4 shadow-sm border border-slate-800">
+    <div className={`rounded-xl p-4 shadow-sm border ${
+      latestRejectedNote ? 'bg-red-950/20 border-red-900/60' : 'bg-slate-950 border-slate-800'
+    }`}
+    >
       <div className="flex items-start justify-between gap-2 mb-3">
         <h3 className="font-medium text-white flex-1 leading-snug">{task.name}</h3>
-        <span className={`text-xs px-2.5 py-1 rounded-full font-medium shrink-0 ${status.color}`}>{status.text}</span>
+        <span className={`text-xs px-2.5 py-1 rounded-full font-medium shrink-0 ${status.tone}`}>{status.text}</span>
       </div>
 
       {task.project && <p className="text-xs text-slate-400 mb-3">โปรเจกต์: {task.project.name}</p>}
 
-      {task.status_task === 'in_progress' && latestRejectedNote && (
+      {latestRejectedNote && (
         <div className="mb-3 rounded-xl border border-green-800/70 bg-green-950/40 px-3 py-3 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-widest text-green-700">หมายเหตุจากหัวหน้า</p>
-          <p className="mt-1 text-sm font-medium text-green-800 whitespace-pre-line">{latestRejectedNote}</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-green-300">หมายเหตุจากหัวหน้า</p>
+          <p className="mt-1 text-sm font-semibold text-green-100 whitespace-pre-line">{latestRejectedNote}</p>
         </div>
       )}
 
@@ -712,11 +921,12 @@ function TaskCard({
       )}
 
       {task.status_task === 'under_review' && (
-        <div className="w-full text-center text-sm text-amber-600 py-2">รอหัวหน้าตรวจสอบ</div>
+        <div className="w-full text-center text-sm text-amber-300 py-2">ส่งแล้ว รอหัวหน้าตรวจ</div>
       )}
+
       {task.status_task === 'done' && (
         <div className="flex items-center justify-between gap-3 py-2">
-          <div className="text-sm text-green-600">งานเสร็จสมบูรณ์</div>
+          <div className="text-sm text-green-300">งานเสร็จสมบูรณ์</div>
           <button
             onClick={onHide}
             disabled={isHiding}
@@ -726,8 +936,9 @@ function TaskCard({
           </button>
         </div>
       )}
+
       {task.status_task === 'waiting_pickup' && (
-        <div className="w-full text-center text-sm text-orange-600 py-2">งานรอรับช่วงต่อ</div>
+        <div className="w-full text-center text-sm text-orange-300 py-2">งานนี้กำลังรอคนรับช่วงต่อ</div>
       )}
     </div>
   );
