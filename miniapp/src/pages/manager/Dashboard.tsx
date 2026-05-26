@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ManagerNav from '../../components/ManagerNav';
-import { dashboardApi, taskApi } from '../../api';
+import { dashboardApi, notificationApi, taskApi } from '../../api';
 
 type Summary = {
   tasks: { total: number; in_progress: number; under_review: number; waiting_pickup: number; done: number }
@@ -15,17 +16,31 @@ type ReviewTask = {
   latest_proof: { image_url: string | null; report_text: string; submitted_at: string } | null
 }
 
+type NotificationItem = {
+  id: number
+  title: string
+  message: string
+  link?: string
+  is_read: boolean
+  createdAt: string
+}
+
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [summary, setSummary] = useState<Summary | null>(null);
   const [underReview, setUnderReview] = useState<ReviewTask[]>([]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState('');
   const [reviewError, setReviewError] = useState('');
+  const [notificationsError, setNotificationsError] = useState('');
   const [actionError, setActionError] = useState('');
   const [actionSuccess, setActionSuccess] = useState('');
   const [actionLoading, setActionLoading] = useState<number | null>(null);
   const [rejectId, setRejectId] = useState<number | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [markingAllRead, setMarkingAllRead] = useState(false);
+  const [openingNotificationId, setOpeningNotificationId] = useState<number | null>(null);
 
   useEffect(() => {
     loadAll();
@@ -35,11 +50,13 @@ export default function Dashboard() {
     setLoading(true);
     setPageError('');
     setReviewError('');
+    setNotificationsError('');
     setActionError('');
 
-    const [summaryRes, reviewRes] = await Promise.allSettled([
+    const [summaryRes, reviewRes, notificationsRes] = await Promise.allSettled([
       dashboardApi.summary(),
       dashboardApi.underReview(),
+      notificationApi.getMy(),
     ]);
 
     if (summaryRes.status === 'fulfilled') {
@@ -54,6 +71,13 @@ export default function Dashboard() {
     } else {
       setUnderReview([]);
       setReviewError(extractMessage(reviewRes.reason, 'โหลดรายการงานรอตรวจไม่สำเร็จ'));
+    }
+
+    if (notificationsRes.status === 'fulfilled') {
+      setNotifications(Array.isArray(notificationsRes.value.data) ? notificationsRes.value.data : []);
+    } else {
+      setNotifications([]);
+      setNotificationsError(extractMessage(notificationsRes.reason, 'โหลดการแจ้งเตือนไม่สำเร็จ'));
     }
 
     setLoading(false);
@@ -75,12 +99,13 @@ export default function Dashboard() {
   }
 
   async function handleReject(taskId: number) {
-    if (rejectReason.length < 5) return;
+    if (rejectReason.trim().length < 5) return;
+
     setActionError('');
     setActionSuccess('');
     setActionLoading(taskId);
     try {
-      await taskApi.reject(taskId, rejectReason);
+      await taskApi.reject(taskId, rejectReason.trim());
       setRejectId(null);
       setRejectReason('');
       setActionSuccess('ส่งงานกลับเรียบร้อย');
@@ -92,13 +117,51 @@ export default function Dashboard() {
     }
   }
 
+  async function handleOpenNotification(item: NotificationItem) {
+    setOpeningNotificationId(item.id);
+    try {
+      if (!item.is_read) {
+        await notificationApi.markRead(item.id);
+        setNotifications((current) =>
+          current.map((notification) =>
+            notification.id === item.id ? { ...notification, is_read: true } : notification),
+        );
+      }
+
+      if (item.link) {
+        navigate(item.link);
+      }
+    } catch (err) {
+      setNotificationsError(extractMessage(err, 'เปิดการแจ้งเตือนไม่สำเร็จ'));
+    } finally {
+      setOpeningNotificationId(null);
+    }
+  }
+
+  async function handleMarkAllNotificationsRead() {
+    setMarkingAllRead(true);
+    try {
+      await notificationApi.markAllRead();
+      setNotifications((current) => current.map((item) => ({ ...item, is_read: true })));
+    } catch (err) {
+      setNotificationsError(extractMessage(err, 'อัปเดตการแจ้งเตือนไม่สำเร็จ'));
+    } finally {
+      setMarkingAllRead(false);
+    }
+  }
+
+  const unreadNotifications = useMemo(
+    () => notifications.filter((item) => !item.is_read).length,
+    [notifications],
+  );
+
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col">
       <div className="bg-slate-900 border-b border-slate-800 px-4 pt-6 pb-4">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-white">แดชบอร์ด</h1>
-            <p className="text-xs text-slate-400 mt-0.5">ภาพรวมระบบและงานรอตรวจ</p>
+            <p className="text-sm text-slate-400 mt-1">ภาพรวมระบบ งานรอตรวจ และแจ้งเตือนสำคัญ</p>
           </div>
           <button
             onClick={loadAll}
@@ -119,6 +182,9 @@ export default function Dashboard() {
         {actionSuccess && (
           <NoticeBox tone="blue" title="ทำรายการสำเร็จ" message={actionSuccess} />
         )}
+        {notificationsError && (
+          <NoticeBox tone="red" title="โหลดการแจ้งเตือนไม่สำเร็จ" message={notificationsError} actionLabel="ลองใหม่" onAction={loadAll} />
+        )}
 
         {loading ? (
           <>
@@ -128,6 +194,7 @@ export default function Dashboard() {
               ))}
             </div>
             <div className="bg-slate-900 rounded-2xl h-40 animate-pulse" />
+            <div className="bg-slate-900 rounded-2xl h-36 animate-pulse" />
           </>
         ) : summary ? (
           <>
@@ -152,7 +219,7 @@ export default function Dashboard() {
               <StatCard
                 label="พนักงาน"
                 value={summary.staff.total}
-                sub={`รอรับต่อ ${summary.tasks.waiting_pickup} งาน`}
+                sub={`รอรับช่วงต่อ ${summary.tasks.waiting_pickup} งาน`}
                 color="purple"
                 icon="ทีม"
               />
@@ -174,6 +241,52 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
+
+            <Section title="การแจ้งเตือนล่าสุด" badge={unreadNotifications} badgeColor="blue">
+              {notifications.length === 0 ? (
+                <EmptyState title="ยังไม่มีการแจ้งเตือน" message="เมื่อมีโปรเจกต์เกินกำหนดหรือมีอัปเดตสำคัญ ระบบจะแสดงที่นี่" />
+              ) : (
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+                  <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-white">ติดตามอัปเดตในแอป</p>
+                    <button
+                      onClick={handleMarkAllNotificationsRead}
+                      disabled={markingAllRead || unreadNotifications === 0}
+                      className="px-3 py-1.5 rounded-xl text-xs font-semibold text-blue-200 bg-blue-950/50 border border-blue-900 disabled:opacity-40"
+                    >
+                      {markingAllRead ? 'กำลังอัปเดต...' : 'อ่านแล้วทั้งหมด'}
+                    </button>
+                  </div>
+                  <div className="divide-y divide-slate-800">
+                    {notifications.slice(0, 5).map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => handleOpenNotification(item)}
+                        className={`w-full text-left px-4 py-3 transition ${
+                          item.is_read ? 'bg-slate-900' : 'bg-blue-950/20'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className={`w-2 h-2 rounded-full ${item.is_read ? 'bg-slate-600' : 'bg-blue-500'}`} />
+                              <p className="text-sm font-semibold text-white">{item.title}</p>
+                            </div>
+                            <p className="text-xs text-slate-300 mt-1 whitespace-pre-line">{item.message}</p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <p className="text-[11px] text-slate-500">{formatRelativeTime(item.createdAt)}</p>
+                            {openingNotificationId === item.id && (
+                              <p className="text-[11px] text-blue-300 mt-1">กำลังเปิด...</p>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </Section>
           </>
         ) : (
           <ErrorState
@@ -237,7 +350,7 @@ export default function Dashboard() {
                           </button>
                           <button
                             onClick={() => handleReject(task.id)}
-                            disabled={rejectReason.length < 5 || actionLoading === task.id}
+                            disabled={rejectReason.trim().length < 5 || actionLoading === task.id}
                             className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-red-600 active:bg-red-700 transition disabled:opacity-40"
                           >
                             {actionLoading === task.id ? 'กำลังส่ง...' : 'ส่งกลับ'}
@@ -274,6 +387,23 @@ export default function Dashboard() {
 
 function extractMessage(error: any, fallback: string) {
   return error?.response?.data?.error?.message || error?.response?.data?.message || fallback;
+}
+
+function formatRelativeTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+
+  const diffMs = Date.now() - date.getTime();
+  const diffMinutes = Math.max(1, Math.floor(diffMs / 60000));
+  if (diffMinutes < 60) return `${diffMinutes} นาทีที่แล้ว`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours} ชั่วโมงที่แล้ว`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays} วันที่แล้ว`;
+
+  return date.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 function StatCard({ label, value, sub, color, icon, alert }: {
@@ -365,7 +495,7 @@ function NoticeBox({
   return (
     <div className={`rounded-2xl border p-4 ${toneClass}`}>
       <p className="text-sm font-semibold">{title}</p>
-      <p className="text-xs mt-1 opacity-90">{message}</p>
+      <p className="text-xs mt-1 opacity-90 whitespace-pre-line">{message}</p>
       {actionLabel && onAction && (
         <button
           onClick={onAction}
