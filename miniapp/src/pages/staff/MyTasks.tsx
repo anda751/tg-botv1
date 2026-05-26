@@ -72,10 +72,14 @@ export default function MyTasks() {
   }, [location.pathname, location.state, navigate]);
 
   useEffect(() => {
-    loadTasks();
-    loadNotifications();
-    loadHidden();
+    void loadInitialData();
   }, []);
+
+  async function loadInitialData() {
+    await loadTasks();
+    await loadNotifications();
+    await loadHidden();
+  }
 
   async function loadTasks() {
     setLoading(true);
@@ -111,10 +115,8 @@ export default function MyTasks() {
     setHiddenLoading(true);
     setHiddenError('');
     try {
-      const [hiddenNotificationsRes, hiddenTasksRes] = await Promise.all([
-        notificationApi.getHidden(),
-        taskApi.getHiddenTasks(),
-      ]);
+      const hiddenNotificationsRes = await notificationApi.getHidden();
+      const hiddenTasksRes = await taskApi.getHiddenTasks();
 
       const hiddenNotifications = Array.isArray(hiddenNotificationsRes.data)
         ? hiddenNotificationsRes.data
