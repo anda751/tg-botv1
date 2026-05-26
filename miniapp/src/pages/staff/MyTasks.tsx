@@ -65,6 +65,7 @@ export default function MyTasks() {
   const [restoringTaskId, setRestoringTaskId] = useState<number | null>(null)
   const [restoringAllNotifications, setRestoringAllNotifications] = useState(false)
   const [restoringAllTasks, setRestoringAllTasks] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
 
   const [openPanel, setOpenPanel] = useState<OpenPanel>(null)
   const [activityExpanded, setActivityExpanded] = useState(false)
@@ -111,6 +112,15 @@ export default function MyTasks() {
       setLoading(false)
       setNotificationsLoading(false)
       setHiddenLoading(false)
+    }
+  }
+
+  async function handleRefresh() {
+    setRefreshing(true)
+    try {
+      await loadInitialData()
+    } finally {
+      setRefreshing(false)
     }
   }
 
@@ -378,14 +388,25 @@ export default function MyTasks() {
             <h1 className="text-2xl font-bold text-white">งานของฉัน</h1>
             <p className="text-sm text-slate-400 mt-1">เปิดมาแล้วเห็นทันทีว่าตอนนี้ควรทำอะไรต่อ</p>
           </div>
-          <button
-            onClick={() => navigate('/settings')}
-            className="w-10 h-10 rounded-full text-lg font-medium bg-slate-800 text-slate-300 flex items-center justify-center active:bg-slate-700 transition"
-            title="ตั้งค่าโปรไฟล์"
-            aria-label="ตั้งค่าโปรไฟล์"
-          >
-            ⚙
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => void handleRefresh()}
+              disabled={refreshing}
+              className="w-10 h-10 rounded-full text-lg font-medium bg-slate-800 text-slate-300 flex items-center justify-center active:bg-slate-700 transition disabled:opacity-50"
+              title="รีเฟรช"
+              aria-label="รีเฟรช"
+            >
+              {refreshing ? '…' : '↻'}
+            </button>
+            <button
+              onClick={() => navigate('/settings')}
+              className="w-10 h-10 rounded-full text-lg font-medium bg-slate-800 text-slate-300 flex items-center justify-center active:bg-slate-700 transition"
+              title="ตั้งค่าโปรไฟล์"
+              aria-label="ตั้งค่าโปรไฟล์"
+            >
+              ⚙
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-3 gap-3 mt-5">
