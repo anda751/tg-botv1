@@ -64,6 +64,8 @@ async function handleCallbackQuery(query: TelegramCallbackQuery, strapi: any) {
     await sendMessage(botToken, from.id, 'กรุณาพิมพ์เหตุผลการตีกลับงานอย่างน้อย 5 ตัวอักษร');
   } else if (action === 'approve_handover') {
     await approveHandover(targetId, manager, strapi, botToken, from.id, message);
+  } else if (action === 'reject_handover') {
+    await rejectHandover(targetId, manager, strapi, botToken, from.id, message);
   } else if (action === 'approve_user') {
     await approveUserFromTelegram(targetId, manager, strapi, botToken, from.id, message);
   } else if (action === 'reject_user') {
@@ -239,6 +241,55 @@ async function approveHandover(
   });
   await strapi.service('api::task.task').notifyGroup({
     message: `งาน *${handover.task.name}* ส่งต่อให้ ${handover.picked_up_by.username} เรียบร้อย`,
+  });
+}
+
+async function rejectHandover(
+  handoverId: string,
+  manager: any,
+  strapi: any,
+  botToken: string,
+  chatId: number,
+  originalMessage?: TelegramMessage,
+) {
+  const handover = await strapi.entityService.findOne(
+    'api::handover-request.handover-request',
+    handoverId,
+    { populate: ['task', 'requested_by', 'picked_up_by'] },
+  ) as any;
+
+  if (!handover || handover.status_handover !== 'pending') {
+    await sendMessage(botToken, chatId, 'คำขอนี้ไม่สามารถปฏิเสธได้แล้ว');
+    return;
+  }
+  if (!handover.picked_up_by) {
+    await sendMessage(botToken, chatId, 'ยังไม่มีคนขอรับงานนี้');
+    return;
+  }
+
+  await strapi.entityService.update('api::handover-request.handover-request', handoverId, {
+    data: { picked_up_by: null },
+  });
+  await strapi.entityService.create('api::task-log.task-log', {
+    data: {
+      task: handover.task.id,
+      action: 'handover',
+      actor: manager.id,
+      note: `ปฏิเสธการรับช่วงต่อของ ${handover.picked_up_by.username}`,
+    },
+  });
+
+  if (originalMessage) {
+    await editMessageReplyMarkup(botToken, chatId, originalMessage.message_id, null);
+  }
+
+  await sendMessage(botToken, chatId, `ปฏิเสธการรับช่วงต่อของงาน *${handover.task.name}* เรียบร้อย`);
+  await strapi.service('api::task.task').notifyStaff({
+    userId: handover.picked_up_by.id,
+    title: 'คำขอรับช่วงต่องานยังไม่ผ่าน',
+    message: `หัวหน้ายังไม่อนุมัติคำขอรับช่วงต่องาน *${handover.task.name}*`,
+    type: 'handover',
+    link: '/pickup',
   });
 }
 

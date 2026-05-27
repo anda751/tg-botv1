@@ -167,6 +167,43 @@ export default factories.createCoreService('api::task.task', ({ strapi }) => ({
     });
   },
 
+  async notifyManagersInApp({
+    title,
+    message,
+    type = 'general',
+    link = '/',
+  }: {
+    title?: string;
+    message: string;
+    type?: 'task' | 'project' | 'handover' | 'general';
+    link?: string;
+  }) {
+    const managers = await strapi.db.query('plugin::users-permissions.user' as any).findMany({
+      where: {
+        role_app: 'manager',
+        is_approved: true,
+      },
+      select: ['id'],
+    }) as Array<{ id: number }>;
+
+    for (const manager of managers) {
+      const managerId = Number(manager.id);
+      if (!Number.isFinite(managerId) || managerId <= 0) continue;
+
+      await strapi.db.query(notificationUid).create({
+        data: {
+          recipient: managerId,
+          title: title?.trim() || 'มีอัปเดตใหม่',
+          message: message.trim(),
+          type,
+          link,
+          is_read: false,
+          is_hidden: false,
+        },
+      });
+    }
+  },
+
   async notifyStaff({
     userId,
     title,

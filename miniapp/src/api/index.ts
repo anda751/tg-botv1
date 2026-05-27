@@ -89,6 +89,9 @@ export const handoverApi = {
   approve: (handoverId: number) =>
     axios.post(`/handover-requests/${handoverId}/approve`),
 
+  reject: (handoverId: number, reason?: string) =>
+    axios.post(`/handover-requests/${handoverId}/reject`, { reason }),
+
   cancel: (handoverId: number) =>
     axios.post(`/handover-requests/${handoverId}/cancel`),
 }

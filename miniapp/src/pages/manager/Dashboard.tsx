@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ManagerNav from '../../components/ManagerNav'
-import { dashboardApi, notificationApi, taskApi } from '../../api'
+import { dashboardApi, handoverApi, notificationApi, taskApi } from '../../api'
 
 type Summary = {
   tasks: { total: number; in_progress: number; under_review: number; waiting_pickup: number; done: number }
@@ -20,8 +20,25 @@ type NotificationItem = {
   id: number
   title: string
   message: string
+  type?: 'task' | 'project' | 'handover' | 'general'
   link?: string
   is_read: boolean
+  createdAt: string
+}
+
+type PendingHandover = {
+  id: number
+  reason: string
+  expires_at?: string
+  is_expired: boolean
+  task: {
+    id: number
+    name: string
+    project?: { id: number; name: string } | null
+    current_owner?: { id: number; display_name?: string; username?: string } | null
+  } | null
+  requested_by?: { id: number; display_name?: string; username?: string } | null
+  picked_up_by?: { id: number; display_name?: string; username?: string } | null
   createdAt: string
 }
 
@@ -30,6 +47,7 @@ export default function Dashboard() {
   const [summary, setSummary] = useState<Summary | null>(null)
   const [underReview, setUnderReview] = useState<ReviewTask[]>([])
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
+  const [pendingHandover, setPendingHandover] = useState<PendingHandover[]>([])
   const [loading, setLoading] = useState(true)
   const [pageError, setPageError] = useState('')
   const [actionError, setActionError] = useState('')
@@ -39,6 +57,7 @@ export default function Dashboard() {
   const [rejectReason, setRejectReason] = useState('')
   const [markingAllRead, setMarkingAllRead] = useState(false)
   const [openingNotificationId, setOpeningNotificationId] = useState<number | null>(null)
+  const [handoverActionId, setHandoverActionId] = useState<number | null>(null)
 
   useEffect(() => {
     void loadAll()
@@ -53,10 +72,12 @@ export default function Dashboard() {
       setSummary(data?.summary ?? null)
       setUnderReview(Array.isArray(data?.under_review) ? data.under_review : [])
       setNotifications(Array.isArray(data?.notifications) ? data.notifications : [])
+      setPendingHandover(Array.isArray(data?.pending_handover) ? data.pending_handover : [])
     } catch (err) {
       setSummary(null)
       setUnderReview([])
       setNotifications([])
+      setPendingHandover([])
       setPageError(extractMessage(err, 'โหลดแดชบอร์ดไม่สำเร็จ'))
     } finally {
       setLoading(false)
@@ -127,6 +148,37 @@ export default function Dashboard() {
     }
   }
 
+  async function handleApproveHandover(handoverId: number) {
+    setActionError('')
+    setActionSuccess('')
+    setHandoverActionId(handoverId)
+    try {
+      await handoverApi.approve(handoverId)
+      setActionSuccess('อนุมัติการรับช่วงต่องานเรียบร้อย')
+      await loadAll()
+    } catch (err) {
+      setActionError(extractMessage(err, 'อนุมัติการรับช่วงต่องานไม่สำเร็จ'))
+    } finally {
+      setHandoverActionId(null)
+    }
+  }
+
+  async function handleRejectHandover(handoverId: number) {
+    const reason = window.prompt('เหตุผลที่ยังไม่อนุมัติการรับช่วงต่อ (ไม่บังคับ)') || ''
+    setActionError('')
+    setActionSuccess('')
+    setHandoverActionId(handoverId)
+    try {
+      await handoverApi.reject(handoverId, reason.trim())
+      setActionSuccess('ปฏิเสธคำขอรับช่วงต่องานเรียบร้อย')
+      await loadAll()
+    } catch (err) {
+      setActionError(extractMessage(err, 'ปฏิเสธคำขอรับช่วงต่องานไม่สำเร็จ'))
+    } finally {
+      setHandoverActionId(null)
+    }
+  }
+
   const unreadNotifications = useMemo(
     () => notifications.filter((item) => !item.is_read).length,
     [notifications],
@@ -138,7 +190,7 @@ export default function Dashboard() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-white">แดชบอร์ด</h1>
-            <p className="text-sm text-slate-400 mt-1">ภาพรวมระบบ งานรอตรวจ และการแจ้งเตือนสำคัญ</p>
+            <p className="text-sm text-slate-400 mt-1">ภาพรวมระบบ งานรอตรวจ คำขอรับช่วงต่อ และการแจ้งเตือนสำคัญ</p>
           </div>
           <button
             onClick={() => void loadAll()}
@@ -163,6 +215,7 @@ export default function Dashboard() {
                 <div key={i} className="bg-slate-900 rounded-2xl p-4 h-24 animate-pulse" />
               ))}
             </div>
+            <div className="bg-slate-900 rounded-2xl h-36 animate-pulse" />
             <div className="bg-slate-900 rounded-2xl h-40 animate-pulse" />
             <div className="bg-slate-900 rounded-2xl h-36 animate-pulse" />
           </>
@@ -205,9 +258,73 @@ export default function Dashboard() {
               )}
             </div>
 
+            <Section title="คำขอรับช่วงต่องาน" badge={pendingHandover.length} badgeColor="amber">
+              {pendingHandover.length === 0 ? (
+                <EmptyState title="ยังไม่มีคำขอรอหัวหน้าอนุมัติ" message="เมื่อมีพนักงานขอรับช่วงต่องาน รายการจะขึ้นที่ส่วนนี้ทันที" />
+              ) : (
+                <div className="space-y-3">
+                  {pendingHandover.map((item) => {
+                    const loadingAction = handoverActionId === item.id
+                    return (
+                      <div key={item.id} className="bg-slate-900 border border-slate-700 rounded-2xl p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-white">{item.task?.name || 'งานไม่ระบุชื่อ'}</p>
+                            {item.task?.project?.name && (
+                              <p className="text-xs text-slate-400 mt-1">โปรเจกต์: {item.task.project.name}</p>
+                            )}
+                          </div>
+                          {item.is_expired ? (
+                            <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-red-950/50 text-red-300 border border-red-800/60">
+                              หมดเวลาแล้ว
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-950/50 text-amber-300 border border-amber-800/60">
+                              รออนุมัติ
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="mt-3 space-y-1.5 text-xs text-slate-300">
+                          <p>เจ้าของเดิม: {displayName(item.task?.current_owner) || '-'}</p>
+                          <p>ผู้ขอรับช่วงต่อ: {displayName(item.picked_up_by) || '-'}</p>
+                          <p>ผู้ส่งต่องาน: {displayName(item.requested_by) || '-'}</p>
+                          {item.expires_at && <p>หมดเวลา: {formatDateTime(item.expires_at)}</p>}
+                        </div>
+
+                        {item.reason && (
+                          <div className="mt-3 rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5">
+                            <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">เหตุผลที่ส่งต่อ</p>
+                            <p className="text-xs text-slate-200 mt-1 whitespace-pre-line">{item.reason}</p>
+                          </div>
+                        )}
+
+                        <div className="mt-3 flex gap-2">
+                          <button
+                            onClick={() => void handleRejectHandover(item.id)}
+                            disabled={loadingAction || item.is_expired}
+                            className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-red-300 bg-red-950/50 border border-red-800 active:bg-red-900 transition disabled:opacity-40"
+                          >
+                            {loadingAction ? 'กำลังทำรายการ...' : 'ปฏิเสธ'}
+                          </button>
+                          <button
+                            onClick={() => void handleApproveHandover(item.id)}
+                            disabled={loadingAction || item.is_expired}
+                            className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-green-600 active:bg-green-700 transition disabled:opacity-40"
+                          >
+                            {loadingAction ? 'กำลังทำรายการ...' : 'อนุมัติ'}
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </Section>
+
             <Section title="การแจ้งเตือนล่าสุด" badge={unreadNotifications} badgeColor="blue">
               {notifications.length === 0 ? (
-                <EmptyState title="ยังไม่มีการแจ้งเตือน" message="เมื่อมีโปรเจกต์เกินกำหนดหรือมีอัปเดตสำคัญ ระบบจะแสดงที่นี่" />
+                <EmptyState title="ยังไม่มีการแจ้งเตือน" message="เมื่อมีอัปเดตสำคัญ ระบบจะแสดงที่ส่วนนี้" />
               ) : (
                 <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
                   <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between gap-3">
@@ -221,29 +338,42 @@ export default function Dashboard() {
                     </button>
                   </div>
                   <div className="divide-y divide-slate-800">
-                    {notifications.map((item) => (
-                      <button
-                        key={item.id}
-                        onClick={() => void handleOpenNotification(item)}
-                        className={`w-full text-left px-4 py-3 transition ${
-                          item.is_read ? 'bg-slate-900' : 'bg-blue-950/20'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className={`w-2 h-2 rounded-full ${item.is_read ? 'bg-slate-600' : 'bg-blue-500'}`} />
-                              <p className="text-sm font-semibold text-white">{item.title}</p>
+                    {notifications.map((item) => {
+                      const urgentHandover = item.type === 'handover'
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => void handleOpenNotification(item)}
+                          className={`w-full text-left px-4 py-3 transition ${
+                            urgentHandover
+                              ? 'bg-amber-950/20'
+                              : item.is_read
+                                ? 'bg-slate-900'
+                                : 'bg-blue-950/20'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className={`w-2 h-2 rounded-full ${
+                                    urgentHandover ? 'bg-amber-400' : item.is_read ? 'bg-slate-600' : 'bg-blue-500'
+                                  }`}
+                                />
+                                <p className={`text-sm font-semibold ${urgentHandover ? 'text-amber-100' : 'text-white'}`}>{item.title}</p>
+                              </div>
+                              <p className={`text-xs mt-1 whitespace-pre-line ${urgentHandover ? 'text-amber-100/90' : 'text-slate-300'}`}>
+                                {item.message}
+                              </p>
                             </div>
-                            <p className="text-xs text-slate-300 mt-1 whitespace-pre-line">{item.message}</p>
+                            <div className="shrink-0 text-right">
+                              <p className="text-[11px] text-slate-500">{formatRelativeTime(item.createdAt)}</p>
+                              {openingNotificationId === item.id && <p className="text-[11px] text-blue-300 mt-1">กำลังเปิด...</p>}
+                            </div>
                           </div>
-                          <div className="shrink-0 text-right">
-                            <p className="text-[11px] text-slate-500">{formatRelativeTime(item.createdAt)}</p>
-                            {openingNotificationId === item.id && <p className="text-[11px] text-blue-300 mt-1">กำลังเปิด...</p>}
-                          </div>
-                        </div>
-                      </button>
-                    ))}
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
               )}
@@ -251,7 +381,7 @@ export default function Dashboard() {
 
             <Section title="งานรอตรวจ" badge={underReview.length} badgeColor="amber">
               {underReview.length === 0 ? (
-                <EmptyState title="ยังไม่มีงานรอตรวจ" message="เมื่องานถูกส่งเข้าตรวจ รายการจะแสดงที่นี่" />
+                <EmptyState title="ยังไม่มีงานรอตรวจ" message="เมื่องานถูกส่งเข้าตรวจ รายการจะแสดงที่ส่วนนี้" />
               ) : (
                 <div className="space-y-3">
                   {underReview.map((task) => (
@@ -334,6 +464,14 @@ export default function Dashboard() {
 
 function extractMessage(error: any, fallback: string) {
   return error?.response?.data?.error?.message || error?.response?.data?.message || fallback
+}
+
+function displayName(user?: { display_name?: string; username?: string } | null) {
+  return user?.display_name || user?.username || ''
+}
+
+function formatDateTime(value: string) {
+  return new Date(value).toLocaleString('th-TH')
 }
 
 function formatRelativeTime(value: string) {

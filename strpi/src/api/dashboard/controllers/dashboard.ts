@@ -9,6 +9,7 @@ const projectUid = 'api::project.project' as any;
 const proofImageUid = 'api::proof-image.proof-image' as any;
 const notificationUid = 'api::notification.notification' as any;
 const joinRequestUid = 'api::project-join-request.project-join-request' as any;
+const handoverRequestUid = 'api::handover-request.handover-request' as any;
 
 type TaskLog = {
   id: number
@@ -39,16 +40,18 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
   async home(ctx) {
     ensureManager(ctx);
 
-    const [summary, underReview, notifications] = await Promise.all([
+    const [summary, underReview, notifications, pendingHandover] = await Promise.all([
       buildSummary(strapi),
       buildUnderReview(strapi),
       buildNotifications(strapi, ctx.state.user.id),
+      buildPendingHandovers(strapi),
     ]);
 
     return ctx.send({
       summary,
       under_review: underReview,
       notifications,
+      pending_handover: pendingHandover,
     });
   },
 
@@ -408,10 +411,78 @@ async function buildNotifications(strapi: any, userId: number) {
     id: notification.id,
     title: notification.title,
     message: notification.message,
+    type: notification.type,
     link: notification.link || '',
     is_read: !!notification.is_read,
     createdAt: notification.createdAt,
   }));
+}
+
+async function buildPendingHandovers(strapi: any) {
+  const requests = await strapi.db.query(handoverRequestUid).findMany({
+    where: {
+      status_handover: 'pending',
+    },
+    select: ['id', 'reason', 'expires_at', 'createdAt'],
+    populate: {
+      task: {
+        select: ['id', 'name'],
+        populate: {
+          project: { select: ['id', 'name'] },
+          current_owner: { select: ['id', 'display_name', 'username'] },
+        },
+      },
+      requested_by: { select: ['id', 'display_name', 'username'] },
+      picked_up_by: { select: ['id', 'display_name', 'username'] },
+    },
+    orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+    limit: 20,
+  }) as any[];
+
+  const now = Date.now();
+
+  return requests
+    .filter((item) => item.picked_up_by)
+    .map((item) => ({
+      id: item.id,
+      reason: item.reason || '',
+      expires_at: item.expires_at,
+      is_expired: item.expires_at ? new Date(item.expires_at).getTime() <= now : false,
+      task: item.task
+        ? {
+            id: item.task.id,
+            name: item.task.name,
+            project: item.task.project
+              ? {
+                  id: item.task.project.id,
+                  name: item.task.project.name,
+                }
+              : null,
+            current_owner: item.task.current_owner
+              ? {
+                  id: item.task.current_owner.id,
+                  display_name: item.task.current_owner.display_name,
+                  username: item.task.current_owner.username,
+                }
+              : null,
+          }
+        : null,
+      requested_by: item.requested_by
+        ? {
+            id: item.requested_by.id,
+            display_name: item.requested_by.display_name,
+            username: item.requested_by.username,
+          }
+        : null,
+      picked_up_by: item.picked_up_by
+        ? {
+            id: item.picked_up_by.id,
+            display_name: item.picked_up_by.display_name,
+            username: item.picked_up_by.username,
+          }
+        : null,
+      createdAt: item.createdAt,
+    }));
 }
 
 async function buildActionHistory(strapi: any, days: number) {
