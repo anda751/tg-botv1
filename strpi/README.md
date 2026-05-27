@@ -1,374 +1,439 @@
-# Task Tracking System - Handover README
+# Task Tracking System - Current State
 
-This README is intended for the next AI or engineer who continues work on this project.
+This README is for the next engineer or AI that picks up work in this repository.
 
-It reflects the current state of the system as of 2026-05-25.
+It reflects the current state of the project as of May 27, 2026.
 
 ## Overview
 
-This project is a task tracking system with:
+This repository contains the backend for a task tracking system.
+
+Current stack:
 
 - Backend: Strapi 5 + TypeScript
-- Frontend: React + Vite + Tailwind in `miniapp/`
-- Database: PostgreSQL via Supabase
-- File storage for task proof images: Supabase Storage
-- Notifications: Telegram
+- Frontend: React + Vite + Tailwind in `../miniapp`
+- Database: PostgreSQL
+- Task proof image storage: Supabase Storage
 - Hosting: Railway
+- Manager notifications: Telegram
+- Staff notifications: in-app notifications
 
-The system originally leaned heavily on Telegram Mini App auth, but it has now been shifted to a more standard username/password + JWT flow for normal app usage.
+## Current Product Direction
 
-Telegram is now intended to be used mainly for manager notifications, not as the primary login path for daily testing.
+The system has moved away from Telegram-first daily usage.
 
-## Current Architecture
+Current intended flow:
 
-### Backend auth model
+- Normal login uses `username/password + JWT`
+- Telegram remains in the system mainly for manager-side notification use
+- Staff users now rely on in-app notifications instead of Telegram
 
-Backend auth is handled by:
+## Auth Model
 
-- JWT bearer token when available
-- TEST_MODE fallback for easier local or test usage
-- Telegram init data fallback when JWT is not used
-
-Important middleware:
+Main auth middleware:
 
 - `src/middlewares/telegram-auth.ts`
 
-Important note:
+Runtime behavior:
 
-- Most API routes are configured with `auth: false` on the Strapi route layer on purpose.
-- This is not public access by design.
-- The real auth check is done in `global::telegram-auth`.
-- This avoids Strapi users-permissions blocking requests with 403 before custom auth runs.
+1. If a bearer token exists, verify JWT and load the user
+2. If `TEST_MODE` is enabled, allow test-user fallback
+3. Otherwise, fall back to Telegram init data validation
 
-## Frontend auth model
+Important design note:
 
-Frontend app in `miniapp/` now uses:
+- Most Strapi routes intentionally use `auth: false`
+- This does **not** mean the routes are public by design
+- Real access control is performed by `global::telegram-auth`
+- This avoids the default Strapi users-permissions layer blocking custom auth too early
 
-- `/auth/register`
-- `/auth/login`
-- `/profile/me`
-
-JWT is stored in localStorage under:
-
-- `auth-token`
+## Current Frontend App Shape
 
 Main frontend entry:
 
-- `miniapp/src/App.tsx`
+- `../miniapp/src/App.tsx`
 
-## What has already been done
+Frontend now supports two role-based app shells:
 
-### 1. Registration and login flow changed
+### Manager
 
-Previous direction:
+- Dashboard
+- Projects
+- Tasks
+- Staff
+- KPI
+- Reports
+- Settings
 
-- Telegram-first registration/auth
+### Staff
 
-Current direction:
+- My Tasks
+- Create Task
+- Submit Task
+- Progress Task
+- Handover Task
+- Pickup Task
+- Settings
 
-- username/password login
-- JWT-based session
-- role-aware app routing
+JWT token storage:
 
-Implemented in:
+- `localStorage['auth-token']`
 
-- `src/api/user/controllers/user.ts`
-- `src/api/user/routes/user.ts`
-- `miniapp/src/pages/Login.tsx`
-- `miniapp/src/pages/Register.tsx`
-- `miniapp/src/App.tsx`
+## Major Changes Already Implemented
+
+### 1. Login and registration were rebuilt
+
+Current endpoints:
+
+- `POST /auth/register`
+- `POST /auth/login`
+- `GET /profile/me`
+- `PUT /profile/me`
 
 Current behavior:
 
 - user registers with username, email, password, display name, role
-- user is auto-approved immediately
-- JWT is returned right after register/login
-- frontend stores token and loads user profile from `/profile/me`
+- account is auto-approved immediately
+- JWT is returned after register/login
+- frontend stores token and loads `/profile/me`
 
-### 2. Telegram usage narrowed down
+Relevant files:
+
+- `src/api/user/controllers/user.ts`
+- `src/api/user/routes/user.ts`
+- `../miniapp/src/pages/Login.tsx`
+- `../miniapp/src/pages/Register.tsx`
+
+### 2. Telegram was narrowed down to manager-side use
 
 Current intended behavior:
 
-- Telegram is used mainly for manager notifications
-- staff users do not need Telegram linkage for normal test flow
-- only manager accounts may optionally store:
-  - `telegram_id`
-  - `telegram_chat_id`
+- manager accounts may store `telegram_id` and `telegram_chat_id`
+- staff accounts do not need Telegram for the normal app flow
+- manager fields can be edited later in settings
 
-Register form now shows Telegram fields only when role is `manager`.
-
-Implemented in:
+Relevant files:
 
 - `src/api/user/controllers/user.ts`
-- `miniapp/src/pages/Register.tsx`
+- `../miniapp/src/pages/Register.tsx`
+- `../miniapp/src/pages/manager/Settings.tsx`
 
-### 3. Notification behavior updated
+### 3. Staff notifications moved into the app
 
-Current state:
+Current behavior:
 
-- `notifyManager()` is still actively used
-- `notifyStaff()` still exists, but in practice often becomes a no-op unless the target user has `telegram_chat_id`
-- this is acceptable for current test flow
+- staff notification events are stored in the `notification` collection
+- frontend shows them in the staff app
+- notifications support:
+  - read
+  - read all
+  - hide
+  - hide read
+  - restore
+  - restore all
 
-Guards were added so Telegram notification functions quietly return if bot token or target chat config is missing.
+Relevant files:
 
-Implemented in:
-
+- `src/api/notification/content-types/notification/schema.json`
+- `src/api/notification/controllers/notification.ts`
+- `src/api/notification/routes/notification.ts`
 - `src/api/task/services/task.ts`
+- `../miniapp/src/pages/staff/MyTasks.tsx`
 
-### 4. Progress image upload bug fixed
+### 4. Staff home was simplified
 
-Bug:
+Current behavior:
 
-- submitting task proof uploaded image correctly for manager notification
-- progress update did not always include the actual file buffer
-- result: progress image often did not show in Telegram manager notification
+- staff home now loads from a unified endpoint instead of many parallel requests
+- the page is organized around:
+  - current tasks
+  - under review
+  - done tasks
+  - recent activity
+  - hidden items
+- under-review, done, and hidden sections use a single accordion state so only one opens at a time
 
-Fix:
-
-- progress flow now sends `imageBuffer`, `imageFilename`, and `imageMimeType` to `notifyManager()` just like submit flow
-
-Implemented in:
+Relevant files:
 
 - `src/api/task/controllers/task.ts`
-
-### 5. Manager projects page became more resilient
-
-Bug:
-
-- manager projects page used `Promise.all()`
-- if join-request endpoint failed, the project list also disappeared
-
-Fix:
-
-- switched to `Promise.allSettled()`
-- project list can still render even if join request API fails
-
-Implemented in:
-
-- `miniapp/src/pages/manager/Projects.tsx`
-
-### 6. Thai UI text and broken encoding cleaned up in miniapp
-
-A large number of UI strings were previously garbled from encoding issues.
-
-Rewritten pages include:
-
-- `miniapp/src/pages/Login.tsx`
-- `miniapp/src/pages/Register.tsx`
-- `miniapp/src/pages/staff/MyTasks.tsx`
-- `miniapp/src/pages/staff/CreateTask.tsx`
-- `miniapp/src/pages/staff/SubmitTask.tsx`
-- `miniapp/src/pages/staff/ProgressTask.tsx`
-- `miniapp/src/pages/staff/PickupTask.tsx`
-- `miniapp/src/pages/staff/HandoverTask.tsx`
-- `miniapp/src/pages/manager/Dashboard.tsx`
-- `miniapp/src/pages/manager/Projects.tsx`
-- `miniapp/src/pages/manager/Staff.tsx`
-- `miniapp/src/pages/manager/Reports.tsx`
-
-### 7. Route auth wiring corrected
-
-Issue discovered:
-
-- changing Strapi route configs to standard authenticated routes caused 403 from Strapi permission layer
-- custom middleware auth was being bypassed or blocked too early
-
-Current intended setup:
-
-- route config stays `auth: false`
-- custom auth middleware performs real access control
-
-Updated files:
-
-- `src/middlewares/telegram-auth.ts`
-- `src/api/user/routes/user.ts`
-- `src/api/dashboard/routes/dashboard.ts`
 - `src/api/task/routes/task.ts`
-- `src/api/project/routes/project.ts`
-- `src/api/handover-request/routes/handover-request.ts`
+- `../miniapp/src/pages/staff/MyTasks.tsx`
 
-## Current backend feature status
+### 5. Manager pages were simplified to reduce heavy multi-request flows
 
-### Working
+Unified or reduced-flow endpoints now exist for:
 
-- Register
-- Login
-- Profile fetch
-- Staff task listing
-- Create task
-- Submit task with proof image
-- Progress update with optional image
-- Manager review dashboard
-- Approve/reject task
-- Handover
-- Pickup request
-- Manager project listing
-- Project join request flow exists in backend
+- `GET /dashboard/home`
+- `GET /dashboard/reports`
+- `GET /dashboard/staff-kpi`
+- `GET /projects/home`
 
-### Partially working / needs follow-up
+Relevant files:
 
-- Staff Telegram notifications are inconsistent by design right now
-- Media Library file persistence on Railway is not solved yet
-- Some backend error messages are still English or older text
-- Manager configuration UI beyond initial register does not exist yet
-
-## Storage model
-
-There are currently two different storage behaviors:
-
-### 1. Proof images for tasks
-
-These are uploaded to Supabase Storage.
-
-Code:
-
-- `src/services/supabase.ts`
-- `src/api/task/controllers/task.ts`
-
-This part is working.
-
-### 2. Strapi Media Library uploads
-
-These still use Strapi local upload provider by default.
-
-Important consequence on Railway:
-
-- files under `public/uploads` are not persistent unless a Railway Volume is mounted
-
-Observed issue:
-
-- Media Library may show records in DB, but actual files disappear after deploy/restart
-
-Recommended Railway fix:
-
-- attach a Railway Volume
-- mount path should be:
-
-```txt
-/app/public/uploads
-```
-
-Reason:
-
-- Railway service root directory is `/strpi`
-- app runs from `/app`
-- Strapi local uploads resolve to `/app/public/uploads`
-
-Note:
-
-- this does not restore already-lost files
-- it only prevents future Media Library files from disappearing
-
-## Important files
-
-### Backend
-
-- `src/middlewares/telegram-auth.ts`
-- `src/api/user/controllers/user.ts`
-- `src/api/user/routes/user.ts`
-- `src/api/task/controllers/task.ts`
-- `src/api/task/services/task.ts`
-- `src/api/task/routes/task.ts`
-- `src/api/project/controllers/project.ts`
-- `src/api/project/routes/project.ts`
 - `src/api/dashboard/controllers/dashboard.ts`
 - `src/api/dashboard/routes/dashboard.ts`
+- `src/api/project/controllers/project.ts`
+- `src/api/project/routes/project.ts`
+- `../miniapp/src/pages/manager/Dashboard.tsx`
+- `../miniapp/src/pages/manager/Reports.tsx`
+- `../miniapp/src/pages/manager/Kpi.tsx`
+- `../miniapp/src/pages/manager/Projects.tsx`
+
+### 6. KPI page exists for manager
+
+Current KPI behavior:
+
+- time window options: 14 / 30 / 60 days
+- summary cards
+- watch list
+- formula guide
+- searchable / filterable staff list
+- staff list now uses accordion behavior to reduce clutter
+
+Relevant files:
+
+- `src/api/dashboard/controllers/dashboard.ts`
+- `../miniapp/src/pages/manager/Kpi.tsx`
+
+### 7. Profile settings now exist for both roles
+
+Current behavior:
+
+- manager can edit:
+  - display name
+  - password
+  - Telegram ID
+  - Telegram Chat ID
+- staff can edit:
+  - display name
+  - password
+
+Relevant files:
+
+- `../miniapp/src/components/ProfileSettingsForm.tsx`
+- `../miniapp/src/pages/manager/Settings.tsx`
+- `../miniapp/src/pages/staff/Settings.tsx`
+- `src/api/user/controllers/user.ts`
+
+### 8. Hide / restore UX exists without deleting database records
+
+Current behavior:
+
+- hidden notifications stay in DB
+- hidden done tasks stay in DB
+- users can restore items later
+
+Relevant fields:
+
+- notification:
+  - `is_hidden`
+  - `hidden_at`
+- task:
+  - `is_hidden_for_owner`
+  - `hidden_for_owner_at`
+
+Relevant files:
+
+- `src/api/notification/content-types/notification/schema.json`
+- `src/api/task/content-types/task/schema.json`
+- `src/api/notification/controllers/notification.ts`
+- `src/api/task/controllers/task.ts`
+
+## Current Storage Model
+
+### 1. Task proof images
+
+Task proof images are uploaded to Supabase Storage.
+
+Relevant files:
+
+- `src/services/supabase.ts`
+- `src/api/task/controllers/task.ts`
+
+This is the primary storage path used in the task flow.
+
+### 2. Strapi Media Library
+
+Strapi Media Library still uses local uploads unless changed at the platform level.
+
+Current deployment note:
+
+- Railway volume should be mounted at `/app/public/uploads`
+
+Important note:
+
+- proof-image storage and Media Library storage are still different systems
+
+## Current Environment Variables
+
+Observed runtime variables in code:
+
+### Core app / Strapi
+
+- `HOST`
+- `ADMIN_JWT_SECRET`
+- `API_TOKEN_SALT`
+- `TRANSFER_TOKEN_SALT`
+- `ENCRYPTION_KEY`
+- `DATABASE_CLIENT`
+- `DATABASE_URL`
+- `DATABASE_HOST`
+- `DATABASE_PORT`
+- `DATABASE_NAME`
+- `DATABASE_USERNAME`
+- `DATABASE_PASSWORD`
+- `DATABASE_SCHEMA`
+- `DATABASE_SSL_*`
+- `DATABASE_FILENAME`
+
+### Auth / behavior
+
+- `TEST_MODE`
+
+### Supabase
+
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_KEY`
+- `SUPABASE_BUCKET`
+
+### Telegram
+
+- `TELEGRAM_BOT_TOKEN`
+- `TELEGRAM_MANAGER_CHAT_ID`
+- `TELEGRAM_GROUP_CHAT_ID`
+
+## Important Backend Files
+
+### Auth and user
+
+- `src/middlewares/telegram-auth.ts`
+- `src/api/user/controllers/user.ts`
+- `src/api/user/routes/user.ts`
+- `src/extensions/users-permissions/content-types/user/schema.json`
+
+### Task flow
+
+- `src/api/task/controllers/task.ts`
+- `src/api/task/routes/task.ts`
+- `src/api/task/services/task.ts`
+- `src/api/task/content-types/task/schema.json`
+- `src/api/task-log/content-types/task-log/schema.json`
+- `src/api/proof-image/content-types/proof-image/schema.json`
+
+### Project flow
+
+- `src/api/project/controllers/project.ts`
+- `src/api/project/routes/project.ts`
+- `src/api/project/content-types/project/schema.json`
+- `src/api/project-join-request/content-types/project-join-request/schema.json`
+
+### Handover flow
+
 - `src/api/handover-request/controllers/handover-request.ts`
 - `src/api/handover-request/routes/handover-request.ts`
-- `src/services/supabase.ts`
-- `config/middlewares.ts`
+- `src/api/handover-request/content-types/handover-request/schema.json`
 
-### Frontend
+### Notification flow
+
+- `src/api/notification/controllers/notification.ts`
+- `src/api/notification/routes/notification.ts`
+- `src/api/notification/content-types/notification/schema.json`
+
+### Manager reporting
+
+- `src/api/dashboard/controllers/dashboard.ts`
+- `src/api/dashboard/routes/dashboard.ts`
+
+### Integrations
+
+- `src/services/supabase.ts`
+- `src/api/telegram/controllers/telegram.ts`
+- `src/api/telegram/routes/telegram.ts`
+
+## Important Frontend Files
 
 - `../miniapp/src/App.tsx`
 - `../miniapp/src/api/index.ts`
+- `../miniapp/src/components/ProfileSettingsForm.tsx`
+- `../miniapp/src/components/ManagerNav.tsx`
 - `../miniapp/src/pages/Login.tsx`
 - `../miniapp/src/pages/Register.tsx`
-- `../miniapp/src/pages/manager/Dashboard.tsx`
-- `../miniapp/src/pages/manager/Projects.tsx`
 - `../miniapp/src/pages/staff/MyTasks.tsx`
+- `../miniapp/src/pages/staff/CreateTask.tsx`
 - `../miniapp/src/pages/staff/SubmitTask.tsx`
 - `../miniapp/src/pages/staff/ProgressTask.tsx`
+- `../miniapp/src/pages/staff/PickupTask.tsx`
+- `../miniapp/src/pages/staff/Settings.tsx`
+- `../miniapp/src/pages/manager/Dashboard.tsx`
+- `../miniapp/src/pages/manager/Projects.tsx`
+- `../miniapp/src/pages/manager/Tasks.tsx`
+- `../miniapp/src/pages/manager/Staff.tsx`
+- `../miniapp/src/pages/manager/Kpi.tsx`
+- `../miniapp/src/pages/manager/Reports.tsx`
+- `../miniapp/src/pages/manager/Settings.tsx`
 
-## Known issues
+## Current Known Issues / Follow-ups
 
-### 1. Railway Media Library persistence
+### 1. Some UI/backend Thai strings still need cleanup
 
-Still needs environment-side setup, not just code changes.
+The system is much better than before, but a few pages or responses may still have older or garbled strings.
 
-Action:
+### 2. Strapi structure is still healthy, but some service scaffolds are mostly placeholders
 
-- create Railway Volume
-- mount to `/app/public/uploads`
+Several Strapi API modules keep the default `services/` shape even when most runtime logic now sits in controllers or helper code.
 
-### 2. Some backend messages still need cleanup
+This is not broken, but it should be reviewed later for cleanup.
 
-Frontend Thai text is much better now, but backend response strings are mixed.
+### 3. README drift used to be a problem
 
-Action:
+This file was behind the real system state before this update. Keep it current after future architecture changes.
 
-- normalize backend response messages
-- decide whether to use Thai everywhere or English everywhere
+### 4. Media Library still depends on deployment behavior
 
-### 3. Staff notifications strategy is not finalized
+If Railway volume or upload-provider setup changes, re-check Media Library persistence.
 
-Right now the system accepts that staff may not have Telegram linkage.
-
-Action:
-
-- decide whether staff notifications should remain no-op
-- or move them into in-app notifications later
-
-### 4. No manager settings page yet
-
-Manager Telegram values can be set during register only.
-
-Action:
-
-- add profile/settings UI for manager
-- support updating Telegram fields later
-
-## Recommended next tasks
+## Recommended Next Work
 
 Priority order:
 
-1. Configure Railway Volume for `public/uploads`
-2. Deploy backend after recent auth route changes
-3. Verify manager can open:
-   - `/projects/all`
-   - `/projects/join-requests/pending`
-   - `/dashboard/*`
-4. Smoke test full manager/staff flow
-5. Add manager settings page for Telegram fields
-6. Clean backend response strings
-7. Decide long-term path for Media Library:
-   - keep local uploads + Railway Volume
-   - or move Media Library itself to persistent object storage provider
+1. Clean remaining Thai/encoding inconsistencies in frontend and backend responses
+2. Add a lightweight `SMOKE_TEST.md` or keep the checklist below updated
+3. Add manager-side audit/history view for key actions
+4. Add search/filter improvements for staff task browsing when task volume grows
+5. Consider splitting large controllers further if manager reporting expands again
 
-## Smoke test checklist
+## Smoke Test Checklist
 
 Use this after deploy:
 
-1. Register a manager account
+1. Register manager
 2. Login as manager
 3. Open dashboard
-4. Create a project
-5. Register or login as staff
-6. Create a task
-7. Update progress with image
-8. Submit task with proof image
-9. Login as manager and review task
-10. Approve or reject task
-11. Test handover and pickup flow
-12. Upload a Media Library image
-13. Redeploy Railway service
-14. Confirm Media Library image still exists after Volume is attached
+4. Open projects
+5. Open KPI and switch 14 / 30 / 60 day windows
+6. Open reports
+7. Register or login as staff
+8. Open staff home
+9. Create task
+10. Update progress with image
+11. Submit task with proof image
+12. Confirm task appears in manager review flow
+13. Reject task once and confirm staff sees:
+    - returned note
+    - in-app notification
+14. Re-submit and approve task
+15. Confirm staff sees approved notification
+16. Hide and restore:
+    - done task
+    - notification
+17. Test pickup / handover flow
+18. If using Media Library, upload a file and verify persistence after redeploy
 
-## Notes for the next AI
+## Notes for the Next AI
 
-- Do not switch route configs back to normal Strapi auth unless you also redesign the custom middleware flow.
-- The current system intentionally uses custom auth middleware as the main gatekeeper.
-- The manager projects page issue was not only a backend issue; frontend failure handling also mattered.
-- Media Library persistence on Railway is operational work, not just source code work.
-- Proof image storage and Media Library storage are currently different systems.
+- Do not switch routes back to default Strapi auth unless you redesign the custom middleware flow too
+- The current app intentionally treats `global::telegram-auth` as the main gatekeeper
+- Staff in-app notifications are now part of the product, not a temporary fallback
+- Manager pages were simplified to reduce multi-request and heavy populate behavior
+- Staff home was recently reorganized to reduce duplicated blocks and clutter
+- Proof image storage and Media Library storage are still separate concerns

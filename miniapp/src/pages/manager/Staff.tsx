@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
-import ManagerNav from '../../components/ManagerNav';
-import { dashboardApi } from '../../api';
+import { useEffect, useMemo, useState } from 'react'
+import ManagerNav from '../../components/ManagerNav'
+import { dashboardApi } from '../../api'
 
 type StaffMember = {
   id: number
@@ -10,48 +10,48 @@ type StaffMember = {
 }
 
 export default function Staff() {
-  const [staff, setStaff] = useState<StaffMember[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [search, setSearch] = useState('');
+  const [staff, setStaff] = useState<StaffMember[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
-    loadData();
-  }, []);
+    void loadData()
+  }, [])
 
   async function loadData() {
-    setLoading(true);
-    setError('');
+    setLoading(true)
+    setError('')
     try {
-      const { data } = await dashboardApi.staffOverview();
-      setStaff(Array.isArray(data) ? data : []);
+      const { data } = await dashboardApi.staffOverview()
+      setStaff(Array.isArray(data) ? data : [])
     } catch (err) {
-      setStaff([]);
-      setError(extractMessage(err, 'โหลดรายชื่อพนักงานไม่สำเร็จ'));
+      setStaff([])
+      setError(extractMessage(err, 'โหลดรายชื่อพนักงานไม่สำเร็จ'))
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
   }
 
   const filteredStaff = useMemo(
     () =>
       staff.filter(
-        (s) =>
-          !search ||
-          (s.display_name || s.username).toLowerCase().includes(search.toLowerCase()) ||
-          s.username.toLowerCase().includes(search.toLowerCase()),
+        (member) =>
+          !search
+          || (member.display_name || member.username).toLowerCase().includes(search.toLowerCase())
+          || member.username.toLowerCase().includes(search.toLowerCase()),
       ),
     [search, staff],
-  );
+  )
 
-  function workloadColor(n: number) {
-    if (n === 0) return 'text-slate-500';
-    if (n >= 4) return 'text-red-400';
-    if (n >= 2) return 'text-amber-400';
-    return 'text-green-400';
+  function workloadColor(taskCount: number) {
+    if (taskCount === 0) return 'text-slate-500'
+    if (taskCount >= 4) return 'text-red-400'
+    if (taskCount >= 2) return 'text-amber-400'
+    return 'text-green-400'
   }
 
-  const isSearching = search.trim().length > 0;
+  const isSearching = search.trim().length > 0
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col">
@@ -62,7 +62,7 @@ export default function Staff() {
             <p className="text-xs text-slate-400 mt-0.5">{staff.length} คน</p>
           </div>
           <button
-            onClick={loadData}
+            onClick={() => void loadData()}
             className="w-9 h-9 rounded-full flex items-center justify-center text-slate-300 bg-slate-800 active:bg-slate-700 transition"
             title="รีเฟรช"
             aria-label="รีเฟรช"
@@ -95,40 +95,44 @@ export default function Staff() {
             title="โหลดรายชื่อพนักงานไม่สำเร็จ"
             message={error}
             actionLabel="ลองใหม่"
-            onAction={loadData}
+            onAction={() => void loadData()}
           />
         )}
 
         {!loading && !error && filteredStaff.length === 0 && (
           <StateBox
             title={isSearching ? 'ไม่พบพนักงานที่ค้นหา' : 'ยังไม่มีรายชื่อพนักงาน'}
-            message={isSearching ? 'ลองค้นหาด้วยชื่อหรือชื่อผู้ใช้แบบอื่น' : 'เมื่อมีพนักงานในระบบ รายการจะแสดงที่นี่'}
+            message={
+              isSearching
+                ? 'ลองค้นหาด้วยชื่อหรือชื่อผู้ใช้อีกแบบ'
+                : 'เมื่อมีพนักงานในระบบ รายการจะแสดงที่นี่'
+            }
           />
         )}
 
         {!loading && !error &&
-          filteredStaff.map((s) => (
-            <div key={s.id} className="bg-slate-900 border border-slate-700 rounded-2xl p-4 flex items-center gap-3">
+          filteredStaff.map((member) => (
+            <div key={member.id} className="bg-slate-900 border border-slate-700 rounded-2xl p-4 flex items-center gap-3">
               <div className="w-11 h-11 rounded-full bg-slate-700 flex items-center justify-center text-base font-bold text-slate-200 shrink-0">
-                {(s.display_name || s.username)?.[0]?.toUpperCase()}
+                {(member.display_name || member.username)?.[0]?.toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-white font-semibold text-sm truncate">{s.display_name || s.username}</p>
-                <p className="text-slate-500 text-xs mt-0.5">@{s.username}</p>
+                <p className="text-white font-semibold text-sm truncate">{member.display_name || member.username}</p>
+                <p className="text-slate-500 text-xs mt-0.5">@{member.username}</p>
               </div>
               <div className="text-right shrink-0">
-                <p className={`text-lg font-bold leading-none ${workloadColor(s.active_tasks)}`}>{s.active_tasks}</p>
+                <p className={`text-lg font-bold leading-none ${workloadColor(member.active_tasks)}`}>{member.active_tasks}</p>
                 <p className="text-xs text-slate-600 mt-0.5">งาน</p>
               </div>
             </div>
           ))}
       </div>
     </div>
-  );
+  )
 }
 
 function extractMessage(error: any, fallback: string) {
-  return error?.response?.data?.error?.message || error?.response?.data?.message || fallback;
+  return error?.response?.data?.error?.message || error?.response?.data?.message || fallback
 }
 
 function StateBox({
@@ -155,5 +159,5 @@ function StateBox({
         </button>
       )}
     </div>
-  );
+  )
 }

@@ -23,7 +23,7 @@ export default function StaffSettings() {
 
       <ProfileSettingsForm
         title="ตั้งค่าโปรไฟล์"
-        subtitle="แก้ไขชื่อที่แสดงและรหัสผ่านของคุณได้จากหน้านี้"
+        subtitle="แก้ชื่อที่แสดงและเปลี่ยนรหัสผ่านได้จากหน้านี้"
         showTelegramFields={false}
       />
     </div>

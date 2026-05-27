@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
-import ManagerNav from '../../components/ManagerNav';
-import { dashboardApi } from '../../api';
+import { useEffect, useMemo, useState } from 'react'
+import ManagerNav from '../../components/ManagerNav'
+import { dashboardApi } from '../../api'
 
 type StaffStat = {
   id: number
@@ -63,7 +63,7 @@ export default function Reports() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-xl font-bold text-white">รายงาน</h1>
-            <p className="text-sm text-slate-400 mt-1">สรุปภาพรวมทีมแบบอ่านง่ายและเห็นจุดที่ต้องตามต่อ</p>
+            <p className="text-sm text-slate-400 mt-1">สรุปภาพรวมทีมแบบอ่านง่ายและเห็นจุดที่ควรตามต่อ</p>
           </div>
           <button
             onClick={() => void loadData()}
@@ -253,7 +253,7 @@ function buildFocusItems(summary: Summary | null) {
 
   if (items.length === 0) {
     items.push({
-      text: 'ตอนนี้ภาพรวมค่อนข้างนิ่ง ไม่มีงานค้างสำคัญที่ต้องเร่งตามต่อ',
+      text: 'ตอนนี้ภาพรวมค่อนข้างนิ่ง ไม่มีงานค้างสำคัญที่ต้องเร่งติดตามต่อ',
       tone: 'green',
     })
   }

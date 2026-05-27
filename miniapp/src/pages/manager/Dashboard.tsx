@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import ManagerNav from '../../components/ManagerNav';
-import { dashboardApi, notificationApi, taskApi } from '../../api';
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import ManagerNav from '../../components/ManagerNav'
+import { dashboardApi, notificationApi, taskApi } from '../../api'
 
 type Summary = {
   tasks: { total: number; in_progress: number; under_review: number; waiting_pickup: number; done: number }
@@ -138,7 +138,7 @@ export default function Dashboard() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-white">แดชบอร์ด</h1>
-            <p className="text-sm text-slate-400 mt-1">ภาพรวมระบบ งานรอตรวจ และแจ้งเตือนสำคัญ</p>
+            <p className="text-sm text-slate-400 mt-1">ภาพรวมระบบ งานรอตรวจ และการแจ้งเตือนสำคัญ</p>
           </div>
           <button
             onClick={() => void loadAll()}

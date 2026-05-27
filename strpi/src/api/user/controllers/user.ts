@@ -80,7 +80,7 @@ export default factories.createCoreController('plugin::users-permissions.user', 
       taskId: '',
       taskName: '',
       submittedBy: normalizedDisplayName,
-      reportText: `New user joined\nUsername: ${normalizedUsername}\nEmail: ${normalizedEmail}\nRole: ${selectedRole}`,
+      reportText: `มีผู้ใช้ใหม่เข้าระบบ\nUsername: ${normalizedUsername}\nEmail: ${normalizedEmail}\nRole: ${selectedRole}`,
       imageUrl: '',
     });
 
@@ -131,7 +131,7 @@ export default factories.createCoreController('plugin::users-permissions.user', 
 
   async me(ctx) {
     const currentUser = ctx.state.user;
-    if (!currentUser?.id) return ctx.unauthorized('unauthorized');
+    if (!currentUser?.id) return ctx.unauthorized('กรุณาเข้าสู่ระบบ');
 
     const fullUser = (await strapi.entityService.findOne(
       'plugin::users-permissions.user',
@@ -146,7 +146,7 @@ export default factories.createCoreController('plugin::users-permissions.user', 
 
   async updateMe(ctx) {
     const currentUser = ctx.state.user;
-    if (!currentUser?.id) return ctx.unauthorized('unauthorized');
+    if (!currentUser?.id) return ctx.unauthorized('กรุณาเข้าสู่ระบบ');
 
     const body = ctx.request.body ?? {};
     const displayName = String(body.display_name ?? '').trim();

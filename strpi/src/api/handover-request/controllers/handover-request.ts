@@ -1,8 +1,6 @@
 import { factories } from '@strapi/strapi';
 
 export default factories.createCoreController('api::handover-request.handover-request', ({ strapi }) => ({
-
-  // ===== ส่งไม้ต่อ (Staff กดส่งงานให้คนอื่น) =====
   async handover(ctx) {
     const user = ctx.state.user;
     const { id } = ctx.params;
@@ -27,7 +25,6 @@ export default factories.createCoreController('api::handover-request.handover-re
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 30 * 60 * 1000);
 
-    // requested_by = คนส่งไม้ต่อ (เจ้าของเดิม), picked_up_by ยังว่างอยู่
     const handover = await strapi.entityService.create('api::handover-request.handover-request', {
       data: {
         task: id,
@@ -48,13 +45,12 @@ export default factories.createCoreController('api::handover-request.handover-re
     });
 
     await strapi.service('api::task.task').notifyGroup({
-      message: `งานรอคนรับช่วงต่อ: *${task.name}*\nส่งต่อโดย: ${user.username}\nเหตุผล: ${reason}\n\nเข้า Mini App เพื่อรับงานต่อได้เลย`,
+      message: `งานรอรับช่วงต่อ: *${task.name}*\nส่งต่อโดย: ${user.username}\nเหตุผล: ${reason}\n\nเข้า Mini App เพื่อขอรับงานต่อได้เลย`,
     });
 
     return ctx.send({ message: 'ส่งต่องานเรียบร้อย', handoverId: handover.id });
   },
 
-  // ===== ขอรับงานต่อ (Staff คนใหม่กดรับ) =====
   async pickup(ctx) {
     const user = ctx.state.user;
     const { id } = ctx.params;
@@ -64,7 +60,7 @@ export default factories.createCoreController('api::handover-request.handover-re
     }) as any;
 
     if (!task) return ctx.notFound('ไม่พบงานนี้');
-    if (task.status_task !== 'waiting_pickup') return ctx.badRequest('งานนี้ไม่ได้อยู่ในสถานะรอรับต่อ');
+    if (task.status_task !== 'waiting_pickup') return ctx.badRequest('งานนี้ไม่ได้อยู่ในสถานะรอรับช่วงต่อ');
     if (task.current_owner.id === user.id) return ctx.badRequest('คุณเป็นเจ้าของงานเดิมอยู่แล้ว');
 
     const handovers = await strapi.entityService.findMany('api::handover-request.handover-request', {
@@ -102,7 +98,6 @@ export default factories.createCoreController('api::handover-request.handover-re
     return ctx.send({ message: 'ส่งคำขอรับงานแล้ว รอหัวหน้าอนุมัติ' });
   },
 
-  // ===== อนุมัติ Handover (Manager) =====
   async approveHandover(ctx) {
     const user = ctx.state.user;
     const { id } = ctx.params;
@@ -152,7 +147,6 @@ export default factories.createCoreController('api::handover-request.handover-re
     return ctx.send({ message: 'อนุมัติการส่งต่องานเรียบร้อย' });
   },
 
-  // ===== ยกเลิกคำขอ (Staff ยกเลิกเอง) =====
   async cancelHandover(ctx) {
     const user = ctx.state.user;
     const { id } = ctx.params;
@@ -191,5 +185,4 @@ export default factories.createCoreController('api::handover-request.handover-re
 
     return ctx.send({ message: 'ยกเลิกคำขอเรียบร้อย งานกลับมาเป็นของคุณแล้ว' });
   },
-
 }));

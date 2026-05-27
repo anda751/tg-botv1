@@ -43,23 +43,23 @@ export default function HandoverTask() {
   }, [taskId, location.state, navigate]);
 
   async function handleHandover() {
-    if (reason.length < 5) {
+    if (reason.trim().length < 5) {
       setError('กรุณาระบุเหตุผลอย่างน้อย 5 ตัวอักษร');
       return;
     }
     setError('');
     setSubmitting(true);
     try {
-      await handoverApi.handover(Number(taskId), reason);
-      navigate('/');
+      await handoverApi.handover(Number(taskId), reason.trim());
+      navigate('/', { state: { successMessage: 'ส่งต่องานเรียบร้อยแล้ว' } });
     } catch (err: any) {
-      setError(err?.response?.data?.error?.message || 'เกิดข้อผิดพลาด');
+      setError(err?.response?.data?.error?.message || 'ส่งต่องานไม่สำเร็จ');
     } finally {
       setSubmitting(false);
     }
   }
 
-  const isValid = reason.length >= 5;
+  const isValid = reason.trim().length >= 5;
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col">
@@ -86,21 +86,21 @@ export default function HandoverTask() {
         <div className="bg-amber-950/40 border border-amber-800/60 rounded-xl px-4 py-3 flex gap-3 items-start">
           <span className="text-xl mt-0.5">!</span>
           <div>
-            <p className="text-amber-300 text-sm font-semibold">ส่งต่องานให้คนอื่นรับ</p>
+            <p className="text-amber-300 text-sm font-semibold">ส่งต่องานให้คนอื่นรับช่วงต่อ</p>
             <p className="text-amber-400/70 text-xs mt-0.5 leading-relaxed">
-              งานจะเปลี่ยนเป็นสถานะรอคนรับ และมีเวลา 30 นาที ถ้าไม่มีคนรับ งานจะกลับมาที่คุณ
+              งานจะเปลี่ยนเป็นสถานะรอรับช่วงต่อ และถ้ายังไม่มีคนรับภายในเวลาที่กำหนด งานจะกลับมาอยู่กับคุณ
             </p>
           </div>
         </div>
 
         {task && (
           <div className="bg-slate-900 border border-slate-700 rounded-xl p-4">
-            <p className="text-xs text-slate-500 mb-1 uppercase tracking-widest font-semibold">งานที่จะส่งต่อ</p>
+            <p className="text-xs text-slate-500 mb-1 uppercase tracking-widest font-semibold">งานที่กำลังส่งต่อ</p>
             <p className="text-white font-semibold text-sm leading-snug">{task.name}</p>
             {task.project && <p className="text-xs text-slate-400 mt-1.5">โปรเจกต์: {task.project.name}</p>}
             <div className="mt-3 flex items-center gap-1.5">
               <div className="w-2 h-2 rounded-full bg-blue-400" />
-              <span className="text-xs text-blue-300">กำลังทำ → รอคนรับ</span>
+              <span className="text-xs text-blue-300">กำลังทำ → รอรับช่วงต่อ</span>
             </div>
           </div>
         )}
@@ -112,23 +112,23 @@ export default function HandoverTask() {
           <textarea
             value={reason}
             onChange={(e) => { setReason(e.target.value); setError(''); }}
-            placeholder="เช่น ติดประชุม ป่วย หรือต้องไปทำงานอื่นก่อน..."
+            placeholder="เช่น ติดประชุม ลางาน หรือมีงานด่วนอื่นต้องไปทำก่อน"
             rows={4}
             className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white placeholder-slate-600 outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition resize-none text-sm"
           />
           <div className="flex justify-between mt-1.5">
-            <span className="text-xs text-slate-600">ต้องการอย่างน้อย 5 ตัวอักษร</span>
-            <span className={`text-xs font-medium ${reason.length >= 5 ? 'text-green-400' : 'text-slate-500'}`}>
-              {reason.length} ตัว
+            <span className="text-xs text-slate-600">ต้องมีอย่างน้อย 5 ตัวอักษร</span>
+            <span className={`text-xs font-medium ${reason.trim().length >= 5 ? 'text-green-400' : 'text-slate-500'}`}>
+              {reason.trim().length} ตัว
             </span>
           </div>
         </div>
 
         <div className="space-y-2">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">ขั้นตอนหลังส่งต่อ</p>
-          <Step n={1} text="งานเปลี่ยนเป็นสถานะรอคนรับ" />
-          <Step n={2} text="เพื่อนร่วมทีมสามารถกดรับงานได้" />
-          <Step n={3} text="หัวหน้าอนุมัติแล้วงานจะย้ายไปให้คนใหม่" />
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">หลังจากส่งต่อแล้ว</p>
+          <Step n={1} text="งานจะย้ายไปอยู่ในรายการงานรอรับช่วงต่อ" />
+          <Step n={2} text="เพื่อนร่วมทีมสามารถกดขอรับงานนี้ได้" />
+          <Step n={3} text="หัวหน้าจะเป็นคนอนุมัติการรับช่วงต่องาน" />
         </div>
 
         {error && (

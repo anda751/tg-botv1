@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
-import ManagerNav from '../../components/ManagerNav';
-import { dashboardApi, taskApi } from '../../api';
+import { useEffect, useMemo, useState } from 'react'
+import ManagerNav from '../../components/ManagerNav'
+import { dashboardApi, taskApi } from '../../api'
 
 type Task = {
   id: number
@@ -16,86 +16,86 @@ const STATUS_LABEL: Record<string, { text: string; color: string; dot: string }>
   under_review: { text: 'รอตรวจ', color: 'bg-amber-900/50 text-amber-300', dot: 'bg-amber-400' },
   waiting_pickup: { text: 'รอคนรับ', color: 'bg-orange-900/50 text-orange-300', dot: 'bg-orange-400' },
   done: { text: 'เสร็จแล้ว', color: 'bg-green-900/50 text-green-300', dot: 'bg-green-400' },
-};
+}
 
 type FilterStatus = 'all' | 'in_progress' | 'under_review' | 'waiting_pickup' | 'done'
 
 export default function Tasks() {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [actionError, setActionError] = useState('');
-  const [actionSuccess, setActionSuccess] = useState('');
-  const [filter, setFilter] = useState<FilterStatus>('all');
-  const [search, setSearch] = useState('');
-  const [actionLoading, setActionLoading] = useState<number | null>(null);
-  const [rejectId, setRejectId] = useState<number | null>(null);
-  const [rejectReason, setRejectReason] = useState('');
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [actionError, setActionError] = useState('')
+  const [actionSuccess, setActionSuccess] = useState('')
+  const [filter, setFilter] = useState<FilterStatus>('all')
+  const [search, setSearch] = useState('')
+  const [actionLoading, setActionLoading] = useState<number | null>(null)
+  const [rejectId, setRejectId] = useState<number | null>(null)
+  const [rejectReason, setRejectReason] = useState('')
 
   useEffect(() => {
-    loadTasks();
-  }, []);
+    void loadTasks()
+  }, [])
 
   async function loadTasks() {
-    setLoading(true);
-    setError('');
-    setActionError('');
+    setLoading(true)
+    setError('')
+    setActionError('')
     try {
-      const { data } = await dashboardApi.pendingTasks();
-      const list = Array.isArray(data) ? data : [];
-      setTasks(list);
+      const { data } = await dashboardApi.pendingTasks()
+      const list = Array.isArray(data) ? data : []
+      setTasks(list)
     } catch (err: any) {
-      setTasks([]);
-      setError(err?.response?.data?.error?.message || 'โหลดรายการงานไม่สำเร็จ');
+      setTasks([])
+      setError(err?.response?.data?.error?.message || 'โหลดรายการงานไม่สำเร็จ')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
   }
 
   async function handleApprove(taskId: number) {
-    setActionLoading(taskId);
-    setActionError('');
-    setActionSuccess('');
+    setActionLoading(taskId)
+    setActionError('')
+    setActionSuccess('')
     try {
-      await taskApi.approve(taskId);
-      setActionSuccess('อนุมัติงานเรียบร้อย');
-      await loadTasks();
+      await taskApi.approve(taskId)
+      setActionSuccess('อนุมัติงานเรียบร้อย')
+      await loadTasks()
     } catch (err: any) {
-      setActionError(err?.response?.data?.error?.message || 'อนุมัติงานไม่สำเร็จ');
+      setActionError(err?.response?.data?.error?.message || 'อนุมัติงานไม่สำเร็จ')
     } finally {
-      setActionLoading(null);
+      setActionLoading(null)
     }
   }
 
   async function handleReject(taskId: number) {
-    if (rejectReason.length < 5) return;
-    setActionLoading(taskId);
-    setActionError('');
-    setActionSuccess('');
+    if (rejectReason.length < 5) return
+    setActionLoading(taskId)
+    setActionError('')
+    setActionSuccess('')
     try {
-      await taskApi.reject(taskId, rejectReason);
-      setRejectId(null);
-      setRejectReason('');
-      setActionSuccess('ส่งงานกลับเรียบร้อย');
-      await loadTasks();
+      await taskApi.reject(taskId, rejectReason)
+      setRejectId(null)
+      setRejectReason('')
+      setActionSuccess('ส่งงานกลับเรียบร้อย')
+      await loadTasks()
     } catch (err: any) {
-      setActionError(err?.response?.data?.error?.message || 'ส่งงานกลับไม่สำเร็จ');
+      setActionError(err?.response?.data?.error?.message || 'ส่งงานกลับไม่สำเร็จ')
     } finally {
-      setActionLoading(null);
+      setActionLoading(null)
     }
   }
 
   const filtered = useMemo(() => {
     return tasks.filter((t) => {
-      const matchStatus = filter === 'all' || t.status_task === filter;
-      const q = search.toLowerCase();
+      const matchStatus = filter === 'all' || t.status_task === filter
+      const q = search.toLowerCase()
       const matchSearch = !search
         || t.name.toLowerCase().includes(q)
         || (t.current_owner?.display_name ?? '').toLowerCase().includes(q)
-        || (t.current_owner?.username ?? '').toLowerCase().includes(q);
-      return matchStatus && matchSearch;
-    });
-  }, [tasks, filter, search]);
+        || (t.current_owner?.username ?? '').toLowerCase().includes(q)
+      return matchStatus && matchSearch
+    })
+  }, [tasks, filter, search])
 
   const counts: Record<string, number> = {
     all: tasks.length,
@@ -103,7 +103,7 @@ export default function Tasks() {
     under_review: tasks.filter((t) => t.status_task === 'under_review').length,
     waiting_pickup: tasks.filter((t) => t.status_task === 'waiting_pickup').length,
     done: tasks.filter((t) => t.status_task === 'done').length,
-  };
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col">
@@ -114,7 +114,7 @@ export default function Tasks() {
             <p className="text-xs text-slate-400 mt-0.5">{tasks.length} งานทั้งหมด</p>
           </div>
           <button
-            onClick={loadTasks}
+            onClick={() => void loadTasks()}
             className="w-9 h-9 rounded-full flex items-center justify-center text-slate-300 bg-slate-800 active:bg-slate-700 transition"
             title="รีเฟรช"
             aria-label="รีเฟรช"
@@ -129,7 +129,7 @@ export default function Tasks() {
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">ค้น</span>
           <input
             type="text"
-            placeholder="ค้นหาชื่องาน หรือพนักงาน..."
+            placeholder="ค้นหาชื่องาน หรือชื่อพนักงาน..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-slate-600 outline-none focus:border-blue-500 text-sm"
@@ -194,9 +194,9 @@ export default function Tasks() {
         )}
 
         {!loading && !error && filtered.map((task) => {
-          const s = STATUS_LABEL[task.status_task];
-          const isRejecting = rejectId === task.id;
-          const isLoading = actionLoading === task.id;
+          const s = STATUS_LABEL[task.status_task]
+          const isRejecting = rejectId === task.id
+          const isLoading = actionLoading === task.id
 
           return (
             <div key={task.id} className="bg-slate-900 border border-slate-700 rounded-2xl p-4">
@@ -239,13 +239,13 @@ export default function Tasks() {
                       />
                       <div className="flex gap-2">
                         <button
-                          onClick={() => { setRejectId(null); setRejectReason(''); }}
+                          onClick={() => { setRejectId(null); setRejectReason('') }}
                           className="flex-1 py-2 rounded-xl text-xs font-semibold text-slate-400 bg-slate-800 active:bg-slate-700 transition"
                         >
                           ยกเลิก
                         </button>
                         <button
-                          onClick={() => handleReject(task.id)}
+                          onClick={() => void handleReject(task.id)}
                           disabled={rejectReason.length < 5 || isLoading}
                           className="flex-1 py-2 rounded-xl text-xs font-semibold text-white bg-red-600 active:bg-red-700 transition disabled:opacity-40"
                         >
@@ -262,7 +262,7 @@ export default function Tasks() {
                         ส่งกลับ
                       </button>
                       <button
-                        onClick={() => handleApprove(task.id)}
+                        onClick={() => void handleApprove(task.id)}
                         disabled={isLoading}
                         className="flex-1 py-2 rounded-xl text-xs font-semibold text-white bg-green-600 active:bg-green-700 transition disabled:opacity-40"
                       >
@@ -273,11 +273,11 @@ export default function Tasks() {
                 </>
               )}
             </div>
-          );
+          )
         })}
       </div>
     </div>
-  );
+  )
 }
 
 function StateBox({
@@ -304,5 +304,5 @@ function StateBox({
         </button>
       )}
     </div>
-  );
+  )
 }

@@ -52,7 +52,7 @@ export default function PickupTask() {
         loadTasks();
       }, 2000);
     } catch (err: any) {
-      setError(err?.response?.data?.error?.message || 'เกิดข้อผิดพลาด');
+      setError(err?.response?.data?.error?.message || 'ส่งคำขอรับงานไม่สำเร็จ');
     } finally {
       setPickingId(null);
     }
@@ -70,10 +70,10 @@ export default function PickupTask() {
           ←
         </button>
         <div className="flex-1">
-          <h1 className="text-lg font-bold text-white">งานรอคนรับ</h1>
+          <h1 className="text-lg font-bold text-white">งานรอรับช่วงต่อ</h1>
           {!loading && !listError && (
             <p className="text-xs text-slate-400 mt-0.5">
-              {tasks.length === 0 ? 'ไม่มีงานรอรับ' : `${tasks.length} งาน`}
+              {tasks.length === 0 ? 'ยังไม่มีงานรอรับช่วงต่อ' : `${tasks.length} งาน`}
             </p>
           )}
         </div>
@@ -91,7 +91,7 @@ export default function PickupTask() {
         <div className="bg-blue-950/40 border border-blue-800/50 rounded-xl px-4 py-3 flex gap-3 items-start mb-4">
           <span className="text-lg mt-0.5">i</span>
           <p className="text-blue-300 text-xs leading-relaxed">
-            กดรับงานแล้วรอหัวหน้าอนุมัติ งานจะย้ายมาอยู่กับคุณหลังจากนั้น
+            เมื่อกดรับงาน ระบบจะส่งคำขอให้หัวหน้าตรวจสอบก่อน งานจะย้ายมาอยู่กับคุณหลังอนุมัติแล้ว
           </p>
         </div>
 
@@ -125,8 +125,8 @@ export default function PickupTask() {
 
         {!loading && !listError && tasks.length === 0 && (
           <StateBox
-            title="ไม่มีงานรอรับตอนนี้"
-            message="ทุกงานมีคนรับผิดชอบแล้ว"
+            title="ยังไม่มีงานรอรับช่วงต่อ"
+            message="ตอนนี้ทุกงานมีผู้รับผิดชอบอยู่แล้ว"
             actionLabel="รีเฟรช"
             onAction={loadTasks}
           />
@@ -165,14 +165,14 @@ export default function PickupTask() {
 
                   {reason && (
                     <div className="bg-slate-800 rounded-xl px-3 py-2 mb-3">
-                      <p className="text-xs text-slate-500 mb-0.5">เหตุผล</p>
+                      <p className="text-xs text-slate-500 mb-0.5">เหตุผลที่ส่งต่อ</p>
                       <p className="text-xs text-slate-300 leading-relaxed">{reason}</p>
                     </div>
                   )}
 
                   <div className="flex items-center gap-2 mb-3">
                     <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-orange-900/50 text-orange-300">
-                      รอคนรับ
+                      รอรับช่วงต่อ
                     </span>
                   </div>
 
@@ -186,7 +186,7 @@ export default function PickupTask() {
                       disabled={isPicking || pickingId !== null}
                       className="w-full py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-orange-500 to-amber-500 active:scale-95 transition-all disabled:opacity-40 disabled:scale-100 text-sm"
                     >
-                      {isPicking ? 'กำลังส่งคำขอ...' : 'รับงานนี้'}
+                      {isPicking ? 'กำลังส่งคำขอ...' : 'ขอรับงานนี้'}
                     </button>
                   )}
                 </div>

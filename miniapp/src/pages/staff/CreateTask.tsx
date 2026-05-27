@@ -41,14 +41,14 @@ export default function CreateTask() {
     } catch (err: any) {
       setProjects([]);
       setJoinableProjects([]);
-      setProjectsError(err?.response?.data?.error?.message || 'โหลดโปรเจกต์ไม่สำเร็จ');
+      setProjectsError(err?.response?.data?.error?.message || 'โหลดรายการโปรเจกต์ไม่สำเร็จ');
     } finally {
       setLoadingProjects(false);
     }
   }
 
   async function handleCreate() {
-    if (!name || name.length < 5) {
+    if (!name || name.trim().length < 5) {
       setError('ชื่องานต้องมีอย่างน้อย 5 ตัวอักษร');
       return;
     }
@@ -67,7 +67,7 @@ export default function CreateTask() {
       });
       navigate('/', { state: { successMessage: 'สร้างงานเรียบร้อยแล้ว' } });
     } catch (err: any) {
-      setError(err?.response?.data?.error?.message || 'เกิดข้อผิดพลาด');
+      setError(err?.response?.data?.error?.message || 'สร้างงานไม่สำเร็จ');
     } finally {
       setSubmitting(false);
     }
@@ -82,13 +82,13 @@ export default function CreateTask() {
       setJoinableProjects((prev) => prev.filter((p) => p.id !== projectId));
       setSuccessMessage('ส่งคำขอเข้าโปรเจกต์เรียบร้อยแล้ว');
     } catch (err: any) {
-      setError(err?.response?.data?.error?.message || 'เกิดข้อผิดพลาด');
+      setError(err?.response?.data?.error?.message || 'ส่งคำขอเข้าโปรเจกต์ไม่สำเร็จ');
     } finally {
       setRequestingProjectId(null);
     }
   }
 
-  const isValid = name.length >= 5 && /[a-zA-Zก-๙]/.test(name);
+  const isValid = name.trim().length >= 5 && /[a-zA-Zก-๙]/.test(name);
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col">
@@ -118,7 +118,7 @@ export default function CreateTask() {
           <textarea
             value={name}
             onChange={(e) => { setName(e.target.value); setError(''); }}
-            placeholder="อธิบายงานที่ต้องทำ..."
+            placeholder="อธิบายงานที่ต้องทำแบบสั้น ๆ"
             rows={3}
             className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white placeholder-slate-600 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition resize-none text-sm"
           />
@@ -131,7 +131,7 @@ export default function CreateTask() {
           {loadingProjects ? (
             <div className="h-10 rounded-xl bg-slate-800 animate-pulse" />
           ) : projectsError ? (
-            <StateBox title="โหลดโปรเจกต์ไม่สำเร็จ" message={projectsError} actionLabel="ลองใหม่" onAction={loadProjects} />
+            <StateBox title="โหลดรายการโปรเจกต์ไม่สำเร็จ" message={projectsError} actionLabel="ลองใหม่" onAction={loadProjects} />
           ) : (
             <div className="flex flex-wrap gap-2">
               <button
@@ -164,7 +164,7 @@ export default function CreateTask() {
         {!loadingProjects && !projectsError && joinableProjects.length > 0 && (
           <div>
             <label className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3 block">
-              ขอเข้าโปรเจกต์
+              โปรเจกต์ที่ขอเข้าร่วมได้
             </label>
             <div className="space-y-2">
               {joinableProjects.map((p) => (

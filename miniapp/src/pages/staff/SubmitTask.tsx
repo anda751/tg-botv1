@@ -64,8 +64,8 @@ export default function SubmitTask() {
       setError('กรุณาแนบรูปหลักฐาน');
       return;
     }
-    if (reportText.length < 5) {
-      setError('รายงานต้องมีอย่างน้อย 5 ตัวอักษร');
+    if (reportText.trim().length < 5) {
+      setError('รายงานสรุปงานต้องมีอย่างน้อย 5 ตัวอักษร');
       return;
     }
 
@@ -74,17 +74,17 @@ export default function SubmitTask() {
     try {
       const fd = new FormData();
       fd.append('proof_image', imageFile);
-      fd.append('report_text', reportText);
+      fd.append('report_text', reportText.trim());
       await taskApi.submit(Number(taskId), fd);
       navigate('/', { state: { successMessage: 'ส่งงานเรียบร้อยแล้ว รอหัวหน้าตรวจสอบ' } });
     } catch (err: any) {
-      setError(err?.response?.data?.error?.message || 'เกิดข้อผิดพลาด');
+      setError(err?.response?.data?.error?.message || 'ส่งงานไม่สำเร็จ');
     } finally {
       setSubmitting(false);
     }
   }
 
-  const isValid = !!imageFile && reportText.length >= 5;
+  const isValid = !!imageFile && reportText.trim().length >= 5;
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col">
@@ -140,7 +140,7 @@ export default function SubmitTask() {
               className="w-full h-40 rounded-2xl border-2 border-dashed border-slate-700 flex flex-col items-center justify-center gap-2 active:bg-slate-900 transition"
             >
               <span className="text-3xl">รูป</span>
-              <span className="text-sm text-slate-400 font-medium">แตะเพื่อเลือกรูป</span>
+              <span className="text-sm text-slate-400 font-medium">แตะเพื่อเลือกรูปหลักฐาน</span>
               <span className="text-xs text-slate-600">JPG, PNG, HEIC</span>
             </button>
           )}
@@ -156,19 +156,19 @@ export default function SubmitTask() {
 
         <div>
           <label className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2 block">
-            รายงานสรุปผลงาน <span className="text-red-400">*</span>
+            รายงานสรุปงาน <span className="text-red-400">*</span>
           </label>
           <textarea
             value={reportText}
             onChange={(e) => { setReportText(e.target.value); setError(''); }}
-            placeholder="อธิบายสิ่งที่ทำเสร็จแล้ว..."
+            placeholder="อธิบายสิ่งที่ทำเสร็จแล้วแบบสั้นและชัดเจน"
             rows={4}
             className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white placeholder-slate-600 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition resize-none text-sm"
           />
           <div className="flex justify-between mt-1.5">
-            <span className="text-xs text-slate-600">ต้องการอย่างน้อย 5 ตัวอักษร</span>
-            <span className={`text-xs font-medium ${reportText.length >= 5 ? 'text-green-400' : 'text-slate-500'}`}>
-              {reportText.length} ตัว
+            <span className="text-xs text-slate-600">ต้องมีอย่างน้อย 5 ตัวอักษร</span>
+            <span className={`text-xs font-medium ${reportText.trim().length >= 5 ? 'text-green-400' : 'text-slate-500'}`}>
+              {reportText.trim().length} ตัว
             </span>
           </div>
         </div>
@@ -176,7 +176,7 @@ export default function SubmitTask() {
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-2">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">เช็กลิสต์ก่อนส่ง</p>
           <CheckItem ok={!!imageFile} label="แนบรูปหลักฐานแล้ว" />
-          <CheckItem ok={reportText.length >= 5} label="กรอกรายงานอย่างน้อย 5 ตัวอักษร" />
+          <CheckItem ok={reportText.trim().length >= 5} label="กรอกรายงานสรุปงานครบแล้ว" />
         </div>
 
         {error && (

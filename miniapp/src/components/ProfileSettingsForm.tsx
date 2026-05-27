@@ -170,7 +170,7 @@ export default function ProfileSettingsForm({
                   />
                 </Field>
                 <p className="text-xs text-slate-500">
-                  Telegram ใช้สำหรับแจ้งเตือน manager เท่านั้น หากกรอกผิดสามารถกลับมาแก้ที่หน้านี้ได้ตลอด
+                  ใช้สำหรับแจ้งเตือนฝั่งหัวหน้าเท่านั้น ถ้ากรอกผิดสามารถกลับมาแก้ที่หน้านี้ได้ตลอด
                 </p>
               </>
             )}
@@ -206,7 +206,7 @@ export default function ProfileSettingsForm({
               />
             </Field>
             <p className="text-xs text-slate-500">
-              หากยังไม่ต้องการเปลี่ยนรหัสผ่าน สามารถเว้นทั้งสามช่องนี้ว่างไว้ได้
+              ถ้ายังไม่ต้องการเปลี่ยนรหัสผ่าน ปล่อยสามช่องนี้ว่างไว้ได้เลย
             </p>
             <button
               onClick={handleSave}

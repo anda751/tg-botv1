@@ -1,26 +1,26 @@
-import { useEffect, useState } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import axios from 'axios';
+import { useEffect, useState } from 'react'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import axios from 'axios'
 
-import MyTasks from './pages/staff/MyTasks';
-import CreateTask from './pages/staff/CreateTask';
-import SubmitTask from './pages/staff/SubmitTask';
-import ProgressTask from './pages/staff/ProgressTask';
-import HandoverTask from './pages/staff/HandoverTask';
-import PickupTask from './pages/staff/PickupTask';
-import StaffSettings from './pages/staff/Settings';
-import Dashboard from './pages/manager/Dashboard';
-import Projects from './pages/manager/Projects';
-import Tasks from './pages/manager/Tasks';
-import Staff from './pages/manager/Staff';
-import Kpi from './pages/manager/Kpi';
-import Reports from './pages/manager/Reports';
-import Settings from './pages/manager/Settings';
-import Register from './pages/Register';
-import Loading from './components/Loading';
-import Login from './pages/Login';
+import MyTasks from './pages/staff/MyTasks'
+import CreateTask from './pages/staff/CreateTask'
+import SubmitTask from './pages/staff/SubmitTask'
+import ProgressTask from './pages/staff/ProgressTask'
+import HandoverTask from './pages/staff/HandoverTask'
+import PickupTask from './pages/staff/PickupTask'
+import StaffSettings from './pages/staff/Settings'
+import Dashboard from './pages/manager/Dashboard'
+import Projects from './pages/manager/Projects'
+import Tasks from './pages/manager/Tasks'
+import Staff from './pages/manager/Staff'
+import Kpi from './pages/manager/Kpi'
+import Reports from './pages/manager/Reports'
+import Settings from './pages/manager/Settings'
+import Register from './pages/Register'
+import Loading from './components/Loading'
+import Login from './pages/Login'
 
-type RoleApp = 'manager' | 'staff';
+type RoleApp = 'manager' | 'staff'
 
 export type AppUser = {
   id: number
@@ -33,56 +33,56 @@ export type AppUser = {
   telegram_chat_id?: string
 }
 
-const AUTH_TOKEN_KEY = 'auth-token';
-axios.defaults.baseURL = `${import.meta.env.VITE_STRAPI_URL}/api`;
+const AUTH_TOKEN_KEY = 'auth-token'
+axios.defaults.baseURL = `${import.meta.env.VITE_STRAPI_URL}/api`
 
 export default function App() {
-  const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<AppUser | null>(null);
-  const [confirmLogout, setConfirmLogout] = useState(false);
+  const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState<AppUser | null>(null)
+  const [confirmLogout, setConfirmLogout] = useState(false)
 
   useEffect(() => {
-    initAuth();
-  }, []);
+    void initAuth()
+  }, [])
 
   async function initAuth() {
-    const token = localStorage.getItem(AUTH_TOKEN_KEY);
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
     if (!token) {
-      delete axios.defaults.headers.common.Authorization;
-      setUser(null);
-      setLoading(false);
-      return;
+      delete axios.defaults.headers.common.Authorization
+      setUser(null)
+      setLoading(false)
+      return
     }
 
-    axios.defaults.headers.common.Authorization = `Bearer ${token}`;
+    axios.defaults.headers.common.Authorization = `Bearer ${token}`
     try {
-      const { data } = await axios.get('/profile/me');
-      setUser(data);
+      const { data } = await axios.get('/profile/me')
+      setUser(data)
     } catch {
-      localStorage.removeItem(AUTH_TOKEN_KEY);
-      delete axios.defaults.headers.common.Authorization;
-      setUser(null);
+      localStorage.removeItem(AUTH_TOKEN_KEY)
+      delete axios.defaults.headers.common.Authorization
+      setUser(null)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
   }
 
   function handleAuthSuccess(token: string, authUser: AppUser) {
-    localStorage.setItem(AUTH_TOKEN_KEY, token);
-    axios.defaults.headers.common.Authorization = `Bearer ${token}`;
-    setUser(authUser);
+    localStorage.setItem(AUTH_TOKEN_KEY, token)
+    axios.defaults.headers.common.Authorization = `Bearer ${token}`
+    setUser(authUser)
   }
 
   function handleLogout() {
-    localStorage.removeItem(AUTH_TOKEN_KEY);
-    delete axios.defaults.headers.common.Authorization;
-    setUser(null);
-    setConfirmLogout(false);
+    localStorage.removeItem(AUTH_TOKEN_KEY)
+    delete axios.defaults.headers.common.Authorization
+    setUser(null)
+    setConfirmLogout(false)
   }
 
-  if (loading) return <Loading />;
+  if (loading) return <Loading />
 
-  const roleLabel = user?.role_app === 'manager' ? 'หัวหน้า' : 'ลูกน้อง';
+  const roleLabel = user?.role_app === 'manager' ? 'หัวหน้า' : 'ลูกน้อง'
 
   return (
     <BrowserRouter>
@@ -104,6 +104,7 @@ export default function App() {
                   {user.display_name || user.username} · {roleLabel}
                 </p>
               </div>
+
               {confirmLogout ? (
                 <div className="flex items-center gap-2">
                   <button
@@ -131,6 +132,7 @@ export default function App() {
               )}
             </div>
           </div>
+
           <Routes>
             {user.role_app === 'manager' ? (
               <>
@@ -163,5 +165,5 @@ export default function App() {
         </div>
       )}
     </BrowserRouter>
-  );
+  )
 }

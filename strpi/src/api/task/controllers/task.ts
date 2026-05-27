@@ -71,7 +71,7 @@ export default factories.createCoreController(taskUid, ({ strapi }) => ({
       return ctx.badRequest('รูปแบบโปรเจกต์ไม่ถูกต้อง');
     }
 
-    const created = await strapi.db.query(taskUid).create({
+    const created = (await strapi.db.query(taskUid).create({
       data: {
         ...bodyData,
         name,
@@ -80,7 +80,7 @@ export default factories.createCoreController(taskUid, ({ strapi }) => ({
         creator: user.id,
         status_task: 'in_progress',
       },
-    }) as any;
+    })) as any;
 
     await strapi.db.query(taskLogUid).create({
       data: {

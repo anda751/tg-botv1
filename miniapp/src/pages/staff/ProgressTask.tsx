@@ -74,7 +74,7 @@ export default function ProgressTask() {
       await taskApi.progress(Number(taskId), fd);
       navigate('/', { state: { successMessage: 'บันทึกความคืบหน้าเรียบร้อยแล้ว' } });
     } catch (err: any) {
-      setError(err?.response?.data?.error?.message || 'เกิดข้อผิดพลาด');
+      setError(err?.response?.data?.error?.message || 'บันทึกความคืบหน้าไม่สำเร็จ');
     } finally {
       setSubmitting(false);
     }
@@ -111,7 +111,7 @@ export default function ProgressTask() {
           <textarea
             value={reportText}
             onChange={(e) => { setReportText(e.target.value); setError(''); }}
-            placeholder="อัปเดตสิ่งที่ทำไปแล้วหรือสิ่งที่กำลังทำ..."
+            placeholder="อัปเดตสิ่งที่ทำไปแล้วหรือสิ่งที่กำลังทำอยู่"
             rows={4}
             className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white placeholder-slate-600 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition resize-none text-sm"
           />
@@ -145,7 +145,7 @@ export default function ProgressTask() {
               className="w-full h-32 rounded-2xl border-2 border-dashed border-slate-700 flex flex-col items-center justify-center gap-2 active:bg-slate-900 transition"
             >
               <span className="text-3xl">รูป</span>
-              <span className="text-sm text-slate-400 font-medium">แนบรูปความคืบหน้า</span>
+              <span className="text-sm text-slate-400 font-medium">แนบรูปความคืบหน้าเพิ่มเติม</span>
             </button>
           )}
           <input
