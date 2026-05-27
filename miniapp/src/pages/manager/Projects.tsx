@@ -54,6 +54,7 @@ const TASK_STATUS = {
 export default function Projects() {
   const location = useLocation()
   const navigate = useNavigate()
+  const defaultDeadline = getSuggestedDeadlineParts()
   const [projects, setProjects] = useState<Project[]>([])
   const [requests, setRequests] = useState<JoinRequest[]>([])
   const [loading, setLoading] = useState(true)
@@ -61,9 +62,9 @@ export default function Projects() {
   const [approvingId, setApprovingId] = useState<number | null>(null)
   const [rejectingId, setRejectingId] = useState<number | null>(null)
   const [newName, setNewName] = useState('')
-  const [newDeadlineDate, setNewDeadlineDate] = useState('')
-  const [newDeadlineHour, setNewDeadlineHour] = useState('18')
-  const [newDeadlineMinute, setNewDeadlineMinute] = useState('00')
+  const [newDeadlineDate, setNewDeadlineDate] = useState(defaultDeadline.date)
+  const [newDeadlineHour, setNewDeadlineHour] = useState(defaultDeadline.hour)
+  const [newDeadlineMinute, setNewDeadlineMinute] = useState(defaultDeadline.minute)
   const [formError, setFormError] = useState('')
   const [pageError, setPageError] = useState('')
   const [actionError, setActionError] = useState('')
@@ -75,10 +76,22 @@ export default function Projects() {
   const [detailErrorById, setDetailErrorById] = useState<Record<number, string>>({})
   const [projectDetails, setProjectDetails] = useState<Record<number, ProjectDetail>>({})
   const highlightedTaskId = Number(new URLSearchParams(location.search).get('highlightTask') || '')
+  const selectedDeadlinePreview = buildDeadlinePreview(newDeadlineDate, newDeadlineHour, newDeadlineMinute)
+  const deadlineValidationMessage = getDeadlineValidationMessage(newDeadlineDate, newDeadlineHour, newDeadlineMinute)
+  const hasDeadlineError = deadlineValidationMessage.toLowerCase().includes('อดีต')
 
   useEffect(() => {
     void loadAll()
   }, [])
+
+  useEffect(() => {
+    if (openUtilityPanel === 'create' && !newDeadlineDate) {
+      const suggested = getSuggestedDeadlineParts()
+      setNewDeadlineDate(suggested.date)
+      setNewDeadlineHour(suggested.hour)
+      setNewDeadlineMinute(suggested.minute)
+    }
+  }, [openUtilityPanel])
 
   useEffect(() => {
     const openProject = Number(new URLSearchParams(location.search).get('open') || '')
@@ -158,14 +171,21 @@ export default function Projects() {
         return
       }
 
+      if (deadline.getTime() <= Date.now()) {
+        setFormError('กำหนดส่งต้องเป็นเวลาในอนาคต')
+        setCreating(false)
+        return
+      }
+
       await projectApi.create({
         name: newName.trim(),
         deadline: deadline.toISOString(),
       })
+      const suggested = getSuggestedDeadlineParts()
       setNewName('')
-      setNewDeadlineDate('')
-      setNewDeadlineHour('18')
-      setNewDeadlineMinute('00')
+      setNewDeadlineDate(suggested.date)
+      setNewDeadlineHour(suggested.hour)
+      setNewDeadlineMinute(suggested.minute)
       setActionSuccess('สร้างโปรเจกต์เรียบร้อย')
       await loadAll()
     } catch (error: any) {
@@ -360,6 +380,24 @@ export default function Projects() {
                   </p>
                 </div>
 
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { label: 'วันนี้ 18:00', offsetDays: 0, hour: '18', minute: '00' },
+                    { label: 'พรุ่งนี้ 18:00', offsetDays: 1, hour: '18', minute: '00' },
+                    { label: 'อีก 7 วัน 18:00', offsetDays: 7, hour: '18', minute: '00' },
+                    { label: 'สิ้นเดือน 18:00', endOfMonth: true, hour: '18', minute: '00' },
+                  ].map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => applyDeadlinePreset(setNewDeadlineDate, setNewDeadlineHour, setNewDeadlineMinute, preset)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-200 bg-slate-800 border border-slate-700 active:bg-slate-700 transition"
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+
                 <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_100px_100px]">
                   <label className="space-y-1">
                     <span className="text-[11px] font-semibold text-slate-400">วันสิ้นสุด</span>
@@ -367,6 +405,7 @@ export default function Projects() {
                       type="date"
                       value={newDeadlineDate}
                       onChange={(event) => setNewDeadlineDate(event.target.value)}
+                      min={formatDateInput(new Date())}
                       className="w-full px-3 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white"
                     />
                   </label>
@@ -401,12 +440,30 @@ export default function Projects() {
                     </select>
                   </label>
                 </div>
+
+                <div
+                  className={`rounded-xl px-3 py-2.5 ${
+                    hasDeadlineError
+                      ? 'border border-amber-800/60 bg-amber-950/30'
+                      : 'border border-blue-800/60 bg-blue-950/30'
+                  }`}
+                >
+                  <p className="text-[11px] font-semibold uppercase tracking-widest text-blue-300">เวลาที่จะใช้</p>
+                  <p className={`text-sm mt-1 ${hasDeadlineError ? 'text-amber-100' : 'text-blue-100'}`}>
+                    {selectedDeadlinePreview || 'ยังไม่ได้เลือกวันส่ง'}
+                  </p>
+                  {deadlineValidationMessage && (
+                    <p className={`text-xs mt-2 ${hasDeadlineError ? 'text-amber-200' : 'text-slate-300'}`}>
+                      {deadlineValidationMessage}
+                    </p>
+                  )}
+                </div>
               </div>
               {formError && <p className="text-xs text-red-400">{formError}</p>}
               <button
                 onClick={() => void handleCreate()}
-                disabled={creating}
-                className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600 disabled:opacity-50"
+                disabled={creating || hasDeadlineError}
+                className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {creating ? 'กำลังสร้าง...' : 'สร้างโปรเจกต์'}
               </button>
@@ -1042,4 +1099,97 @@ function formatDateTime(value: string) {
 
 function isOverdue(project: Project) {
   return project.status_project === 'active' && new Date(project.deadline).getTime() < Date.now()
+}
+
+function applyDeadlinePreset(
+  setDate: (value: string) => void,
+  setHour: (value: string) => void,
+  setMinute: (value: string) => void,
+  preset: {
+    offsetDays?: number
+    endOfMonth?: boolean
+    hour: string
+    minute: string
+  },
+) {
+  const base = new Date()
+  const next = new Date(base)
+
+  if (preset.endOfMonth) {
+    next.setMonth(next.getMonth() + 1, 0)
+  } else {
+    next.setDate(next.getDate() + (preset.offsetDays ?? 0))
+  }
+
+  setDate(formatDateInput(next))
+  setHour(preset.hour)
+  setMinute(preset.minute)
+}
+
+function formatDateInput(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function buildDeadlinePreview(date: string, hour: string, minute: string) {
+  if (!date) return ''
+
+  const preview = new Date(`${date}T${hour}:${minute}:00`)
+  if (Number.isNaN(preview.getTime())) return ''
+
+  return preview.toLocaleString('th-TH', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function getSuggestedDeadlineParts(now = new Date()) {
+  const next = new Date(now)
+  next.setSeconds(0, 0)
+  next.setHours(18, 0, 0, 0)
+
+  if (next.getTime() <= now.getTime()) {
+    next.setDate(next.getDate() + 1)
+    next.setHours(18, 0, 0, 0)
+  }
+
+  return {
+    date: formatDateInput(next),
+    hour: String(next.getHours()).padStart(2, '0'),
+    minute: String(next.getMinutes()).padStart(2, '0'),
+  }
+}
+
+function getDeadlineValidationMessage(date: string, hour: string, minute: string) {
+  if (!date) {
+    return 'ควรเลือกวันส่งให้ชัดก่อน แล้วค่อยกำหนดเวลา'
+  }
+
+  const deadline = new Date(`${date}T${hour}:${minute}:00`)
+  if (Number.isNaN(deadline.getTime())) {
+    return 'วันหรือเวลาที่ยังเลือกอยู่ยังไม่ถูกต้อง'
+  }
+
+  const diffMs = deadline.getTime() - Date.now()
+  if (diffMs <= 0) {
+    return 'เวลานี้อยู่ในอดีตแล้ว กรุณาเลือกเวลาใหม่'
+  }
+
+  const diffMinutes = Math.floor(diffMs / 60000)
+  if (diffMinutes < 60) {
+    return `เหลือเวลาอีกประมาณ ${diffMinutes} นาที เหมาะกับงานที่ต้องปิดเร็วมากเท่านั้น`
+  }
+
+  if (diffMinutes < 180) {
+    const hours = Math.floor(diffMinutes / 60)
+    const minutes = diffMinutes % 60
+    return `กำหนดส่งค่อนข้างใกล้ เหลือประมาณ ${hours} ชม. ${minutes} นาที`
+  }
+
+  return 'เวลานี้พร้อมใช้งานแล้ว ถ้าไม่แน่ใจ แนะนำตั้งเป็น 18:00'
 }
