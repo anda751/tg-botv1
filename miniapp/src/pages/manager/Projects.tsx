@@ -67,6 +67,7 @@ export default function Projects() {
   const [actionError, setActionError] = useState('')
   const [actionSuccess, setActionSuccess] = useState('')
   const [filter, setFilter] = useState<'active' | 'closed' | 'all'>('active')
+  const [openUtilityPanel, setOpenUtilityPanel] = useState<'create' | 'requests' | null>(null)
   const [openProjectId, setOpenProjectId] = useState<number | null>(null)
   const [detailLoadingId, setDetailLoadingId] = useState<number | null>(null)
   const [detailErrorById, setDetailErrorById] = useState<Record<number, string>>({})
@@ -254,80 +255,10 @@ export default function Projects() {
         </div>
 
         <section className="bg-slate-900 border border-slate-700 rounded-2xl p-4">
-          <p className="text-sm font-semibold text-white mb-3">สร้างโปรเจกต์ใหม่</p>
-          <div className="space-y-2">
-            <input
-              type="text"
-              value={newName}
-              onChange={(event) => setNewName(event.target.value)}
-              placeholder="ชื่อโปรเจกต์"
-              className="w-full px-3 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white"
-            />
-            <input
-              type="datetime-local"
-              value={newDeadline}
-              onChange={(event) => setNewDeadline(event.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white"
-            />
-            {formError && <p className="text-xs text-red-400">{formError}</p>}
-            <button
-              onClick={() => void handleCreate()}
-              disabled={creating}
-              className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600 disabled:opacity-50"
-            >
-              {creating ? 'กำลังสร้าง...' : 'สร้างโปรเจกต์'}
-            </button>
-          </div>
-        </section>
-
-        <section className="bg-slate-900 border border-slate-700 rounded-2xl p-4">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-semibold text-white">คำขอเข้าโปรเจกต์</p>
-            <span className="text-xs text-slate-400">{requests.length} รายการ</span>
-          </div>
-          {loading ? (
-            <div className="h-12 bg-slate-800 rounded-xl animate-pulse" />
-          ) : requests.length === 0 ? (
-            <PanelState
-              title="ยังไม่มีคำขอค้าง"
-              message="เมื่อมีพนักงานขอเข้าโปรเจกต์ รายการจะมาแสดงตรงนี้"
-            />
-          ) : (
-            <div className="space-y-2">
-              {requests.map((request) => (
-                <div key={request.id} className="bg-slate-800 border border-slate-700 rounded-xl p-3">
-                  <p className="text-sm text-white leading-snug">
-                    {displayName(request.requested_by)} ขอเข้าโปรเจกต์{' '}
-                    <span className="font-semibold">{request.project?.name || '-'}</span>
-                  </p>
-                  {request.note && <p className="text-xs text-slate-400 mt-1">หมายเหตุ: {request.note}</p>}
-                  <div className="flex gap-2 mt-3">
-                    <button
-                      onClick={() => void handleRejectRequest(request.id)}
-                      disabled={rejectingId === request.id}
-                      className="flex-1 py-2 rounded-lg text-xs font-semibold text-red-300 bg-red-950/40 border border-red-800/60 disabled:opacity-40"
-                    >
-                      {rejectingId === request.id ? 'กำลังส่ง...' : 'ปฏิเสธ'}
-                    </button>
-                    <button
-                      onClick={() => void handleApproveRequest(request.id)}
-                      disabled={approvingId === request.id}
-                      className="flex-1 py-2 rounded-lg text-xs font-semibold text-white bg-green-600 disabled:opacity-40"
-                    >
-                      {approvingId === request.id ? 'กำลังอนุมัติ...' : 'อนุมัติ'}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className="bg-slate-900 border border-slate-700 rounded-2xl p-4">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
             <div>
               <p className="text-sm font-semibold text-white">รายการโปรเจกต์</p>
-              <p className="text-xs text-slate-400 mt-1">เปิดดูได้ทีละโปรเจกต์เพื่อให้หน้าไม่รก</p>
+              <p className="text-xs text-slate-400 mt-1">เปิดดูได้ทีละโปรเจกต์ เพื่อโฟกัสงานของโปรเจกต์นั้นให้เต็มที่</p>
             </div>
             <div className="flex gap-1">
               {([
@@ -379,6 +310,112 @@ export default function Projects() {
                   }
                 />
               ))}
+            </div>
+          )}
+        </section>
+
+        <section className="bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setOpenUtilityPanel((current) => (current === 'create' ? null : 'create'))}
+            className="w-full px-4 py-3 flex items-center justify-between text-left active:bg-slate-800/60 transition"
+          >
+            <div>
+              <p className="text-sm font-semibold text-white">สร้างโปรเจกต์ใหม่</p>
+              <p className="text-xs text-slate-400 mt-1">ใช้เมื่อจะเปิดงานก้อนใหม่ให้ทีม</p>
+            </div>
+            <span className="w-8 h-8 rounded-full border border-slate-700 bg-slate-950 text-slate-300 flex items-center justify-center text-sm font-bold shrink-0">
+              {openUtilityPanel === 'create' ? '−' : '+'}
+            </span>
+          </button>
+
+          {openUtilityPanel === 'create' && (
+            <div className="border-t border-slate-700 p-4 space-y-2 bg-slate-950/40">
+              <input
+                type="text"
+                value={newName}
+                onChange={(event) => setNewName(event.target.value)}
+                placeholder="ชื่อโปรเจกต์"
+                className="w-full px-3 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white"
+              />
+              <input
+                type="datetime-local"
+                value={newDeadline}
+                onChange={(event) => setNewDeadline(event.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white"
+              />
+              {formError && <p className="text-xs text-red-400">{formError}</p>}
+              <button
+                onClick={() => void handleCreate()}
+                disabled={creating}
+                className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600 disabled:opacity-50"
+              >
+                {creating ? 'กำลังสร้าง...' : 'สร้างโปรเจกต์'}
+              </button>
+            </div>
+          )}
+        </section>
+
+        <section className="bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setOpenUtilityPanel((current) => (current === 'requests' ? null : 'requests'))}
+            className="w-full px-4 py-3 flex items-center justify-between text-left active:bg-slate-800/60 transition"
+          >
+            <div>
+              <p className="text-sm font-semibold text-white">คำขอเข้าโปรเจกต์</p>
+              <p className="text-xs text-slate-400 mt-1">ตอนนี้มี {requests.length} รายการที่รอหัวหน้าตัดสินใจ</p>
+            </div>
+            <div className="flex items-center gap-2">
+              {requests.length > 0 && (
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-950/50 text-amber-200 border border-amber-800/60">
+                  {requests.length}
+                </span>
+              )}
+              <span className="w-8 h-8 rounded-full border border-slate-700 bg-slate-950 text-slate-300 flex items-center justify-center text-sm font-bold shrink-0">
+                {openUtilityPanel === 'requests' ? '−' : '+'}
+              </span>
+            </div>
+          </button>
+
+          {openUtilityPanel === 'requests' && (
+            <div className="border-t border-slate-700 p-4 bg-slate-950/40">
+              {loading ? (
+                <div className="h-12 bg-slate-800 rounded-xl animate-pulse" />
+              ) : requests.length === 0 ? (
+                <PanelState
+                  title="ยังไม่มีคำขอค้าง"
+                  message="เมื่อมีพนักงานขอเข้าโปรเจกต์ รายการจะมาแสดงตรงนี้"
+                />
+              ) : (
+                <div className="space-y-2">
+                  {requests.map((request) => (
+                    <div key={request.id} className="bg-slate-800 border border-slate-700 rounded-xl p-3">
+                      <p className="text-sm text-white leading-snug">
+                        {displayName(request.requested_by)} ขอเข้าโปรเจกต์{' '}
+                        <span className="font-semibold">{request.project?.name || '-'}</span>
+                      </p>
+                      {request.note && <p className="text-xs text-slate-400 mt-1">หมายเหตุ: {request.note}</p>}
+                      <div className="flex gap-2 mt-3">
+                        <button
+                          onClick={() => void handleRejectRequest(request.id)}
+                          disabled={rejectingId === request.id}
+                          className="flex-1 py-2 rounded-lg text-xs font-semibold text-red-300 bg-red-950/40 border border-red-800/60 disabled:opacity-40"
+                        >
+                          {rejectingId === request.id ? 'กำลังส่ง...' : 'ปฏิเสธ'}
+                        </button>
+                        <button
+                          onClick={() => void handleApproveRequest(request.id)}
+                          disabled={approvingId === request.id}
+                          className="flex-1 py-2 rounded-lg text-xs font-semibold text-white bg-green-600 disabled:opacity-40"
+                        >
+                          {approvingId === request.id ? 'กำลังอนุมัติ...' : 'อนุมัติ'}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </section>
