@@ -2,19 +2,52 @@ import { useEffect, useMemo, useState } from 'react'
 import ManagerNav from '../../components/ManagerNav'
 import { projectApi } from '../../api'
 
+type Member = {
+  id: number
+  display_name?: string
+  username?: string
+}
+
 type Project = {
   id: number
   name: string
   deadline: string
   status_project: 'active' | 'closed'
-  members?: { id: number; display_name: string; username: string }[]
+  members?: Member[]
 }
 
 type JoinRequest = {
   id: number
   note?: string
   project?: { id: number; name: string }
-  requested_by?: { id: number; display_name: string; username: string }
+  requested_by?: { id: number; display_name?: string; username?: string }
+}
+
+type ProjectTask = {
+  id: number
+  name: string
+  status_task: 'in_progress' | 'under_review' | 'waiting_pickup' | 'done'
+  current_owner?: { id: number; display_name?: string; username?: string } | null
+  updatedAt?: string
+}
+
+type ProjectDetail = {
+  project: Project
+  summary: {
+    total: number
+    in_progress: number
+    under_review: number
+    waiting_pickup: number
+    done: number
+  }
+  tasks: ProjectTask[]
+}
+
+const TASK_STATUS = {
+  in_progress: { label: 'กำลังทำ', tone: 'blue' as const },
+  under_review: { label: 'รอตรวจ', tone: 'amber' as const },
+  waiting_pickup: { label: 'รอรับช่วงต่อ', tone: 'orange' as const },
+  done: { label: 'เสร็จแล้ว', tone: 'green' as const },
 }
 
 export default function Projects() {
@@ -31,6 +64,10 @@ export default function Projects() {
   const [actionError, setActionError] = useState('')
   const [actionSuccess, setActionSuccess] = useState('')
   const [filter, setFilter] = useState<'active' | 'closed' | 'all'>('active')
+  const [openProjectId, setOpenProjectId] = useState<number | null>(null)
+  const [detailLoadingId, setDetailLoadingId] = useState<number | null>(null)
+  const [detailErrorById, setDetailErrorById] = useState<Record<number, string>>({})
+  const [projectDetails, setProjectDetails] = useState<Record<number, ProjectDetail>>({})
 
   useEffect(() => {
     void loadAll()
@@ -44,13 +81,43 @@ export default function Projects() {
       const { data } = await projectApi.getHome()
       setProjects(Array.isArray(data?.projects) ? data.projects : [])
       setRequests(Array.isArray(data?.requests) ? data.requests : [])
-    } catch (err: any) {
-      const message = extractMessage(err, 'โหลดข้อมูลโปรเจกต์ไม่สำเร็จ')
+    } catch (error: any) {
       setProjects([])
       setRequests([])
-      setPageError(message)
+      setPageError(extractMessage(error, 'โหลดข้อมูลโปรเจกต์ไม่สำเร็จ'))
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function loadProjectDetail(projectId: number) {
+    setDetailLoadingId(projectId)
+    setDetailErrorById((current) => ({ ...current, [projectId]: '' }))
+    try {
+      const { data } = await projectApi.getDetail(projectId)
+      setProjectDetails((current) => ({
+        ...current,
+        [projectId]: data,
+      }))
+    } catch (error: any) {
+      setDetailErrorById((current) => ({
+        ...current,
+        [projectId]: extractMessage(error, 'โหลดงานของโปรเจกต์นี้ไม่สำเร็จ'),
+      }))
+    } finally {
+      setDetailLoadingId(null)
+    }
+  }
+
+  async function handleToggleProject(projectId: number) {
+    if (openProjectId === projectId) {
+      setOpenProjectId(null)
+      return
+    }
+
+    setOpenProjectId(projectId)
+    if (!projectDetails[projectId]) {
+      await loadProjectDetail(projectId)
     }
   }
 
@@ -64,6 +131,7 @@ export default function Projects() {
     setFormError('')
     setActionError('')
     setActionSuccess('')
+
     try {
       await projectApi.create({
         name: newName.trim(),
@@ -73,24 +141,31 @@ export default function Projects() {
       setNewDeadline('')
       setActionSuccess('สร้างโปรเจกต์เรียบร้อย')
       await loadAll()
-    } catch (err: any) {
-      setFormError(extractMessage(err, 'สร้างโปรเจกต์ไม่สำเร็จ'))
+    } catch (error: any) {
+      setFormError(extractMessage(error, 'สร้างโปรเจกต์ไม่สำเร็จ'))
     } finally {
       setCreating(false)
     }
   }
 
   async function handleCloseProject(projectId: number) {
-    if (!confirm('ปิดโปรเจกต์นี้?')) return
+    if (!confirm('ต้องการปิดโปรเจกต์นี้ใช่ไหม')) return
 
     setActionError('')
     setActionSuccess('')
+
     try {
       await projectApi.close(projectId)
       setActionSuccess('ปิดโปรเจกต์เรียบร้อย')
+      if (openProjectId === projectId) setOpenProjectId(null)
+      setProjectDetails((current) => {
+        const next = { ...current }
+        delete next[projectId]
+        return next
+      })
       await loadAll()
-    } catch (err: any) {
-      setActionError(extractMessage(err, 'ปิดโปรเจกต์ไม่สำเร็จ'))
+    } catch (error: any) {
+      setActionError(extractMessage(error, 'ปิดโปรเจกต์ไม่สำเร็จ'))
     }
   }
 
@@ -100,26 +175,26 @@ export default function Projects() {
     setActionSuccess('')
     try {
       await projectApi.approveJoinRequest(requestId)
-      setActionSuccess('อนุมัติคำขอเข้าร่วมเรียบร้อย')
+      setActionSuccess('อนุมัติคำขอเข้าโปรเจกต์เรียบร้อย')
       await loadAll()
-    } catch (err: any) {
-      setActionError(extractMessage(err, 'อนุมัติคำขอไม่สำเร็จ'))
+    } catch (error: any) {
+      setActionError(extractMessage(error, 'อนุมัติคำขอไม่สำเร็จ'))
     } finally {
       setApprovingId(null)
     }
   }
 
   async function handleRejectRequest(requestId: number) {
-    const reason = prompt('เหตุผลการปฏิเสธ (ไม่บังคับ)') ?? ''
+    const reason = prompt('เหตุผลที่ปฏิเสธ (ไม่บังคับ)') ?? ''
     setRejectingId(requestId)
     setActionError('')
     setActionSuccess('')
     try {
       await projectApi.rejectJoinRequest(requestId, reason)
-      setActionSuccess('ปฏิเสธคำขอเข้าร่วมเรียบร้อย')
+      setActionSuccess('ปฏิเสธคำขอเข้าโปรเจกต์เรียบร้อย')
       await loadAll()
-    } catch (err: any) {
-      setActionError(extractMessage(err, 'ปฏิเสธคำขอไม่สำเร็จ'))
+    } catch (error: any) {
+      setActionError(extractMessage(error, 'ปฏิเสธคำขอไม่สำเร็จ'))
     } finally {
       setRejectingId(null)
     }
@@ -128,7 +203,7 @@ export default function Projects() {
   const visibleProjects = useMemo(() => {
     if (filter === 'all') return projects
     return projects.filter((project) => project.status_project === filter)
-  }, [projects, filter])
+  }, [filter, projects])
 
   const activeCount = projects.filter((project) => project.status_project === 'active').length
   const closedCount = projects.filter((project) => project.status_project === 'closed').length
@@ -136,14 +211,16 @@ export default function Projects() {
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col">
       <div className="bg-slate-900 border-b border-slate-800 px-4 pt-6 pb-4">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-start justify-between gap-3 mb-4">
           <div>
             <h1 className="text-xl font-bold text-white">โปรเจกต์</h1>
-            <p className="text-xs text-slate-400 mt-0.5">จัดการโปรเจกต์และคำขอเข้าร่วม</p>
+            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+              กดเปิดแต่ละโปรเจกต์เพื่อดูงานทั้งหมดที่เกี่ยวข้อง แยกให้เห็นชัดว่าอะไรต้องรีบตาม อะไรเสร็จแล้ว และใครกำลังรับผิดชอบ
+            </p>
           </div>
           <button
             onClick={() => void loadAll()}
-            className="w-9 h-9 rounded-full flex items-center justify-center text-slate-300 bg-slate-800 active:bg-slate-700 transition"
+            className="w-9 h-9 rounded-full flex items-center justify-center text-slate-300 bg-slate-800 active:bg-slate-700 transition shrink-0"
             title="รีเฟรช"
             aria-label="รีเฟรช"
           >
@@ -164,20 +241,20 @@ export default function Projects() {
           <StatCard label="โปรเจกต์ที่ปิดแล้ว" value={String(closedCount)} />
         </div>
 
-        <div className="bg-slate-900 border border-slate-700 rounded-2xl p-4">
+        <section className="bg-slate-900 border border-slate-700 rounded-2xl p-4">
           <p className="text-sm font-semibold text-white mb-3">สร้างโปรเจกต์ใหม่</p>
           <div className="space-y-2">
             <input
               type="text"
               value={newName}
-              onChange={(e) => setNewName(e.target.value)}
+              onChange={(event) => setNewName(event.target.value)}
               placeholder="ชื่อโปรเจกต์"
               className="w-full px-3 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white"
             />
             <input
               type="datetime-local"
               value={newDeadline}
-              onChange={(e) => setNewDeadline(e.target.value)}
+              onChange={(event) => setNewDeadline(event.target.value)}
               className="w-full px-3 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white"
             />
             {formError && <p className="text-xs text-red-400">{formError}</p>}
@@ -189,9 +266,9 @@ export default function Projects() {
               {creating ? 'กำลังสร้าง...' : 'สร้างโปรเจกต์'}
             </button>
           </div>
-        </div>
+        </section>
 
-        <div className="bg-slate-900 border border-slate-700 rounded-2xl p-4">
+        <section className="bg-slate-900 border border-slate-700 rounded-2xl p-4">
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-semibold text-white">คำขอเข้าโปรเจกต์</p>
             <span className="text-xs text-slate-400">{requests.length} รายการ</span>
@@ -199,13 +276,16 @@ export default function Projects() {
           {loading ? (
             <div className="h-12 bg-slate-800 rounded-xl animate-pulse" />
           ) : requests.length === 0 ? (
-            <PanelState title="ไม่มีคำขอค้าง" message="เมื่อมีพนักงานส่งคำขอเข้าร่วม โปรเจกต์จะแสดงที่นี่" />
+            <PanelState
+              title="ยังไม่มีคำขอค้าง"
+              message="เมื่อมีพนักงานขอเข้าโปรเจกต์ รายการจะมาแสดงตรงนี้"
+            />
           ) : (
             <div className="space-y-2">
               {requests.map((request) => (
                 <div key={request.id} className="bg-slate-800 border border-slate-700 rounded-xl p-3">
                   <p className="text-sm text-white leading-snug">
-                    {(request.requested_by?.display_name || request.requested_by?.username || 'ไม่ทราบชื่อ')} ขอเข้าโปรเจกต์{' '}
+                    {displayName(request.requested_by)} ขอเข้าโปรเจกต์{' '}
                     <span className="font-semibold">{request.project?.name || '-'}</span>
                   </p>
                   {request.note && <p className="text-xs text-slate-400 mt-1">หมายเหตุ: {request.note}</p>}
@@ -229,21 +309,28 @@ export default function Projects() {
               ))}
             </div>
           )}
-        </div>
+        </section>
 
-        <div className="bg-slate-900 border border-slate-700 rounded-2xl p-4">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-semibold text-white">รายการโปรเจกต์</p>
+        <section className="bg-slate-900 border border-slate-700 rounded-2xl p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+            <div>
+              <p className="text-sm font-semibold text-white">รายการโปรเจกต์</p>
+              <p className="text-xs text-slate-400 mt-1">เปิดดูได้ทีละโปรเจกต์เพื่อให้หน้าไม่รก</p>
+            </div>
             <div className="flex gap-1">
-              {(['active', 'closed', 'all'] as const).map((tab) => (
+              {([
+                { key: 'active', label: 'เปิดอยู่' },
+                { key: 'closed', label: 'ปิดแล้ว' },
+                { key: 'all', label: 'ทั้งหมด' },
+              ] as const).map((tab) => (
                 <button
-                  key={tab}
-                  onClick={() => setFilter(tab)}
+                  key={tab.key}
+                  onClick={() => setFilter(tab.key)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${
-                    filter === tab ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400'
+                    filter === tab.key ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400'
                   }`}
                 >
-                  {tab === 'active' ? 'เปิดอยู่' : tab === 'closed' ? 'ปิดแล้ว' : 'ทั้งหมด'}
+                  {tab.label}
                 </button>
               ))}
             </div>
@@ -254,54 +341,215 @@ export default function Projects() {
           ) : visibleProjects.length === 0 ? (
             <PanelState
               title={filter === 'all' ? 'ยังไม่มีโปรเจกต์' : 'ไม่มีโปรเจกต์ในหมวดนี้'}
-              message={filter === 'all' ? 'เริ่มต้นด้วยการสร้างโปรเจกต์ใหม่ด้านบน' : 'ลองสลับตัวกรองเพื่อดูรายการอื่น'}
+              message={
+                filter === 'all'
+                  ? 'เริ่มต้นด้วยการสร้างโปรเจกต์ใหม่ด้านบน'
+                  : 'ลองสลับตัวกรองเพื่อดูรายการหมวดอื่น'
+              }
             />
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {visibleProjects.map((project) => (
-                <ProjectCard key={project.id} project={project} onClose={handleCloseProject} />
+                <ProjectCard
+                  key={project.id}
+                  project={project}
+                  detail={projectDetails[project.id]}
+                  expanded={openProjectId === project.id}
+                  detailLoading={detailLoadingId === project.id}
+                  detailError={detailErrorById[project.id]}
+                  onToggle={() => void handleToggleProject(project.id)}
+                  onClose={handleCloseProject}
+                />
               ))}
             </div>
           )}
-        </div>
+        </section>
       </div>
     </div>
   )
 }
 
-function extractMessage(error: any, fallback: string) {
-  return error?.response?.data?.error?.message || error?.response?.data?.message || fallback
-}
-
-function isOverdue(project: Project) {
-  return project.status_project === 'active' && new Date(project.deadline).getTime() < Date.now()
-}
-
-function ProjectCard({ project, onClose }: { project: Project; onClose: (id: number) => void }) {
+function ProjectCard({
+  project,
+  detail,
+  expanded,
+  detailLoading,
+  detailError,
+  onToggle,
+  onClose,
+}: {
+  project: Project
+  detail?: ProjectDetail
+  expanded: boolean
+  detailLoading: boolean
+  detailError?: string
+  onToggle: () => void
+  onClose: (id: number) => void
+}) {
   const overdue = isOverdue(project)
   const titleColor = overdue ? 'text-red-400' : 'text-green-400'
 
   return (
-    <div className="bg-slate-800 border border-slate-700 rounded-xl p-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className={`text-sm font-semibold truncate ${titleColor}`}>{project.name}</p>
-          <p className="text-xs text-slate-400 mt-0.5">
-            กำหนดส่ง {new Date(project.deadline).toLocaleString()}
-          </p>
-          <p className="text-xs text-slate-500 mt-0.5">สมาชิก {project.members?.length ?? 0} คน</p>
+    <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
+      <button type="button" onClick={onToggle} className="w-full p-3 text-left active:bg-slate-700/60 transition">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className={`text-sm font-semibold truncate ${titleColor}`}>{project.name}</p>
+              {project.status_project === 'closed' && (
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-900 text-slate-400">
+                  ปิดแล้ว
+                </span>
+              )}
+              {overdue && (
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-red-950/50 text-red-300 border border-red-800/60">
+                  เกินกำหนด
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-slate-400 mt-1">กำหนดส่ง {formatDateTime(project.deadline)}</p>
+            <p className="text-xs text-slate-500 mt-1">สมาชิก {project.members?.length ?? 0} คน</p>
+            {detail && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                <MiniBadge tone="amber" text={`รอตรวจ ${detail.summary.under_review}`} />
+                <MiniBadge tone="blue" text={`กำลังทำ ${detail.summary.in_progress}`} />
+                <MiniBadge tone="orange" text={`รอรับช่วงต่อ ${detail.summary.waiting_pickup}`} />
+                <MiniBadge tone="green" text={`เสร็จแล้ว ${detail.summary.done}`} />
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {project.status_project === 'active' && (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onClose(project.id)
+                }}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-red-300 bg-red-950/40 border border-red-800/60"
+              >
+                ปิดโปรเจกต์
+              </button>
+            )}
+            <span className="w-8 h-8 rounded-full border border-slate-600 bg-slate-900 text-slate-300 flex items-center justify-center text-sm font-bold">
+              {expanded ? '−' : '+'}
+            </span>
+          </div>
         </div>
-        {project.status_project === 'active' ? (
-          <button
-            onClick={() => onClose(project.id)}
-            className="px-3 py-1.5 rounded-lg text-xs font-semibold text-red-300 bg-red-950/40 border border-red-800/60"
-          >
-            ปิดโปรเจกต์
-          </button>
-        ) : (
-          <span className="px-2.5 py-1 rounded-lg text-xs text-slate-400 bg-slate-900">ปิดแล้ว</span>
-        )}
+      </button>
+
+      {expanded && (
+        <div className="border-t border-slate-700 px-3 py-3 space-y-3 bg-slate-900/60">
+          {detailLoading ? (
+            <div className="h-24 bg-slate-800 rounded-xl animate-pulse" />
+          ) : detailError ? (
+            <PanelState title="โหลดงานของโปรเจกต์ไม่สำเร็จ" message={detailError} />
+          ) : !detail ? (
+            <PanelState title="ยังไม่มีข้อมูลโปรเจกต์" message="ลองปิดแล้วเปิดรายละเอียดอีกครั้ง" />
+          ) : (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                <StatCard label="งานทั้งหมด" value={String(detail.summary.total)} />
+                <StatCard label="รอตรวจ" value={String(detail.summary.under_review)} />
+                <StatCard label="กำลังทำ" value={String(detail.summary.in_progress)} />
+                <StatCard label="รอรับช่วงต่อ" value={String(detail.summary.waiting_pickup)} />
+                <StatCard label="เสร็จแล้ว" value={String(detail.summary.done)} />
+              </div>
+
+              <TaskGroup
+                title="งานที่ควรเปิดดูก่อน"
+                description="รวมงานที่รอหัวหน้าตรวจ เพื่อให้รู้ทันทีว่าต้องตัดสินใจอะไรบ้าง"
+                tone="amber"
+                tasks={detail.tasks.filter((task) => task.status_task === 'under_review')}
+                emptyText="ยังไม่มีงานรอตรวจในโปรเจกต์นี้"
+              />
+              <TaskGroup
+                title="งานที่กำลังเดินอยู่"
+                description="ดูว่าใครกำลังทำอะไรอยู่ และงานไหนเพิ่งมีความเคลื่อนไหวล่าสุด"
+                tone="blue"
+                tasks={detail.tasks.filter((task) => task.status_task === 'in_progress')}
+                emptyText="ยังไม่มีงานที่กำลังทำในโปรเจกต์นี้"
+              />
+              <TaskGroup
+                title="งานรอรับช่วงต่อ"
+                description="ใช้ตามงานที่ถูกส่งต่อและยังรอคนรับผิดชอบคนถัดไป"
+                tone="orange"
+                tasks={detail.tasks.filter((task) => task.status_task === 'waiting_pickup')}
+                emptyText="ยังไม่มีงานรอรับช่วงต่อ"
+              />
+              <TaskGroup
+                title="งานที่เสร็จแล้ว"
+                description="สรุปงานที่ปิดเรียบร้อยแล้วในโปรเจกต์นี้"
+                tone="green"
+                tasks={detail.tasks.filter((task) => task.status_task === 'done')}
+                emptyText="ยังไม่มีงานที่เสร็จแล้ว"
+              />
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function TaskGroup({
+  title,
+  description,
+  tone,
+  tasks,
+  emptyText,
+}: {
+  title: string
+  description: string
+  tone: 'blue' | 'amber' | 'orange' | 'green'
+  tasks: ProjectTask[]
+  emptyText: string
+}) {
+  const toneMap = {
+    blue: 'text-blue-300 bg-blue-950/30 border-blue-800/50',
+    amber: 'text-amber-300 bg-amber-950/30 border-amber-800/50',
+    orange: 'text-orange-300 bg-orange-950/30 border-orange-800/50',
+    green: 'text-green-300 bg-green-950/30 border-green-800/50',
+  } as const
+
+  return (
+    <div className="rounded-xl border border-slate-700 bg-slate-950 overflow-hidden">
+      <div className="px-3 py-2.5 border-b border-slate-800 flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-white">{title}</p>
+          <p className="text-xs text-slate-400 mt-1">{description}</p>
+        </div>
+        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border shrink-0 ${toneMap[tone]}`}>
+          {tasks.length} งาน
+        </span>
       </div>
+
+      {tasks.length === 0 ? (
+        <p className="px-3 py-3 text-xs text-slate-500">{emptyText}</p>
+      ) : (
+        <div className="divide-y divide-slate-800">
+          {tasks.map((task) => {
+            const status = TASK_STATUS[task.status_task]
+            return (
+              <div key={task.id} className="px-3 py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-white leading-snug">{task.name}</p>
+                    <p className="text-xs text-slate-400 mt-1">
+                      ผู้รับผิดชอบ {displayName(task.current_owner) || 'ยังไม่ได้ระบุ'}
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      อัปเดตล่าสุด {task.updatedAt ? formatDateTime(task.updatedAt) : '-'}
+                    </p>
+                  </div>
+                  <MiniBadge tone={status.tone} text={status.label} />
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
@@ -315,6 +563,17 @@ function StatCard({ label, value }: { label: string; value: string }) {
   )
 }
 
+function MiniBadge({ tone, text }: { tone: 'blue' | 'amber' | 'orange' | 'green'; text: string }) {
+  const toneMap = {
+    blue: 'text-blue-300 bg-blue-950/30 border-blue-800/50',
+    amber: 'text-amber-300 bg-amber-950/30 border-amber-800/50',
+    orange: 'text-orange-300 bg-orange-950/30 border-orange-800/50',
+    green: 'text-green-300 bg-green-950/30 border-green-800/50',
+  } as const
+
+  return <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${toneMap[tone]}`}>{text}</span>
+}
+
 function InlineNotice({
   tone,
   title,
@@ -324,9 +583,10 @@ function InlineNotice({
   title: string
   message: string
 }) {
-  const toneClass = tone === 'green'
-    ? 'border-green-800/70 bg-green-950/40 text-green-100'
-    : 'border-red-800/70 bg-red-950/40 text-red-100'
+  const toneClass =
+    tone === 'green'
+      ? 'border-green-800/70 bg-green-950/40 text-green-100'
+      : 'border-red-800/70 bg-red-950/40 text-red-100'
 
   return (
     <div className={`rounded-2xl border px-4 py-3 ${toneClass}`}>
@@ -339,26 +599,30 @@ function InlineNotice({
 function PanelState({
   title,
   message,
-  actionLabel,
-  onAction,
 }: {
   title: string
   message: string
-  actionLabel?: string
-  onAction?: () => void
 }) {
   return (
     <div className="rounded-xl border border-slate-700 bg-slate-800/70 px-4 py-5 text-center">
       <p className="text-sm font-semibold text-white">{title}</p>
       <p className="text-xs text-slate-400 mt-2">{message}</p>
-      {actionLabel && onAction && (
-        <button
-          onClick={onAction}
-          className="mt-4 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-blue-600 active:bg-blue-700 transition"
-        >
-          {actionLabel}
-        </button>
-      )}
     </div>
   )
+}
+
+function extractMessage(error: any, fallback: string) {
+  return error?.response?.data?.error?.message || error?.response?.data?.message || fallback
+}
+
+function displayName(user?: { display_name?: string; username?: string } | null) {
+  return user?.display_name || user?.username || ''
+}
+
+function formatDateTime(value: string) {
+  return new Date(value).toLocaleString('th-TH')
+}
+
+function isOverdue(project: Project) {
+  return project.status_project === 'active' && new Date(project.deadline).getTime() < Date.now()
 }

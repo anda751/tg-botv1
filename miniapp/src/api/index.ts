@@ -51,6 +51,8 @@ export const projectApi = {
 
   getAll: () => axios.get('/projects/all'),
 
+  getDetail: (projectId: number) => axios.get(`/projects/${projectId}/detail`),
+
   create: (data: { name: string; deadline: string }) =>
     axios.post('/projects', { data }),
 

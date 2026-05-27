@@ -2,6 +2,7 @@ export default {
   routes: [
     { method: 'GET',    path: '/projects/home',               handler: 'project.home',          config: { auth: false } },
     { method: 'GET',    path: '/projects/all',                handler: 'project.all',           config: { auth: false } },
+    { method: 'GET',    path: '/projects/:id/detail',         handler: 'project.detail',        config: { auth: false } },
     { method: 'GET',    path: '/projects',                    handler: 'project.find',          config: { auth: false } },
     { method: 'GET',    path: '/projects/my',                 handler: 'project.myProjects',    config: { auth: false } },
     { method: 'GET',    path: '/projects/:id',                handler: 'project.findOne',       config: { auth: false } },

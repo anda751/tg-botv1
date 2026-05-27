@@ -24,6 +24,51 @@ export default factories.createCoreController(projectUid, ({ strapi }) => ({
     return ctx.send(await buildAllProjects(strapi));
   },
 
+  async detail(ctx) {
+    ensureManager(ctx);
+    const projectId = Number(ctx.params.id);
+    if (!Number.isFinite(projectId)) return ctx.badRequest('รูปแบบโปรเจกต์ไม่ถูกต้อง');
+
+    const project = await strapi.db.query(projectUid).findOne({
+      where: { id: projectId },
+      populate: {
+        creator: {
+          select: ['id', 'display_name', 'username'],
+        },
+        members: {
+          select: ['id', 'display_name', 'username'],
+        },
+      },
+    }) as any;
+
+    if (!project) return ctx.notFound('ไม่พบโปรเจกต์นี้');
+
+    const tasks = await strapi.db.query(taskUid).findMany({
+      where: { project: projectId },
+      select: ['id', 'name', 'status_task', 'createdAt', 'updatedAt'],
+      populate: {
+        current_owner: {
+          select: ['id', 'display_name', 'username'],
+        },
+      },
+      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+    }) as any[];
+
+    const counts = {
+      total: tasks.length,
+      in_progress: tasks.filter((task) => task.status_task === 'in_progress').length,
+      under_review: tasks.filter((task) => task.status_task === 'under_review').length,
+      waiting_pickup: tasks.filter((task) => task.status_task === 'waiting_pickup').length,
+      done: tasks.filter((task) => task.status_task === 'done').length,
+    };
+
+    return ctx.send({
+      project,
+      summary: counts,
+      tasks,
+    });
+  },
+
   async create(ctx) {
     const user = ctx.state.user;
     ensureManager(ctx);
