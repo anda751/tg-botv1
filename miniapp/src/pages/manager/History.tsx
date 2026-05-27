@@ -29,14 +29,53 @@ type HistoryResponse = {
 
 const DAY_OPTIONS = [7, 14, 30, 60]
 
+const TEXT = {
+  all: '\u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14',
+  task: '\u0e07\u0e32\u0e19',
+  project: '\u0e42\u0e1b\u0e23\u0e40\u0e08\u0e01\u0e15\u0e4c',
+  join: '\u0e04\u0e33\u0e02\u0e2d\u0e40\u0e02\u0e49\u0e32\u0e42\u0e1b\u0e23\u0e40\u0e08\u0e01\u0e15\u0e4c',
+  success: '\u0e2a\u0e33\u0e40\u0e23\u0e47\u0e08',
+  pending: '\u0e23\u0e2d\u0e08\u0e31\u0e14\u0e01\u0e32\u0e23',
+  reject: '\u0e1b\u0e0f\u0e34\u0e40\u0e2a\u0e18/\u0e2a\u0e48\u0e07\u0e01\u0e25\u0e31\u0e1a',
+  pageTitle: '\u0e1b\u0e23\u0e30\u0e27\u0e31\u0e15\u0e34\u0e01\u0e32\u0e23\u0e17\u0e33\u0e23\u0e32\u0e22\u0e01\u0e32\u0e23',
+  pageIntro:
+    '\u0e43\u0e0a\u0e49\u0e14\u0e39\u0e22\u0e49\u0e2d\u0e19\u0e2b\u0e25\u0e31\u0e07\u0e27\u0e48\u0e32\u0e43\u0e04\u0e23\u0e2d\u0e19\u0e38\u0e21\u0e31\u0e15\u0e34 \u0e2a\u0e48\u0e07\u0e01\u0e25\u0e31\u0e1a \u0e2a\u0e48\u0e07\u0e15\u0e48\u0e2d \u0e1b\u0e34\u0e14\u0e42\u0e1b\u0e23\u0e40\u0e08\u0e01\u0e15\u0e4c \u0e2b\u0e23\u0e37\u0e2d\u0e08\u0e31\u0e14\u0e01\u0e32\u0e23\u0e04\u0e33\u0e02\u0e2d\u0e2a\u0e33\u0e04\u0e31\u0e0d\u0e2d\u0e30\u0e44\u0e23\u0e44\u0e1b\u0e1a\u0e49\u0e32\u0e07',
+  refresh: '\u0e23\u0e35\u0e40\u0e1f\u0e23\u0e0a',
+  totalItems: '\u0e23\u0e32\u0e22\u0e01\u0e32\u0e23\u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14',
+  followUp: '\u0e22\u0e31\u0e07\u0e04\u0e27\u0e23\u0e15\u0e32\u0e21\u0e15\u0e48\u0e2d',
+  searchAndRange: '\u0e04\u0e49\u0e19\u0e2b\u0e32\u0e41\u0e25\u0e30\u0e40\u0e25\u0e37\u0e2d\u0e01\u0e0a\u0e48\u0e27\u0e07\u0e40\u0e27\u0e25\u0e32',
+  searchAndRangeHelp:
+    '\u0e0a\u0e48\u0e27\u0e22\u0e43\u0e2b\u0e49\u0e2b\u0e31\u0e27\u0e2b\u0e19\u0e49\u0e32\u0e21\u0e2d\u0e07\u0e22\u0e49\u0e2d\u0e19\u0e40\u0e09\u0e1e\u0e32\u0e30\u0e40\u0e23\u0e37\u0e48\u0e2d\u0e07\u0e17\u0e35\u0e48\u0e15\u0e49\u0e2d\u0e07\u0e01\u0e32\u0e23\u0e44\u0e14\u0e49\u0e40\u0e23\u0e47\u0e27\u0e02\u0e36\u0e49\u0e19',
+  clearFilter: '\u0e25\u0e49\u0e32\u0e07\u0e15\u0e31\u0e27\u0e01\u0e23\u0e2d\u0e07',
+  day: '\u0e27\u0e31\u0e19',
+  search: '\u0e04\u0e49\u0e19',
+  searchPlaceholder:
+    '\u0e04\u0e49\u0e19\u0e2b\u0e32\u0e0a\u0e37\u0e48\u0e2d\u0e07\u0e32\u0e19 \u0e42\u0e1b\u0e23\u0e40\u0e08\u0e01\u0e15\u0e4c \u0e2b\u0e23\u0e37\u0e2d\u0e0a\u0e37\u0e48\u0e2d\u0e04\u0e19',
+  showingNow: '\u0e15\u0e2d\u0e19\u0e19\u0e35\u0e49\u0e01\u0e33\u0e25\u0e31\u0e07\u0e41\u0e2a\u0e14\u0e07',
+  items: '\u0e23\u0e32\u0e22\u0e01\u0e32\u0e23',
+  inCategory: '\u0e43\u0e19\u0e2b\u0e21\u0e27\u0e14',
+  loadFailed: '\u0e42\u0e2b\u0e25\u0e14\u0e1b\u0e23\u0e30\u0e27\u0e31\u0e15\u0e34\u0e44\u0e21\u0e48\u0e2a\u0e33\u0e40\u0e23\u0e47\u0e08',
+  emptyTitle: '\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e21\u0e35\u0e1b\u0e23\u0e30\u0e27\u0e31\u0e15\u0e34\u0e43\u0e19\u0e0a\u0e48\u0e27\u0e07\u0e19\u0e35\u0e49',
+  emptyMessage:
+    '\u0e25\u0e2d\u0e07\u0e40\u0e1b\u0e25\u0e35\u0e48\u0e22\u0e19\u0e0a\u0e48\u0e27\u0e07\u0e40\u0e27\u0e25\u0e32 \u0e04\u0e33\u0e04\u0e49\u0e19\u0e2b\u0e32 \u0e2b\u0e23\u0e37\u0e2d\u0e2b\u0e21\u0e27\u0e14\u0e17\u0e35\u0e48\u0e15\u0e49\u0e2d\u0e07\u0e01\u0e32\u0e23\u0e14\u0e39',
+  by: '\u0e42\u0e14\u0e22',
+  actor: '\u0e1c\u0e39\u0e49\u0e14\u0e33\u0e40\u0e19\u0e34\u0e19\u0e01\u0e32\u0e23',
+  relatedUser: '\u0e1c\u0e39\u0e49\u0e40\u0e01\u0e35\u0e48\u0e22\u0e27\u0e02\u0e49\u0e2d\u0e07',
+  note: '\u0e2b\u0e21\u0e32\u0e22\u0e40\u0e2b\u0e15\u0e38',
+  retry: '\u0e25\u0e2d\u0e07\u0e43\u0e2b\u0e21\u0e48',
+  minutesAgo: '\u0e19\u0e32\u0e17\u0e35\u0e17\u0e35\u0e48\u0e41\u0e25\u0e49\u0e27',
+  hoursAgo: '\u0e0a\u0e31\u0e48\u0e27\u0e42\u0e21\u0e07\u0e17\u0e35\u0e48\u0e41\u0e25\u0e49\u0e27',
+  daysAgo: '\u0e27\u0e31\u0e19\u0e17\u0e35\u0e48\u0e41\u0e25\u0e49\u0e27',
+} as const
+
 const CATEGORY_OPTIONS: { key: 'all' | HistoryCategory | HistoryTone; label: string }[] = [
-  { key: 'all', label: 'ทั้งหมด' },
-  { key: 'task', label: 'งาน' },
-  { key: 'project', label: 'โปรเจกต์' },
-  { key: 'project_join', label: 'คำขอเข้าโปรเจกต์' },
-  { key: 'green', label: 'สำเร็จ' },
-  { key: 'amber', label: 'รอจัดการ' },
-  { key: 'red', label: 'ปฏิเสธ/ส่งกลับ' },
+  { key: 'all', label: TEXT.all },
+  { key: 'task', label: TEXT.task },
+  { key: 'project', label: TEXT.project },
+  { key: 'project_join', label: TEXT.join },
+  { key: 'green', label: TEXT.success },
+  { key: 'amber', label: TEXT.pending },
+  { key: 'red', label: TEXT.reject },
 ]
 
 export default function History() {
@@ -66,7 +105,7 @@ export default function History() {
       setError(
         requestError?.response?.data?.error?.message ||
           requestError?.response?.data?.message ||
-          'โหลดประวัติการทำรายการไม่สำเร็จ',
+          TEXT.loadFailed,
       )
     } finally {
       setLoading(false)
@@ -104,23 +143,21 @@ export default function History() {
     [items],
   )
 
-  const activeFilterLabel = CATEGORY_OPTIONS.find((option) => option.key === filter)?.label || 'ทั้งหมด'
+  const activeFilterLabel = CATEGORY_OPTIONS.find((option) => option.key === filter)?.label || TEXT.all
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col">
       <div className="bg-slate-900 border-b border-slate-800 px-4 pt-6 pb-4">
         <div className="flex items-start justify-between gap-3 mb-4">
           <div>
-            <h1 className="text-xl font-bold text-white">ประวัติการทำรายการ</h1>
-            <p className="text-sm text-slate-400 mt-1 leading-relaxed">
-              ใช้ดูย้อนหลังว่าใครอนุมัติ ส่งกลับ ส่งต่อ ปิดโปรเจกต์ หรือจัดการคำขอสำคัญอะไรไปบ้าง
-            </p>
+            <h1 className="text-xl font-bold text-white">{TEXT.pageTitle}</h1>
+            <p className="text-sm text-slate-400 mt-1 leading-relaxed">{TEXT.pageIntro}</p>
           </div>
           <button
             onClick={() => void loadHistory(days)}
             className="w-9 h-9 rounded-full flex items-center justify-center text-slate-300 bg-slate-800 active:bg-slate-700 transition"
-            title="รีเฟรช"
-            aria-label="รีเฟรช"
+            title={TEXT.refresh}
+            aria-label={TEXT.refresh}
           >
             ↻
           </button>
@@ -131,9 +168,9 @@ export default function History() {
 
       <div className="flex-1 px-4 py-5 space-y-4 pb-8 page-enter">
         <div className="grid grid-cols-2 gap-3 content-fade">
-          <SummaryCard title="รายการทั้งหมด" value={counts.all} tone="blue" />
+          <SummaryCard title={TEXT.totalItems} value={counts.all} tone="blue" />
           <SummaryCard
-            title="ยังควรตามต่อ"
+            title={TEXT.followUp}
             value={counts.red + counts.amber}
             tone={counts.red + counts.amber > 0 ? 'amber' : 'green'}
           />
@@ -142,8 +179,8 @@ export default function History() {
         <section className="bg-slate-900 border border-slate-700 rounded-2xl p-4 space-y-3 panel-enter interactive-lift">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-sm font-semibold text-white">ค้นหาและเลือกช่วงเวลา</p>
-              <p className="text-xs text-slate-400 mt-1">ช่วยให้หัวหน้ามองย้อนหลังเฉพาะเรื่องที่ต้องการได้เร็วขึ้น</p>
+              <p className="text-sm font-semibold text-white">{TEXT.searchAndRange}</p>
+              <p className="text-xs text-slate-400 mt-1">{TEXT.searchAndRangeHelp}</p>
             </div>
             {(search || filter !== 'all') && (
               <button
@@ -154,7 +191,7 @@ export default function History() {
                 }}
                 className="px-3 py-2 rounded-xl text-xs font-semibold text-slate-200 bg-slate-800 border border-slate-700 active:bg-slate-700 transition"
               >
-                ล้างตัวกรอง
+                {TEXT.clearFilter}
               </button>
             )}
           </div>
@@ -168,18 +205,18 @@ export default function History() {
                   days === option ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300 active:bg-slate-700'
                 }`}
               >
-                {option} วัน
+                {option} {TEXT.day}
               </button>
             ))}
           </div>
 
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">ค้น</span>
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">{TEXT.search}</span>
             <input
               type="text"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="ค้นหาชื่องาน โปรเจกต์ หรือชื่อคน"
+              placeholder={TEXT.searchPlaceholder}
               className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm"
             />
           </div>
@@ -202,7 +239,7 @@ export default function History() {
 
           <div className="rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2.5">
             <p className="text-xs text-slate-300">
-              ตอนนี้กำลังแสดง <span className="font-semibold text-white">{filteredItems.length}</span> รายการ ในหมวด{' '}
+              {TEXT.showingNow} <span className="font-semibold text-white">{filteredItems.length}</span> {TEXT.items} {TEXT.inCategory}{' '}
               <span className="font-semibold text-white">{activeFilterLabel}</span>
             </p>
           </div>
@@ -215,9 +252,9 @@ export default function History() {
             ))}
           </div>
         ) : error ? (
-          <StateBox title="โหลดประวัติไม่สำเร็จ" message={error} actionLabel="ลองใหม่" onAction={() => void loadHistory(days)} />
+          <StateBox title={TEXT.loadFailed} message={error} actionLabel={TEXT.retry} onAction={() => void loadHistory(days)} />
         ) : filteredItems.length === 0 ? (
-          <StateBox title="ยังไม่มีประวัติในช่วงนี้" message="ลองเปลี่ยนช่วงเวลา คำค้นหา หรือหมวดที่ต้องการดู" />
+          <StateBox title={TEXT.emptyTitle} message={TEXT.emptyMessage} />
         ) : (
           <div className="space-y-3">
             {filteredItems.map((item) => (
@@ -268,7 +305,7 @@ function AnimatedHistoryRow({
   }
 
   const categoryLabel =
-    item.category === 'task' ? 'งาน' : item.category === 'project' ? 'โปรเจกต์' : 'คำขอเข้าโปรเจกต์'
+    item.category === 'task' ? TEXT.task : item.category === 'project' ? TEXT.project : TEXT.join
 
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900 overflow-hidden panel-enter interactive-lift">
@@ -289,7 +326,7 @@ function AnimatedHistoryRow({
             <p className="text-sm text-white font-semibold mt-2 leading-relaxed">{item.summary}</p>
             <div className="flex items-center gap-2 flex-wrap mt-2 text-xs text-slate-500">
               <span>{formatRelativeTime(item.occurred_at)}</span>
-              {item.actor && <span>โดย {item.actor}</span>}
+              {item.actor && <span>{TEXT.by} {item.actor}</span>}
             </div>
           </div>
           <span className={`accordion-chevron ${expanded ? 'open text-blue-300' : 'text-slate-300'} w-8 h-8 rounded-full border border-slate-700 bg-slate-950 flex items-center justify-center text-sm font-bold shrink-0`}>
@@ -302,15 +339,15 @@ function AnimatedHistoryRow({
         <div className="accordion-inner">
           <div className="border-t border-slate-800 px-4 py-4 space-y-3 slide-down-enter">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <DetailBox label="ผู้ดำเนินการ" value={item.actor} />
-              <DetailBox label="ผู้เกี่ยวข้อง" value={item.subject_user || '-'} />
-              <DetailBox label="งาน" value={item.task?.name || '-'} />
-              <DetailBox label="โปรเจกต์" value={item.project?.name || '-'} />
+              <DetailBox label={TEXT.actor} value={item.actor} />
+              <DetailBox label={TEXT.relatedUser} value={item.subject_user || '-'} />
+              <DetailBox label={TEXT.task} value={item.task?.name || '-'} />
+              <DetailBox label={TEXT.project} value={item.project?.name || '-'} />
             </div>
 
             {item.detail ? (
               <div className="rounded-xl border border-slate-800 bg-slate-950 px-4 py-3">
-                <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">หมายเหตุ</p>
+                <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">{TEXT.note}</p>
                 <p className="text-sm text-slate-300 mt-2 whitespace-pre-line">{item.detail}</p>
               </div>
             ) : null}
@@ -336,13 +373,13 @@ function formatRelativeTime(value: string) {
 
   const diffMs = Date.now() - date.getTime()
   const diffMinutes = Math.max(1, Math.floor(diffMs / 60000))
-  if (diffMinutes < 60) return `${diffMinutes} นาทีที่แล้ว`
+  if (diffMinutes < 60) return `${diffMinutes} ${TEXT.minutesAgo}`
 
   const diffHours = Math.floor(diffMinutes / 60)
-  if (diffHours < 24) return `${diffHours} ชั่วโมงที่แล้ว`
+  if (diffHours < 24) return `${diffHours} ${TEXT.hoursAgo}`
 
   const diffDays = Math.floor(diffHours / 24)
-  if (diffDays < 7) return `${diffDays} วันที่แล้ว`
+  if (diffDays < 7) return `${diffDays} ${TEXT.daysAgo}`
 
   return date.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })
 }
