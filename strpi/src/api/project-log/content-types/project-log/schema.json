@@ -1,0 +1,38 @@
+{
+  "kind": "collectionType",
+  "collectionName": "project_logs",
+  "info": {
+    "singularName": "project-log",
+    "pluralName": "project-logs",
+    "displayName": "project-log"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "action": {
+      "type": "enumeration",
+      "required": true,
+      "enum": [
+        "created",
+        "closed",
+        "member_added",
+        "member_removed"
+      ]
+    },
+    "note": {
+      "type": "string"
+    },
+    "project": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::project.project"
+    },
+    "actor": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user"
+    }
+  }
+}

@@ -4,6 +4,7 @@ import { resolveImageUrl } from '../../../services/supabase';
 const userUid = 'plugin::users-permissions.user' as any;
 const taskUid = 'api::task.task' as any;
 const taskLogUid = 'api::task-log.task-log' as any;
+const projectLogUid = 'api::project-log.project-log' as any;
 const projectUid = 'api::project.project' as any;
 const proofImageUid = 'api::proof-image.proof-image' as any;
 const notificationUid = 'api::notification.notification' as any;
@@ -417,7 +418,7 @@ async function buildActionHistory(strapi: any, days: number) {
   const now = new Date();
   const windowStart = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
 
-  const [taskLogs, joinRequests] = await Promise.all([
+  const [taskLogs, joinRequests, projectLogs] = await Promise.all([
     strapi.db.query(taskLogUid).findMany({
       where: {
         action: {
@@ -453,6 +454,18 @@ async function buildActionHistory(strapi: any, days: number) {
       orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
       limit: 200,
     }) as Promise<any[]>,
+    strapi.db.query(projectLogUid).findMany({
+      where: {
+        createdAt: { $gte: windowStart.toISOString() },
+      },
+      select: ['id', 'action', 'note', 'createdAt'],
+      populate: {
+        actor: { select: ['id', 'display_name', 'username'] },
+        project: { select: ['id', 'name', 'status_project'] },
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      limit: 200,
+    }) as Promise<any[]>,
   ]);
 
   const taskItems = taskLogs.map((log) => {
@@ -463,7 +476,7 @@ async function buildActionHistory(strapi: any, days: number) {
     const projectName = log.task?.project?.name || '';
 
     return {
-      id: `task-log-${log.id}`,
+      id: 'task-log-' + log.id,
       category: 'task',
       action,
       tone: getHistoryTone(action),
@@ -496,15 +509,15 @@ async function buildActionHistory(strapi: any, days: number) {
     const projectName = request.project?.name || 'โปรเจกต์ไม่ระบุชื่อ';
 
     return {
-      id: `join-request-${request.id}`,
+      id: 'join-request-' + request.id,
       category: 'project_join',
       action: request.status_request,
       tone: approved ? 'green' : 'red',
       occurred_at: request.updatedAt || request.createdAt,
       title: approved ? 'อนุมัติคำขอเข้าโปรเจกต์' : 'ปฏิเสธคำขอเข้าโปรเจกต์',
       summary: approved
-        ? `${actorName} อนุมัติให้ ${requesterName} เข้าโปรเจกต์ ${projectName}`
-        : `${actorName} ปฏิเสธคำขอของ ${requesterName} สำหรับโปรเจกต์ ${projectName}`,
+        ? actorName + ' อนุมัติให้ ' + requesterName + ' เข้าโปรเจกต์ ' + projectName
+        : actorName + ' ปฏิเสธคำขอของ ' + requesterName + ' สำหรับโปรเจกต์ ' + projectName,
       detail: request.review_note || request.note || '',
       actor: actorName,
       subject_user: requesterName,
@@ -518,11 +531,74 @@ async function buildActionHistory(strapi: any, days: number) {
     };
   });
 
-  return [...taskItems, ...requestItems]
+  const projectItems = projectLogs.map((log) => {
+    const actorName = getUserLabel(log.actor);
+    const projectName = log.project?.name || 'โปรเจกต์ไม่ระบุชื่อ';
+    const action = String(log.action || '');
+
+    return {
+      id: 'project-log-' + log.id,
+      category: 'project',
+      action,
+      tone: getProjectHistoryTone(action),
+      occurred_at: log.createdAt,
+      title: getProjectHistoryTitle(action),
+      summary: getProjectHistorySummary(action, actorName, projectName),
+      detail: log.note || '',
+      actor: actorName,
+      subject_user: '',
+      task: null,
+      project: log.project
+        ? {
+            id: log.project.id,
+            name: projectName,
+          }
+        : null,
+    };
+  });
+
+  return [...taskItems, ...requestItems, ...projectItems]
     .sort((a, b) => toTime(b.occurred_at) - toTime(a.occurred_at))
     .slice(0, 200);
 }
 
+function getProjectHistoryTitle(action: string) {
+  switch (action) {
+    case 'closed':
+      return 'ปิดโปรเจกต์';
+    case 'member_added':
+      return 'เพิ่มสมาชิก';
+    case 'member_removed':
+      return 'ลบสมาชิก';
+    default:
+      return 'สร้างโปรเจกต์';
+  }
+}
+
+function getProjectHistorySummary(action: string, actorName: string, projectName: string) {
+  switch (action) {
+    case 'closed':
+      return actorName + ' ปิดโปรเจกต์ ' + projectName;
+    case 'member_added':
+      return actorName + ' เพิ่มสมาชิกในโปรเจกต์ ' + projectName;
+    case 'member_removed':
+      return actorName + ' ลบสมาชิกออกจากโปรเจกต์ ' + projectName;
+    default:
+      return actorName + ' สร้างโปรเจกต์ ' + projectName;
+  }
+}
+
+function getProjectHistoryTone(action: string) {
+  switch (action) {
+    case 'closed':
+      return 'red';
+    case 'member_added':
+    case 'member_removed':
+      return 'blue';
+    default:
+      return 'green';
+  }
+}
 function normalizeRangeDays(value: unknown) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return 30;

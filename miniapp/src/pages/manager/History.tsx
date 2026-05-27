@@ -3,7 +3,7 @@ import ManagerNav from '../../components/ManagerNav'
 import { dashboardApi } from '../../api'
 
 type HistoryTone = 'green' | 'blue' | 'amber' | 'red'
-type HistoryCategory = 'task' | 'project_join'
+type HistoryCategory = 'task' | 'project_join' | 'project'
 
 type HistoryItem = {
   id: string
@@ -49,11 +49,11 @@ export default function History() {
       const response = await dashboardApi.history(rangeDays)
       const nextData = response.data as HistoryResponse
       setData(nextData)
-      setOpenItemId((current) => nextData.items.some((item) => item.id === current) ? current : null)
-    } catch (err: any) {
+      setOpenItemId((current) => (nextData.items.some((item) => item.id === current) ? current : null))
+    } catch (error: any) {
       setData(null)
       setOpenItemId(null)
-      setError(err?.response?.data?.error?.message || err?.response?.data?.message || 'โหลดประวัติการทำรายการไม่สำเร็จ')
+      setError(error?.response?.data?.error?.message || error?.response?.data?.message || 'โหลดประวัติการทำรายการไม่สำเร็จ')
     } finally {
       setLoading(false)
     }
@@ -62,28 +62,33 @@ export default function History() {
   const items = data?.items ?? []
 
   const filteredItems = useMemo(() => {
-    const q = search.trim().toLowerCase()
+    const query = search.trim().toLowerCase()
     return items.filter((item) => {
       const matchFilter = filter === 'all' || item.category === filter || item.tone === filter
-      const matchSearch = !q
-        || item.title.toLowerCase().includes(q)
-        || item.summary.toLowerCase().includes(q)
-        || item.actor.toLowerCase().includes(q)
-        || item.subject_user.toLowerCase().includes(q)
-        || (item.task?.name ?? '').toLowerCase().includes(q)
-        || (item.project?.name ?? '').toLowerCase().includes(q)
+      const matchSearch =
+        !query ||
+        item.title.toLowerCase().includes(query) ||
+        item.summary.toLowerCase().includes(query) ||
+        item.actor.toLowerCase().includes(query) ||
+        item.subject_user.toLowerCase().includes(query) ||
+        (item.task?.name ?? '').toLowerCase().includes(query) ||
+        (item.project?.name ?? '').toLowerCase().includes(query)
       return matchFilter && matchSearch
     })
   }, [filter, items, search])
 
-  const counts = useMemo(() => ({
-    all: items.length,
-    task: items.filter((item) => item.category === 'task').length,
-    project_join: items.filter((item) => item.category === 'project_join').length,
-    green: items.filter((item) => item.tone === 'green').length,
-    amber: items.filter((item) => item.tone === 'amber').length,
-    red: items.filter((item) => item.tone === 'red').length,
-  }), [items])
+  const counts = useMemo(
+    () => ({
+      all: items.length,
+      task: items.filter((item) => item.category === 'task').length,
+      project: items.filter((item) => item.category === 'project').length,
+      project_join: items.filter((item) => item.category === 'project_join').length,
+      green: items.filter((item) => item.tone === 'green').length,
+      amber: items.filter((item) => item.tone === 'amber').length,
+      red: items.filter((item) => item.tone === 'red').length,
+    }),
+    [items],
+  )
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col">
@@ -91,7 +96,9 @@ export default function History() {
         <div className="flex items-start justify-between gap-3 mb-4">
           <div>
             <h1 className="text-xl font-bold text-white">ประวัติการทำรายการ</h1>
-            <p className="text-sm text-slate-400 mt-1">ดูย้อนหลังว่าใครอนุมัติ ส่งกลับ ส่งต่อ หรือจัดการคำขอสำคัญอะไรไปบ้าง</p>
+            <p className="text-sm text-slate-400 mt-1">
+              ดูย้อนหลังว่าใครอนุมัติงาน ส่งกลับ ส่งต่อ สร้างโปรเจกต์ ปิดโปรเจกต์ หรือจัดการคำขอสำคัญอะไรไปบ้าง
+            </p>
           </div>
           <button
             onClick={() => void loadHistory(days)}
@@ -111,9 +118,7 @@ export default function History() {
               key={option}
               onClick={() => setDays(option)}
               className={`px-3 py-1.5 rounded-full text-xs font-semibold transition ${
-                days === option
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-slate-800 text-slate-300 active:bg-slate-700'
+                days === option ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300 active:bg-slate-700'
               }`}
             >
               {option} วัน
@@ -125,14 +130,18 @@ export default function History() {
       <div className="flex-1 px-4 py-5 space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <SummaryCard title="ทั้งหมด" value={counts.all} tone="blue" />
-          <SummaryCard title="ต้องตามต่อ" value={counts.red + counts.amber} tone={counts.red + counts.amber > 0 ? 'amber' : 'green'} />
+          <SummaryCard
+            title="ต้องตามต่อ"
+            value={counts.red + counts.amber}
+            tone={counts.red + counts.amber > 0 ? 'amber' : 'green'}
+          />
         </div>
 
         <div className="space-y-3">
           <input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(event) => setSearch(event.target.value)}
             placeholder="ค้นหาชื่องาน โปรเจกต์ หรือชื่อคน"
             className="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white placeholder-slate-500 text-sm"
           />
@@ -141,6 +150,7 @@ export default function History() {
             {[
               { key: 'all', label: 'ทั้งหมด' },
               { key: 'task', label: 'ฝั่งงาน' },
+              { key: 'project', label: 'โปรเจกต์' },
               { key: 'project_join', label: 'คำขอเข้าโปรเจกต์' },
               { key: 'green', label: 'สำเร็จ' },
               { key: 'amber', label: 'ส่งต่อ/รอจัดการ' },
@@ -163,8 +173,8 @@ export default function History() {
 
         {loading ? (
           <div className="space-y-3">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="bg-slate-900 rounded-2xl h-28 animate-pulse" />
+            {[1, 2, 3, 4].map((index) => (
+              <div key={index} className="bg-slate-900 rounded-2xl h-28 animate-pulse" />
             ))}
           </div>
         ) : error ? (
@@ -178,7 +188,7 @@ export default function History() {
                 key={item.id}
                 item={item}
                 expanded={openItemId === item.id}
-                onToggle={() => setOpenItemId((current) => current === item.id ? null : item.id)}
+                onToggle={() => setOpenItemId((current) => (current === item.id ? null : item.id))}
               />
             ))}
           </div>
@@ -220,7 +230,8 @@ function HistoryRow({
     red: 'text-red-200 bg-red-950/20 border-red-800/60',
   }
 
-  const categoryLabel = item.category === 'task' ? 'งาน' : 'คำขอเข้าโปรเจกต์'
+  const categoryLabel =
+    item.category === 'task' ? 'งาน' : item.category === 'project' ? 'โปรเจกต์' : 'คำขอเข้าโปรเจกต์'
 
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900 overflow-hidden">

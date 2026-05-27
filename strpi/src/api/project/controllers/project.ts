@@ -1,89 +1,79 @@
-import { factories } from '@strapi/strapi';
+import { factories } from '@strapi/strapi'
 
-const projectUid = 'api::project.project' as any;
-const taskUid = 'api::task.task' as any;
-const userUid = 'plugin::users-permissions.user' as any;
-const joinRequestUid = 'api::project-join-request.project-join-request' as any;
+const projectUid = 'api::project.project' as any
+const projectLogUid = 'api::project-log.project-log' as any
+const taskUid = 'api::task.task' as any
+const userUid = 'plugin::users-permissions.user' as any
+const joinRequestUid = 'api::project-join-request.project-join-request' as any
 
 export default factories.createCoreController(projectUid, ({ strapi }) => ({
   async home(ctx) {
-    ensureManager(ctx);
+    ensureManager(ctx)
 
     const [projects, requests] = await Promise.all([
       buildAllProjects(strapi),
       buildPendingJoinRequests(strapi),
-    ]);
+    ])
 
-    return ctx.send({
-      projects,
-      requests,
-    });
+    return ctx.send({ projects, requests })
   },
 
   async all(ctx) {
-    return ctx.send(await buildAllProjects(strapi));
+    return ctx.send(await buildAllProjects(strapi))
   },
 
   async detail(ctx) {
-    ensureManager(ctx);
-    const projectId = Number(ctx.params.id);
-    if (!Number.isFinite(projectId)) return ctx.badRequest('รูปแบบโปรเจกต์ไม่ถูกต้อง');
+    ensureManager(ctx)
+    const projectId = Number(ctx.params.id)
+    if (!Number.isFinite(projectId)) return ctx.badRequest('รูปแบบโปรเจกต์ไม่ถูกต้อง')
 
     const project = await strapi.db.query(projectUid).findOne({
       where: { id: projectId },
       populate: {
-        creator: {
-          select: ['id', 'display_name', 'username'],
-        },
-        members: {
-          select: ['id', 'display_name', 'username'],
-        },
+        creator: { select: ['id', 'display_name', 'username'] },
+        members: { select: ['id', 'display_name', 'username'] },
       },
-    }) as any;
+    }) as any
 
-    if (!project) return ctx.notFound('ไม่พบโปรเจกต์นี้');
+    if (!project) return ctx.notFound('ไม่พบโปรเจกต์นี้')
 
     const tasks = await strapi.db.query(taskUid).findMany({
       where: { project: projectId },
       select: ['id', 'name', 'status_task', 'createdAt', 'updatedAt'],
       populate: {
-        current_owner: {
-          select: ['id', 'display_name', 'username'],
-        },
+        current_owner: { select: ['id', 'display_name', 'username'] },
       },
       orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
-    }) as any[];
-
-    const counts = {
-      total: tasks.length,
-      in_progress: tasks.filter((task) => task.status_task === 'in_progress').length,
-      under_review: tasks.filter((task) => task.status_task === 'under_review').length,
-      waiting_pickup: tasks.filter((task) => task.status_task === 'waiting_pickup').length,
-      done: tasks.filter((task) => task.status_task === 'done').length,
-    };
+    }) as any[]
 
     return ctx.send({
       project,
-      summary: counts,
+      summary: {
+        total: tasks.length,
+        in_progress: tasks.filter((task) => task.status_task === 'in_progress').length,
+        under_review: tasks.filter((task) => task.status_task === 'under_review').length,
+        waiting_pickup: tasks.filter((task) => task.status_task === 'waiting_pickup').length,
+        done: tasks.filter((task) => task.status_task === 'done').length,
+      },
       tasks,
-    });
+    })
   },
 
   async create(ctx) {
-    const user = ctx.state.user;
-    ensureManager(ctx);
+    const user = ctx.state.user
+    ensureManager(ctx)
 
-    const bodyData = ctx.request.body?.data ?? {};
-    const name = typeof bodyData.name === 'string' ? bodyData.name.trim() : '';
-    const deadline = bodyData.deadline;
+    const bodyData = ctx.request.body?.data ?? {}
+    const name = typeof bodyData.name === 'string' ? bodyData.name.trim() : ''
+    const deadline = bodyData.deadline
 
     if (!name || !deadline) {
-      return ctx.badRequest('กรุณากรอกชื่อโปรเจกต์และกำหนดวันครบกำหนด');
+      return ctx.badRequest('กรุณากรอกชื่อโปรเจกต์และกำหนดส่งให้ครบ')
     }
 
-    const deadlineDate = new Date(deadline);
+    const deadlineDate = new Date(deadline)
     if (Number.isNaN(deadlineDate.getTime())) {
-      return ctx.badRequest('รูปแบบวันครบกำหนดไม่ถูกต้อง');
+      return ctx.badRequest('รูปแบบวันกำหนดส่งไม่ถูกต้อง')
     }
 
     const created = await strapi.db.query(projectUid).create({
@@ -94,24 +84,35 @@ export default factories.createCoreController(projectUid, ({ strapi }) => ({
         creator: user.id,
         status_project: 'active',
       } as any,
-    }) as any;
+    }) as any
+
+    await strapi.db.query(projectLogUid).create({
+      data: {
+        action: 'created',
+        note: `สร้างโปรเจกต์ ${name}`,
+        project: created.id,
+        actor: user.id,
+      },
+    })
 
     await strapi.service('api::task.task').notifyGroup({
       message: `โปรเจกต์ใหม่: *${name}*\nกำหนดส่ง: ${deadlineDate.toLocaleDateString('th-TH')}\nสร้างโดย: ${user.username}`,
-    });
+    })
 
-    return ctx.send(created);
+    return ctx.send(created)
   },
 
   async closeProject(ctx) {
-    ensureManager(ctx);
-    const projectId = Number(ctx.params.id);
+    const user = ctx.state.user
+    ensureManager(ctx)
+    const projectId = Number(ctx.params.id)
 
     const project = await strapi.db.query(projectUid).findOne({
       where: { id: projectId },
-    }) as any;
-    if (!project) return ctx.notFound('ไม่พบโปรเจกต์นี้');
-    if (project.status_project === 'closed') return ctx.badRequest('โปรเจกต์นี้ถูกปิดแล้ว');
+    }) as any
+
+    if (!project) return ctx.notFound('ไม่พบโปรเจกต์นี้')
+    if (project.status_project === 'closed') return ctx.badRequest('โปรเจกต์นี้ถูกปิดแล้ว')
 
     const pendingTasks = await strapi.db.query(taskUid).findMany({
       where: {
@@ -119,56 +120,73 @@ export default factories.createCoreController(projectUid, ({ strapi }) => ({
         status_task: { $ne: 'done' },
       },
       select: ['id'],
-    }) as any[];
+    }) as any[]
 
     if (pendingTasks.length) {
-      return ctx.badRequest(`ยังมีงานค้างอยู่ ${pendingTasks.length} งาน กรุณาปิดงานให้ครบก่อน`);
+      return ctx.badRequest(`ยังมีงานค้างอยู่ ${pendingTasks.length} งาน กรุณาปิดงานให้ครบก่อน`)
     }
 
     await strapi.db.query(projectUid).update({
       where: { id: projectId },
       data: { status_project: 'closed' },
-    });
+    })
+
+    await strapi.db.query(projectLogUid).create({
+      data: {
+        action: 'closed',
+        note: `ปิดโปรเจกต์ ${project.name}`,
+        project: projectId,
+        actor: user.id,
+      },
+    })
 
     await strapi.service('api::task.task').notifyGroup({
       message: `โปรเจกต์ *${project.name}* ปิดเรียบร้อยแล้ว`,
-    });
+    })
 
-    return ctx.send({ message: 'ปิดโปรเจกต์เรียบร้อย' });
+    return ctx.send({ message: 'ปิดโปรเจกต์เรียบร้อย' })
   },
 
   async addMember(ctx) {
-    ensureManager(ctx);
-    const projectId = Number(ctx.params.id);
-    const memberId = Number(ctx.request.body?.userId);
+    const user = ctx.state.user
+    ensureManager(ctx)
+    const projectId = Number(ctx.params.id)
+    const memberId = Number(ctx.request.body?.userId)
 
     const project = await strapi.db.query(projectUid).findOne({
       where: { id: projectId },
       populate: {
-        members: {
-          select: ['id'],
-        },
+        members: { select: ['id'] },
       },
-    }) as any;
+    }) as any
 
-    if (!project) return ctx.notFound('ไม่พบโปรเจกต์นี้');
+    if (!project) return ctx.notFound('ไม่พบโปรเจกต์นี้')
 
     const target = await strapi.db.query(userUid).findOne({
       where: { id: memberId },
-      select: ['id', 'is_approved'],
-    }) as any;
+      select: ['id', 'is_approved', 'display_name', 'username'],
+    }) as any
 
-    if (!target) return ctx.notFound('ไม่พบผู้ใช้งานนี้');
-    if (!target.is_approved) return ctx.badRequest('ผู้ใช้งานนี้ยังไม่พร้อมใช้งาน');
+    if (!target) return ctx.notFound('ไม่พบผู้ใช้งานนี้')
+    if (!target.is_approved) return ctx.badRequest('ผู้ใช้งานนี้ยังไม่พร้อมใช้งาน')
 
-    const alreadyMember = project.members?.some((member: any) => Number(member.id) === memberId);
-    if (alreadyMember) return ctx.badRequest('ผู้ใช้งานนี้เป็นสมาชิกโปรเจกต์อยู่แล้ว');
+    const alreadyMember = project.members?.some((member: any) => Number(member.id) === memberId)
+    if (alreadyMember) return ctx.badRequest('ผู้ใช้งานนี้เป็นสมาชิกโปรเจกต์อยู่แล้ว')
 
-    const currentMembers = project.members?.map((member: any) => Number(member.id)) ?? [];
+    const currentMembers = project.members?.map((member: any) => Number(member.id)) ?? []
     await strapi.db.query(projectUid).update({
       where: { id: projectId },
       data: { members: [...currentMembers, memberId] } as any,
-    });
+    })
+
+    await strapi.db.query(projectLogUid).create({
+      data: {
+        action: 'member_added',
+        note: `เพิ่ม ${getUserName(target)} เข้าโปรเจกต์ ${project.name}`,
+        project: projectId,
+        actor: user.id,
+      },
+    })
 
     await strapi.service('api::task.task').notifyStaff({
       userId: memberId,
@@ -176,40 +194,56 @@ export default factories.createCoreController(projectUid, ({ strapi }) => ({
       message: `คุณถูกเพิ่มเข้าโปรเจกต์ *${project.name}*`,
       type: 'project',
       link: '/create',
-    });
+    })
 
-    return ctx.send({ message: 'เพิ่มสมาชิกเรียบร้อย' });
+    return ctx.send({ message: 'เพิ่มสมาชิกเรียบร้อย' })
   },
 
   async removeMember(ctx) {
-    ensureManager(ctx);
-    const projectId = Number(ctx.params.id);
-    const memberId = Number(ctx.params.userId);
+    const user = ctx.state.user
+    ensureManager(ctx)
+    const projectId = Number(ctx.params.id)
+    const memberId = Number(ctx.params.userId)
 
     const project = await strapi.db.query(projectUid).findOne({
       where: { id: projectId },
       populate: {
-        members: {
-          select: ['id'],
-        },
+        members: { select: ['id'] },
       },
-    }) as any;
+    }) as any
 
-    if (!project) return ctx.notFound('ไม่พบโปรเจกต์นี้');
+    if (!project) return ctx.notFound('ไม่พบโปรเจกต์นี้')
 
-    const updatedMembers = (project.members?.map((member: any) => Number(member.id)) ?? [])
-      .filter((id: number) => id !== memberId);
+    const target = await strapi.db.query(userUid).findOne({
+      where: { id: memberId },
+      select: ['id', 'display_name', 'username'],
+    }) as any
+
+    if (!target) return ctx.notFound('ไม่พบผู้ใช้งานนี้')
+
+    const updatedMembers = (project.members?.map((member: any) => Number(member.id)) ?? []).filter(
+      (id: number) => id !== memberId,
+    )
 
     await strapi.db.query(projectUid).update({
       where: { id: projectId },
       data: { members: updatedMembers } as any,
-    });
+    })
 
-    return ctx.send({ message: 'ลบสมาชิกเรียบร้อย' });
+    await strapi.db.query(projectLogUid).create({
+      data: {
+        action: 'member_removed',
+        note: `นำ ${getUserName(target)} ออกจากโปรเจกต์ ${project.name}`,
+        project: projectId,
+        actor: user.id,
+      },
+    })
+
+    return ctx.send({ message: 'ลบสมาชิกเรียบร้อย' })
   },
 
   async myProjects(ctx) {
-    const user = ctx.state.user;
+    const user = ctx.state.user
 
     const projects = await strapi.db.query(projectUid).findMany({
       where: {
@@ -217,40 +251,34 @@ export default factories.createCoreController(projectUid, ({ strapi }) => ({
         status_project: 'active',
       },
       populate: {
-        creator: {
-          select: ['id', 'display_name', 'username'],
-        },
-        members: {
-          select: ['id', 'display_name', 'username'],
-        },
+        creator: { select: ['id', 'display_name', 'username'] },
+        members: { select: ['id', 'display_name', 'username'] },
       },
       orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
-    }) as any[];
+    }) as any[]
 
-    return ctx.send(projects);
+    return ctx.send(projects)
   },
 
   async requestJoin(ctx) {
-    const user = ctx.state.user;
-    const projectId = Number(ctx.params.id);
-    const note = typeof ctx.request.body?.note === 'string' ? ctx.request.body.note.trim() : '';
+    const user = ctx.state.user
+    const projectId = Number(ctx.params.id)
+    const note = typeof ctx.request.body?.note === 'string' ? ctx.request.body.note.trim() : ''
 
-    if (user.role_app !== 'staff') return ctx.forbidden('เฉพาะพนักงานเท่านั้น');
+    if (user.role_app !== 'staff') return ctx.forbidden('เฉพาะพนักงานเท่านั้น')
 
     const project = await strapi.db.query(projectUid).findOne({
       where: { id: projectId },
       populate: {
-        members: {
-          select: ['id'],
-        },
+        members: { select: ['id'] },
       },
-    }) as any;
+    }) as any
 
-    if (!project) return ctx.notFound('ไม่พบโปรเจกต์');
-    if (project.status_project !== 'active') return ctx.badRequest('โปรเจกต์นี้ยังไม่เปิดใช้งาน');
+    if (!project) return ctx.notFound('ไม่พบโปรเจกต์')
+    if (project.status_project !== 'active') return ctx.badRequest('โปรเจกต์นี้ยังไม่เปิดใช้งาน')
 
-    const alreadyMember = project.members?.some((member: any) => Number(member.id) === user.id);
-    if (alreadyMember) return ctx.badRequest('คุณเป็นสมาชิกของโปรเจกต์นี้อยู่แล้ว');
+    const alreadyMember = project.members?.some((member: any) => Number(member.id) === user.id)
+    if (alreadyMember) return ctx.badRequest('คุณเป็นสมาชิกของโปรเจกต์นี้อยู่แล้ว')
 
     const existingPending = await strapi.db.query(joinRequestUid).findMany({
       where: {
@@ -260,8 +288,9 @@ export default factories.createCoreController(projectUid, ({ strapi }) => ({
       },
       select: ['id'],
       limit: 1,
-    }) as any[];
-    if (existingPending.length) return ctx.badRequest('คุณส่งคำขอเข้าร่วมโปรเจกต์นี้ไว้แล้ว');
+    }) as any[]
+
+    if (existingPending.length) return ctx.badRequest('คุณส่งคำขอเข้าโปรเจกต์นี้ไว้แล้ว')
 
     const request = await strapi.db.query(joinRequestUid).create({
       data: {
@@ -270,54 +299,50 @@ export default factories.createCoreController(projectUid, ({ strapi }) => ({
         note,
         status_request: 'pending',
       },
-    }) as any;
+    }) as any
 
     await strapi.service('api::task.task').notifyManager({
       taskId: '',
       taskName: '',
       submittedBy: user.display_name || user.username,
-      reportText: `คำขอเข้าร่วมโปรเจกต์\nโปรเจกต์: ${project.name}\nพนักงาน: ${user.display_name || user.username}\nหมายเหตุ: ${request.note || '-'}`,
+      reportText: `คำขอเข้าโปรเจกต์\nโปรเจกต์: ${project.name}\nพนักงาน: ${user.display_name || user.username}\nหมายเหตุ: ${request.note || '-'}`,
       imageUrl: '',
-    });
+    })
 
-    return ctx.send({ message: 'ส่งคำขอเข้าร่วมโปรเจกต์แล้ว', request });
+    return ctx.send({ message: 'ส่งคำขอเข้าโปรเจกต์แล้ว', request })
   },
 
   async pendingJoinRequests(ctx) {
-    ensureManager(ctx);
-    return ctx.send(await buildPendingJoinRequests(strapi));
+    ensureManager(ctx)
+    return ctx.send(await buildPendingJoinRequests(strapi))
   },
 
   async approveJoinRequest(ctx) {
-    const user = ctx.state.user;
-    ensureManager(ctx);
-    const requestId = Number(ctx.params.id);
+    const user = ctx.state.user
+    ensureManager(ctx)
+    const requestId = Number(ctx.params.id)
 
     const request = await strapi.db.query(joinRequestUid).findOne({
       where: { id: requestId },
       populate: {
         project: {
           populate: {
-            members: {
-              select: ['id'],
-            },
+            members: { select: ['id'] },
           },
         },
-        requested_by: {
-          select: ['id', 'display_name', 'username'],
-        },
+        requested_by: { select: ['id', 'display_name', 'username'] },
       },
-    }) as any;
+    }) as any
 
-    if (!request) return ctx.notFound('ไม่พบคำขอเข้าร่วมโปรเจกต์');
-    if (request.status_request !== 'pending') return ctx.badRequest('คำขอนี้ไม่ได้อยู่ในสถานะรออนุมัติ');
+    if (!request) return ctx.notFound('ไม่พบคำขอเข้าโปรเจกต์')
+    if (request.status_request !== 'pending') return ctx.badRequest('คำขอนี้ไม่ได้อยู่ในสถานะรออนุมัติ')
 
-    const memberIds = request.project?.members?.map((member: any) => Number(member.id)) ?? [];
+    const memberIds = request.project?.members?.map((member: any) => Number(member.id)) ?? []
     if (!memberIds.includes(Number(request.requested_by.id))) {
       await strapi.db.query(projectUid).update({
         where: { id: request.project.id },
         data: { members: [...memberIds, request.requested_by.id] } as any,
-      });
+      })
     }
 
     await strapi.db.query(joinRequestUid).update({
@@ -326,7 +351,7 @@ export default factories.createCoreController(projectUid, ({ strapi }) => ({
         status_request: 'approved',
         reviewed_by: user.id,
       },
-    });
+    })
 
     await strapi.service('api::task.task').notifyStaff({
       userId: String(request.requested_by.id),
@@ -334,31 +359,27 @@ export default factories.createCoreController(projectUid, ({ strapi }) => ({
       message: `คำขอได้รับอนุมัติแล้ว คุณเข้าร่วมโปรเจกต์ *${request.project.name}* ได้แล้ว`,
       type: 'project',
       link: '/create',
-    });
+    })
 
-    return ctx.send({ message: 'อนุมัติคำขอเข้าร่วมโปรเจกต์แล้ว' });
+    return ctx.send({ message: 'อนุมัติคำขอเข้าโปรเจกต์แล้ว' })
   },
 
   async rejectJoinRequest(ctx) {
-    const user = ctx.state.user;
-    ensureManager(ctx);
-    const requestId = Number(ctx.params.id);
-    const reason = typeof ctx.request.body?.reason === 'string' ? ctx.request.body.reason.trim() : '';
+    const user = ctx.state.user
+    ensureManager(ctx)
+    const requestId = Number(ctx.params.id)
+    const reason = typeof ctx.request.body?.reason === 'string' ? ctx.request.body.reason.trim() : ''
 
     const request = await strapi.db.query(joinRequestUid).findOne({
       where: { id: requestId },
       populate: {
-        project: {
-          select: ['id', 'name'],
-        },
-        requested_by: {
-          select: ['id'],
-        },
+        project: { select: ['id', 'name'] },
+        requested_by: { select: ['id'] },
       },
-    }) as any;
+    }) as any
 
-    if (!request) return ctx.notFound('ไม่พบคำขอเข้าร่วมโปรเจกต์');
-    if (request.status_request !== 'pending') return ctx.badRequest('คำขอนี้ไม่ได้อยู่ในสถานะรออนุมัติ');
+    if (!request) return ctx.notFound('ไม่พบคำขอเข้าโปรเจกต์')
+    if (request.status_request !== 'pending') return ctx.badRequest('คำขอนี้ไม่ได้อยู่ในสถานะรออนุมัติ')
 
     await strapi.db.query(joinRequestUid).update({
       where: { id: requestId },
@@ -367,51 +388,47 @@ export default factories.createCoreController(projectUid, ({ strapi }) => ({
         reviewed_by: user.id,
         review_note: reason,
       },
-    });
+    })
 
     await strapi.service('api::task.task').notifyStaff({
       userId: String(request.requested_by.id),
       title: 'คำขอเข้าโปรเจกต์ไม่ผ่าน',
-      message: `คำขอเข้าร่วมโปรเจกต์ *${request.project.name}* ไม่ได้รับการอนุมัติ`,
+      message: `คำขอเข้าโปรเจกต์ *${request.project.name}* ไม่ได้รับการอนุมัติ`,
       type: 'project',
       link: '/create',
-    });
+    })
 
-    return ctx.send({ message: 'ปฏิเสธคำขอเข้าร่วมโปรเจกต์แล้ว' });
+    return ctx.send({ message: 'ปฏิเสธคำขอเข้าโปรเจกต์แล้ว' })
   },
-}));
+}))
 
 function ensureManager(ctx: any) {
   if (ctx.state.user.role_app !== 'manager') {
-    throw ctx.forbidden('เฉพาะหัวหน้าเท่านั้น');
+    throw ctx.forbidden('เฉพาะหัวหน้าเท่านั้น')
   }
 }
 
 async function buildAllProjects(strapi: any) {
   return strapi.db.query(projectUid).findMany({
     populate: {
-      creator: {
-        select: ['id', 'display_name', 'username'],
-      },
-      members: {
-        select: ['id', 'display_name', 'username'],
-      },
+      creator: { select: ['id', 'display_name', 'username'] },
+      members: { select: ['id', 'display_name', 'username'] },
     },
     orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
-  });
+  })
 }
 
 async function buildPendingJoinRequests(strapi: any) {
   return strapi.db.query(joinRequestUid).findMany({
     where: { status_request: 'pending' },
     populate: {
-      project: {
-        select: ['id', 'name'],
-      },
-      requested_by: {
-        select: ['id', 'display_name', 'username'],
-      },
+      project: { select: ['id', 'name'] },
+      requested_by: { select: ['id', 'display_name', 'username'] },
     },
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-  });
+  })
+}
+
+function getUserName(user: any) {
+  return user?.display_name || user?.username || `User #${user?.id ?? '-'}`
 }
