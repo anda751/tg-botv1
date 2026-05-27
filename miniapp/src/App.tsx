@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 
 import MyTasks from './pages/staff/MyTasks'
@@ -91,6 +91,8 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<Login onLoggedIn={handleAuthSuccess} />} />
           <Route path="/register" element={<Register onRegistered={handleAuthSuccess} />} />
+          <Route path="/logout" element={<Navigate to="/login" replace />} />
+          <Route path="/test/logout" element={<Navigate to="/login" replace />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       ) : (
@@ -145,6 +147,8 @@ export default function App() {
                 <Route path="/history" element={<History />} />
                 <Route path="/reports" element={<Reports />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/logout" element={<LogoutRoute onLogout={handleLogout} />} />
+                <Route path="/test/logout" element={<LogoutRoute onLogout={handleLogout} />} />
                 <Route path="/login" element={<Navigate to="/" replace />} />
                 <Route path="/register" element={<Navigate to="/" replace />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
@@ -158,6 +162,8 @@ export default function App() {
                 <Route path="/handover/:taskId" element={<HandoverTask />} />
                 <Route path="/pickup" element={<PickupTask />} />
                 <Route path="/settings" element={<StaffSettings />} />
+                <Route path="/logout" element={<LogoutRoute onLogout={handleLogout} />} />
+                <Route path="/test/logout" element={<LogoutRoute onLogout={handleLogout} />} />
                 <Route path="/login" element={<Navigate to="/" replace />} />
                 <Route path="/register" element={<Navigate to="/" replace />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
@@ -168,4 +174,15 @@ export default function App() {
       )}
     </BrowserRouter>
   )
+}
+
+function LogoutRoute({ onLogout }: { onLogout: () => void }) {
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    onLogout()
+    navigate('/login', { replace: true })
+  }, [navigate, onLogout])
+
+  return <Loading />
 }
