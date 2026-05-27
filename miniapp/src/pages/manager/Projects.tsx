@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import ManagerNav from '../../components/ManagerNav'
 import { projectApi } from '../../api'
 
@@ -51,6 +52,8 @@ const TASK_STATUS = {
 }
 
 export default function Projects() {
+  const location = useLocation()
+  const navigate = useNavigate()
   const [projects, setProjects] = useState<Project[]>([])
   const [requests, setRequests] = useState<JoinRequest[]>([])
   const [loading, setLoading] = useState(true)
@@ -72,6 +75,14 @@ export default function Projects() {
   useEffect(() => {
     void loadAll()
   }, [])
+
+  useEffect(() => {
+    const openProject = Number(new URLSearchParams(location.search).get('open') || '')
+    if (!Number.isFinite(openProject) || openProject <= 0) return
+    if (!projects.some((project) => project.id === openProject)) return
+    if (openProjectId === openProject) return
+    void handleToggleProject(openProject)
+  }, [location.search, projects])
 
   async function loadAll() {
     setLoading(true)
@@ -359,6 +370,11 @@ export default function Projects() {
                   detailError={detailErrorById[project.id]}
                   onToggle={() => void handleToggleProject(project.id)}
                   onClose={handleCloseProject}
+                  onOpenTask={(task) =>
+                    navigate(
+                      `/tasks?task=${task.id}&status=${task.status_task}&fromProject=${project.id}&projectName=${encodeURIComponent(project.name)}`,
+                    )
+                  }
                 />
               ))}
             </div>
@@ -377,6 +393,7 @@ function ProjectCard({
   detailError,
   onToggle,
   onClose,
+  onOpenTask,
 }: {
   project: Project
   detail?: ProjectDetail
@@ -385,6 +402,7 @@ function ProjectCard({
   detailError?: string
   onToggle: () => void
   onClose: (id: number) => void
+  onOpenTask: (task: ProjectTask) => void
 }) {
   const overdue = isOverdue(project)
   const titleColor = overdue ? 'text-red-400' : 'text-green-400'
@@ -463,6 +481,7 @@ function ProjectCard({
                 tone="amber"
                 tasks={detail.tasks.filter((task) => task.status_task === 'under_review')}
                 emptyText="ยังไม่มีงานรอตรวจในโปรเจกต์นี้"
+                onOpenTask={onOpenTask}
               />
               <TaskGroup
                 title="งานที่กำลังเดินอยู่"
@@ -470,6 +489,7 @@ function ProjectCard({
                 tone="blue"
                 tasks={detail.tasks.filter((task) => task.status_task === 'in_progress')}
                 emptyText="ยังไม่มีงานที่กำลังทำในโปรเจกต์นี้"
+                onOpenTask={onOpenTask}
               />
               <TaskGroup
                 title="งานรอรับช่วงต่อ"
@@ -477,6 +497,7 @@ function ProjectCard({
                 tone="orange"
                 tasks={detail.tasks.filter((task) => task.status_task === 'waiting_pickup')}
                 emptyText="ยังไม่มีงานรอรับช่วงต่อ"
+                onOpenTask={onOpenTask}
               />
               <TaskGroup
                 title="งานที่เสร็จแล้ว"
@@ -484,6 +505,7 @@ function ProjectCard({
                 tone="green"
                 tasks={detail.tasks.filter((task) => task.status_task === 'done')}
                 emptyText="ยังไม่มีงานที่เสร็จแล้ว"
+                onOpenTask={onOpenTask}
               />
             </>
           )}
@@ -499,12 +521,14 @@ function TaskGroup({
   tone,
   tasks,
   emptyText,
+  onOpenTask,
 }: {
   title: string
   description: string
   tone: 'blue' | 'amber' | 'orange' | 'green'
   tasks: ProjectTask[]
   emptyText: string
+  onOpenTask: (task: ProjectTask) => void
 }) {
   const toneMap = {
     blue: 'text-blue-300 bg-blue-950/30 border-blue-800/50',
@@ -532,7 +556,12 @@ function TaskGroup({
           {tasks.map((task) => {
             const status = TASK_STATUS[task.status_task]
             return (
-              <div key={task.id} className="px-3 py-3">
+              <button
+                key={task.id}
+                type="button"
+                onClick={() => onOpenTask(task)}
+                className="w-full px-3 py-3 text-left active:bg-slate-900/80 transition"
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-white leading-snug">{task.name}</p>
@@ -542,10 +571,11 @@ function TaskGroup({
                     <p className="text-[11px] text-slate-500 mt-1">
                       อัปเดตล่าสุด {task.updatedAt ? formatDateTime(task.updatedAt) : '-'}
                     </p>
+                    <p className="text-[11px] text-blue-300 mt-2">กดเพื่อไปหน้าจัดการงานนี้</p>
                   </div>
                   <MiniBadge tone={status.tone} text={status.label} />
                 </div>
-              </div>
+              </button>
             )
           })}
         </div>
