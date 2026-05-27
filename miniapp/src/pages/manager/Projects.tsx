@@ -45,10 +45,10 @@ type ProjectDetail = {
 }
 
 const TASK_STATUS = {
-  in_progress: { label: 'กำลังทำ', tone: 'blue' as const },
-  under_review: { label: 'รอตรวจ', tone: 'amber' as const },
-  waiting_pickup: { label: 'รอรับช่วงต่อ', tone: 'orange' as const },
-  done: { label: 'เสร็จแล้ว', tone: 'green' as const },
+  in_progress: { label: 'กำลังทำ', tone: 'blue' as const, icon: '◔' },
+  under_review: { label: 'รอตรวจ', tone: 'amber' as const, icon: '!' },
+  waiting_pickup: { label: 'รอรับช่วงต่อ', tone: 'orange' as const, icon: '↹' },
+  done: { label: 'เสร็จแล้ว', tone: 'green' as const, icon: '✓' },
 }
 
 export default function Projects() {
@@ -71,6 +71,7 @@ export default function Projects() {
   const [detailLoadingId, setDetailLoadingId] = useState<number | null>(null)
   const [detailErrorById, setDetailErrorById] = useState<Record<number, string>>({})
   const [projectDetails, setProjectDetails] = useState<Record<number, ProjectDetail>>({})
+  const highlightedTaskId = Number(new URLSearchParams(location.search).get('highlightTask') || '')
 
   useEffect(() => {
     void loadAll()
@@ -370,6 +371,7 @@ export default function Projects() {
                   detailError={detailErrorById[project.id]}
                   onToggle={() => void handleToggleProject(project.id)}
                   onClose={handleCloseProject}
+                  highlightedTaskId={highlightedTaskId}
                   onOpenTask={(task) =>
                     navigate(
                       `/tasks?task=${task.id}&status=${task.status_task}&fromProject=${project.id}&projectName=${encodeURIComponent(project.name)}`,
@@ -393,6 +395,7 @@ function ProjectCard({
   detailError,
   onToggle,
   onClose,
+  highlightedTaskId,
   onOpenTask,
 }: {
   project: Project
@@ -402,10 +405,43 @@ function ProjectCard({
   detailError?: string
   onToggle: () => void
   onClose: (id: number) => void
+  highlightedTaskId?: number
   onOpenTask: (task: ProjectTask) => void
 }) {
+  const [taskSearch, setTaskSearch] = useState('')
+  const [ownerFilter, setOwnerFilter] = useState<'all' | string>('all')
   const overdue = isOverdue(project)
   const titleColor = overdue ? 'text-red-400' : 'text-green-400'
+  const ownerOptions = useMemo(() => {
+    const entries = (detail?.tasks ?? [])
+      .map((task) => ({
+        id: String(task.current_owner?.id ?? ''),
+        name: displayName(task.current_owner) || 'ยังไม่ได้ระบุ',
+      }))
+      .filter((entry) => entry.id)
+
+    return [...new Map(entries.map((entry) => [entry.id, entry])).values()].sort((left, right) =>
+      left.name.localeCompare(right.name, 'th'),
+    )
+  }, [detail?.tasks])
+
+  const filteredTasks = useMemo(() => {
+    const query = taskSearch.trim().toLowerCase()
+
+    return (detail?.tasks ?? []).filter((task) => {
+      const matchesOwner = ownerFilter === 'all' || String(task.current_owner?.id ?? '') === ownerFilter
+      const matchesSearch =
+        !query ||
+        task.name.toLowerCase().includes(query) ||
+        displayName(task.current_owner).toLowerCase().includes(query)
+      return matchesOwner && matchesSearch
+    })
+  }, [detail?.tasks, ownerFilter, taskSearch])
+
+  const underReviewTasks = sortProjectTasks(filteredTasks.filter((task) => task.status_task === 'under_review'))
+  const inProgressTasks = sortProjectTasks(filteredTasks.filter((task) => task.status_task === 'in_progress'))
+  const waitingPickupTasks = sortProjectTasks(filteredTasks.filter((task) => task.status_task === 'waiting_pickup'))
+  const doneTasks = sortProjectTasks(filteredTasks.filter((task) => task.status_task === 'done'))
 
   return (
     <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
@@ -467,44 +503,99 @@ function ProjectCard({
             <PanelState title="ยังไม่มีข้อมูลโปรเจกต์" message="ลองปิดแล้วเปิดรายละเอียดอีกครั้ง" />
           ) : (
             <>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-                <StatCard label="งานทั้งหมด" value={String(detail.summary.total)} />
-                <StatCard label="รอตรวจ" value={String(detail.summary.under_review)} />
-                <StatCard label="กำลังทำ" value={String(detail.summary.in_progress)} />
-                <StatCard label="รอรับช่วงต่อ" value={String(detail.summary.waiting_pickup)} />
-                <StatCard label="เสร็จแล้ว" value={String(detail.summary.done)} />
+              <div className="rounded-xl border border-slate-700 bg-slate-950 p-3 space-y-3">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-white">ค้นหาในโปรเจกต์นี้</p>
+                    <p className="text-xs text-slate-400 mt-1">กรองตามชื่องานหรือผู้รับผิดชอบ เพื่อให้หาเรื่องที่ต้องตามต่อได้เร็วขึ้น</p>
+                  </div>
+                  {(taskSearch || ownerFilter !== 'all') && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTaskSearch('')
+                        setOwnerFilter('all')
+                      }}
+                      className="px-3 py-2 rounded-xl text-xs font-semibold text-slate-200 bg-slate-800 border border-slate-700 active:bg-slate-700 transition"
+                    >
+                      ล้างตัวกรอง
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_220px]">
+                  <input
+                    type="text"
+                    value={taskSearch}
+                    onChange={(event) => setTaskSearch(event.target.value)}
+                    placeholder="ค้นหาชื่องาน หรือชื่อผู้รับผิดชอบ"
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-slate-500"
+                  />
+                  <select
+                    value={ownerFilter}
+                    onChange={(event) => setOwnerFilter(event.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white"
+                  >
+                    <option value="all">ทุกคนในโปรเจกต์</option>
+                    {ownerOptions.map((owner) => (
+                      <option key={owner.id} value={owner.id}>
+                        {owner.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                <StatCard label="งานที่มองอยู่" value={String(filteredTasks.length)} />
+                <StatCard label="รอตรวจ" value={String(underReviewTasks.length)} />
+                <StatCard label="กำลังทำ" value={String(inProgressTasks.length)} />
+                <StatCard label="รอรับช่วงต่อ" value={String(waitingPickupTasks.length)} />
+                <StatCard label="เสร็จแล้ว" value={String(doneTasks.length)} />
+              </div>
+
+              {filteredTasks.length !== detail.summary.total && (
+                <div className="rounded-xl border border-blue-800/60 bg-blue-950/30 px-3 py-2.5">
+                  <p className="text-xs text-blue-200">
+                    ตอนนี้กำลังแสดง {filteredTasks.length} จากทั้งหมด {detail.summary.total} งานในโปรเจกต์นี้
+                  </p>
+                </div>
+              )}
 
               <TaskGroup
                 title="งานที่ควรเปิดดูก่อน"
                 description="รวมงานที่รอหัวหน้าตรวจ เพื่อให้รู้ทันทีว่าต้องตัดสินใจอะไรบ้าง"
                 tone="amber"
-                tasks={detail.tasks.filter((task) => task.status_task === 'under_review')}
+                tasks={underReviewTasks}
                 emptyText="ยังไม่มีงานรอตรวจในโปรเจกต์นี้"
+                highlightedTaskId={highlightedTaskId}
                 onOpenTask={onOpenTask}
               />
               <TaskGroup
                 title="งานที่กำลังเดินอยู่"
                 description="ดูว่าใครกำลังทำอะไรอยู่ และงานไหนเพิ่งมีความเคลื่อนไหวล่าสุด"
                 tone="blue"
-                tasks={detail.tasks.filter((task) => task.status_task === 'in_progress')}
+                tasks={inProgressTasks}
                 emptyText="ยังไม่มีงานที่กำลังทำในโปรเจกต์นี้"
+                highlightedTaskId={highlightedTaskId}
                 onOpenTask={onOpenTask}
               />
               <TaskGroup
                 title="งานรอรับช่วงต่อ"
                 description="ใช้ตามงานที่ถูกส่งต่อและยังรอคนรับผิดชอบคนถัดไป"
                 tone="orange"
-                tasks={detail.tasks.filter((task) => task.status_task === 'waiting_pickup')}
+                tasks={waitingPickupTasks}
                 emptyText="ยังไม่มีงานรอรับช่วงต่อ"
+                highlightedTaskId={highlightedTaskId}
                 onOpenTask={onOpenTask}
               />
               <TaskGroup
                 title="งานที่เสร็จแล้ว"
                 description="สรุปงานที่ปิดเรียบร้อยแล้วในโปรเจกต์นี้"
                 tone="green"
-                tasks={detail.tasks.filter((task) => task.status_task === 'done')}
+                tasks={doneTasks}
                 emptyText="ยังไม่มีงานที่เสร็จแล้ว"
+                highlightedTaskId={highlightedTaskId}
                 onOpenTask={onOpenTask}
               />
             </>
@@ -521,6 +612,7 @@ function TaskGroup({
   tone,
   tasks,
   emptyText,
+  highlightedTaskId,
   onOpenTask,
 }: {
   title: string
@@ -528,6 +620,7 @@ function TaskGroup({
   tone: 'blue' | 'amber' | 'orange' | 'green'
   tasks: ProjectTask[]
   emptyText: string
+  highlightedTaskId?: number
   onOpenTask: (task: ProjectTask) => void
 }) {
   const toneMap = {
@@ -555,16 +648,37 @@ function TaskGroup({
         <div className="divide-y divide-slate-800">
           {tasks.map((task) => {
             const status = TASK_STATUS[task.status_task]
+            const isHighlighted = task.id === highlightedTaskId
             return (
               <button
                 key={task.id}
                 type="button"
                 onClick={() => onOpenTask(task)}
-                className="w-full px-3 py-3 text-left active:bg-slate-900/80 transition"
+                className={`w-full px-3 py-3 text-left transition ${
+                  isHighlighted
+                    ? 'bg-blue-950/30 ring-1 ring-inset ring-blue-500/60'
+                    : 'active:bg-slate-900/80'
+                }`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-white leading-snug">{task.name}</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span
+                        className={`inline-flex h-6 w-6 items-center justify-center rounded-full border text-xs font-bold ${statusIconClass(
+                          status.tone,
+                        )}`}
+                        title={status.label}
+                        aria-label={status.label}
+                      >
+                        {status.icon}
+                      </span>
+                      <p className="text-sm font-semibold text-white leading-snug">{task.name}</p>
+                      {isHighlighted && (
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-950/70 text-blue-200 border border-blue-800/70">
+                          งานล่าสุด
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-slate-400 mt-1">
                       ผู้รับผิดชอบ {displayName(task.current_owner) || 'ยังไม่ได้ระบุ'}
                     </p>
@@ -602,6 +716,27 @@ function MiniBadge({ tone, text }: { tone: 'blue' | 'amber' | 'orange' | 'green'
   } as const
 
   return <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${toneMap[tone]}`}>{text}</span>
+}
+
+function statusIconClass(tone: 'blue' | 'amber' | 'orange' | 'green') {
+  const toneMap = {
+    blue: 'border-blue-800/60 bg-blue-950/40 text-blue-200',
+    amber: 'border-amber-800/60 bg-amber-950/40 text-amber-200',
+    orange: 'border-orange-800/60 bg-orange-950/40 text-orange-200',
+    green: 'border-green-800/60 bg-green-950/40 text-green-200',
+  } as const
+
+  return toneMap[tone]
+}
+
+function sortProjectTasks(tasks: ProjectTask[]) {
+  return [...tasks].sort((left, right) => {
+    const leftTime = left.updatedAt ? new Date(left.updatedAt).getTime() : 0
+    const rightTime = right.updatedAt ? new Date(right.updatedAt).getTime() : 0
+
+    if (rightTime !== leftTime) return rightTime - leftTime
+    return left.name.localeCompare(right.name, 'th')
+  })
 }
 
 function InlineNotice({

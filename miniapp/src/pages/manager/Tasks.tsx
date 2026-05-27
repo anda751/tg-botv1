@@ -113,7 +113,8 @@ export default function Tasks() {
 
   function goBackToProject() {
     if (Number.isFinite(fromProjectId) && fromProjectId > 0) {
-      navigate(`/projects?open=${fromProjectId}`)
+      const highlight = Number.isFinite(selectedTaskId) && selectedTaskId > 0 ? `&highlightTask=${selectedTaskId}` : ''
+      navigate(`/projects?open=${fromProjectId}${highlight}`)
       return
     }
     navigate('/projects')
