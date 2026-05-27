@@ -61,7 +61,9 @@ export default function Projects() {
   const [approvingId, setApprovingId] = useState<number | null>(null)
   const [rejectingId, setRejectingId] = useState<number | null>(null)
   const [newName, setNewName] = useState('')
-  const [newDeadline, setNewDeadline] = useState('')
+  const [newDeadlineDate, setNewDeadlineDate] = useState('')
+  const [newDeadlineHour, setNewDeadlineHour] = useState('18')
+  const [newDeadlineMinute, setNewDeadlineMinute] = useState('00')
   const [formError, setFormError] = useState('')
   const [pageError, setPageError] = useState('')
   const [actionError, setActionError] = useState('')
@@ -135,8 +137,8 @@ export default function Projects() {
   }
 
   async function handleCreate() {
-    if (!newName.trim() || !newDeadline) {
-      setFormError('กรอกชื่อโปรเจกต์และกำหนดส่งให้ครบ')
+    if (!newName.trim() || !newDeadlineDate) {
+      setFormError('กรอกชื่อโปรเจกต์และกำหนดวันส่งให้ครบ')
       return
     }
 
@@ -146,12 +148,24 @@ export default function Projects() {
     setActionSuccess('')
 
     try {
+      const deadline = new Date(
+        `${newDeadlineDate}T${newDeadlineHour.padStart(2, '0')}:${newDeadlineMinute.padStart(2, '0')}:00`,
+      )
+
+      if (Number.isNaN(deadline.getTime())) {
+        setFormError('รูปแบบวันหรือเวลาไม่ถูกต้อง')
+        setCreating(false)
+        return
+      }
+
       await projectApi.create({
         name: newName.trim(),
-        deadline: new Date(newDeadline).toISOString(),
+        deadline: deadline.toISOString(),
       })
       setNewName('')
-      setNewDeadline('')
+      setNewDeadlineDate('')
+      setNewDeadlineHour('18')
+      setNewDeadlineMinute('00')
       setActionSuccess('สร้างโปรเจกต์เรียบร้อย')
       await loadAll()
     } catch (error: any) {
@@ -338,12 +352,56 @@ export default function Projects() {
                 placeholder="ชื่อโปรเจกต์"
                 className="w-full px-3 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white"
               />
-              <input
-                type="datetime-local"
-                value={newDeadline}
-                onChange={(event) => setNewDeadline(event.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white"
-              />
+              <div className="rounded-xl border border-slate-700 bg-slate-900/80 p-3 space-y-3">
+                <div>
+                  <p className="text-sm font-semibold text-white">กำหนดส่งโปรเจกต์</p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    เลือกวันก่อน แล้วค่อยเลือกเวลาแบบ 24 ชั่วโมง เช่น `18:00` คือหกโมงเย็น ถ้าไม่แน่ใจ แนะนำตั้งเป็น `18:00`
+                  </p>
+                </div>
+
+                <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_100px_100px]">
+                  <label className="space-y-1">
+                    <span className="text-[11px] font-semibold text-slate-400">วันสิ้นสุด</span>
+                    <input
+                      type="date"
+                      value={newDeadlineDate}
+                      onChange={(event) => setNewDeadlineDate(event.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white"
+                    />
+                  </label>
+
+                  <label className="space-y-1">
+                    <span className="text-[11px] font-semibold text-slate-400">ชั่วโมง</span>
+                    <select
+                      value={newDeadlineHour}
+                      onChange={(event) => setNewDeadlineHour(event.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white"
+                    >
+                      {Array.from({ length: 24 }, (_, index) => String(index).padStart(2, '0')).map((hour) => (
+                        <option key={hour} value={hour}>
+                          {hour}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="space-y-1">
+                    <span className="text-[11px] font-semibold text-slate-400">นาที</span>
+                    <select
+                      value={newDeadlineMinute}
+                      onChange={(event) => setNewDeadlineMinute(event.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white"
+                    >
+                      {['00', '15', '30', '45'].map((minute) => (
+                        <option key={minute} value={minute}>
+                          {minute}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              </div>
               {formError && <p className="text-xs text-red-400">{formError}</p>}
               <button
                 onClick={() => void handleCreate()}
