@@ -31,7 +31,7 @@ const DAY_OPTIONS = [7, 14, 30, 60]
 
 const CATEGORY_OPTIONS: { key: 'all' | HistoryCategory | HistoryTone; label: string }[] = [
   { key: 'all', label: 'ทั้งหมด' },
-  { key: 'task', label: 'ฝั่งงาน' },
+  { key: 'task', label: 'งาน' },
   { key: 'project', label: 'โปรเจกต์' },
   { key: 'project_join', label: 'คำขอเข้าโปรเจกต์' },
   { key: 'green', label: 'สำเร็จ' },
@@ -217,7 +217,7 @@ export default function History() {
         ) : error ? (
           <StateBox title="โหลดประวัติไม่สำเร็จ" message={error} actionLabel="ลองใหม่" onAction={() => void loadHistory(days)} />
         ) : filteredItems.length === 0 ? (
-          <StateBox title="ยังไม่มีประวัติในช่วงนี้" message="ลองเปลี่ยนช่วงเวลา คำค้นหา หรือตัวกรอง" />
+          <StateBox title="ยังไม่มีประวัติในช่วงนี้" message="ลองเปลี่ยนช่วงเวลา คำค้นหา หรือหมวดที่ต้องการดู" />
         ) : (
           <div className="space-y-3">
             {filteredItems.map((item) => (
@@ -251,7 +251,7 @@ function SummaryCard({ title, value, tone }: { title: string; value: number; ton
   )
 }
 
-function HistoryRow({
+function AnimatedHistoryRow({
   item,
   expanded,
   onToggle,
@@ -292,74 +292,6 @@ function HistoryRow({
               {item.actor && <span>โดย {item.actor}</span>}
             </div>
           </div>
-          <span className="w-8 h-8 rounded-full border border-slate-700 bg-slate-950 text-slate-300 flex items-center justify-center text-sm font-bold shrink-0">
-            {expanded ? '−' : '+'}
-          </span>
-        </div>
-      </button>
-
-      {expanded && (
-        <div className="border-t border-slate-800 px-4 py-4 space-y-3">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <DetailBox label="ผู้ดำเนินการ" value={item.actor} />
-            <DetailBox label="ผู้เกี่ยวข้อง" value={item.subject_user || '-'} />
-            <DetailBox label="งาน" value={item.task?.name || '-'} />
-            <DetailBox label="โปรเจกต์" value={item.project?.name || '-'} />
-          </div>
-
-          {item.detail ? (
-            <div className="rounded-xl border border-slate-800 bg-slate-950 px-4 py-3">
-              <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">หมายเหตุ</p>
-              <p className="text-sm text-slate-300 mt-2 whitespace-pre-line">{item.detail}</p>
-            </div>
-          ) : null}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function AnimatedHistoryRow({
-  item,
-  expanded,
-  onToggle,
-}: {
-  item: HistoryItem
-  expanded: boolean
-  onToggle: () => void
-}) {
-  const toneMap: Record<HistoryTone, string> = {
-    green: 'text-green-200 bg-green-950/20 border-green-800/60',
-    blue: 'text-blue-200 bg-blue-950/20 border-blue-800/60',
-    amber: 'text-amber-200 bg-amber-950/20 border-amber-800/60',
-    red: 'text-red-200 bg-red-950/20 border-red-800/60',
-  }
-
-  const categoryLabel =
-    item.category === 'task' ? 'à¸‡à¸²à¸™' : item.category === 'project' ? 'à¹‚à¸›à¸£à¹€à¸ˆà¸à¸•à¹Œ' : 'à¸„à¸³à¸‚à¸­à¹€à¸‚à¹‰à¸²à¹‚à¸›à¸£à¹€à¸ˆà¸à¸•à¹Œ'
-
-  return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900 overflow-hidden panel-enter interactive-lift">
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={expanded}
-        className="w-full p-4 text-left active:bg-slate-800/60 transition interactive-press"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${toneMap[item.tone]}`}>
-                {item.title}
-              </span>
-              <span className="text-xs text-slate-500">{categoryLabel}</span>
-            </div>
-            <p className="text-sm text-white font-semibold mt-2 leading-relaxed">{item.summary}</p>
-            <div className="flex items-center gap-2 flex-wrap mt-2 text-xs text-slate-500">
-              <span>{formatRelativeTime(item.occurred_at)}</span>
-              {item.actor && <span>à¹‚à¸”à¸¢ {item.actor}</span>}
-            </div>
-          </div>
           <span className={`accordion-chevron ${expanded ? 'open text-blue-300' : 'text-slate-300'} w-8 h-8 rounded-full border border-slate-700 bg-slate-950 flex items-center justify-center text-sm font-bold shrink-0`}>
             ⌄
           </span>
@@ -370,15 +302,15 @@ function AnimatedHistoryRow({
         <div className="accordion-inner">
           <div className="border-t border-slate-800 px-4 py-4 space-y-3 slide-down-enter">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <DetailBox label="à¸œà¸¹à¹‰à¸”à¸³à¹€à¸™à¸´à¸™à¸à¸²à¸£" value={item.actor} />
-              <DetailBox label="à¸œà¸¹à¹‰à¹€à¸à¸µà¹ˆà¸¢à¸§à¸‚à¹‰à¸­à¸‡" value={item.subject_user || '-'} />
-              <DetailBox label="à¸‡à¸²à¸™" value={item.task?.name || '-'} />
-              <DetailBox label="à¹‚à¸›à¸£à¹€à¸ˆà¸à¸•à¹Œ" value={item.project?.name || '-'} />
+              <DetailBox label="ผู้ดำเนินการ" value={item.actor} />
+              <DetailBox label="ผู้เกี่ยวข้อง" value={item.subject_user || '-'} />
+              <DetailBox label="งาน" value={item.task?.name || '-'} />
+              <DetailBox label="โปรเจกต์" value={item.project?.name || '-'} />
             </div>
 
             {item.detail ? (
               <div className="rounded-xl border border-slate-800 bg-slate-950 px-4 py-3">
-                <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">à¸«à¸¡à¸²à¸¢à¹€à¸«à¸•à¸¸</p>
+                <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">หมายเหตุ</p>
                 <p className="text-sm text-slate-300 mt-2 whitespace-pre-line">{item.detail}</p>
               </div>
             ) : null}
