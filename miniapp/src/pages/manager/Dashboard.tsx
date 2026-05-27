@@ -125,9 +125,11 @@ export default function Dashboard() {
         await notificationApi.markRead(item.id)
         setNotifications((current) =>
           current.map((notification) =>
-            notification.id === item.id ? { ...notification, is_read: true } : notification),
+            notification.id === item.id ? { ...notification, is_read: true } : notification,
+          ),
         )
       }
+
       if (item.link) navigate(item.link)
     } catch (err) {
       setActionError(extractMessage(err, 'เปิดการแจ้งเตือนไม่สำเร็จ'))
@@ -184,13 +186,17 @@ export default function Dashboard() {
     [notifications],
   )
 
+  const urgentItems = pendingHandover.length + (summary?.tasks.under_review ?? 0)
+
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col">
       <div className="bg-slate-900 border-b border-slate-800 px-4 pt-6 pb-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-start justify-between gap-3 mb-4">
           <div>
             <h1 className="text-xl font-bold text-white">แดชบอร์ด</h1>
-            <p className="text-sm text-slate-400 mt-1">ภาพรวมระบบ งานรอตรวจ คำขอรับช่วงต่อ และการแจ้งเตือนสำคัญ</p>
+            <p className="text-sm text-slate-400 mt-1 leading-relaxed">
+              เริ่มจากงานรอตรวจและคำขอรับช่วงต่อก่อน แล้วค่อยไล่ดูการแจ้งเตือนและภาพรวมระบบ
+            </p>
           </div>
           <button
             onClick={() => void loadAll()}
@@ -204,20 +210,21 @@ export default function Dashboard() {
         <ManagerNav />
       </div>
 
-      <div className="flex-1 px-4 py-5 space-y-6 overflow-y-auto">
+      <div className="flex-1 px-4 py-5 space-y-4 overflow-y-auto pb-8 page-enter">
         {actionError && <NoticeBox tone="red" title="ทำรายการไม่สำเร็จ" message={actionError} />}
         {actionSuccess && <NoticeBox tone="blue" title="ทำรายการสำเร็จ" message={actionSuccess} />}
 
         {loading ? (
           <>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 content-fade">
               {[1, 2, 3, 4].map((i) => (
                 <div key={i} className="bg-slate-900 rounded-2xl p-4 h-24 animate-pulse" />
               ))}
             </div>
-            <div className="bg-slate-900 rounded-2xl h-36 animate-pulse" />
+            <div className="bg-slate-900 rounded-2xl h-24 animate-pulse" />
             <div className="bg-slate-900 rounded-2xl h-40 animate-pulse" />
-            <div className="bg-slate-900 rounded-2xl h-36 animate-pulse" />
+            <div className="bg-slate-900 rounded-2xl h-40 animate-pulse" />
+            <div className="bg-slate-900 rounded-2xl h-40 animate-pulse" />
           </>
         ) : !summary ? (
           <ErrorState
@@ -229,7 +236,7 @@ export default function Dashboard() {
           <>
             <div className="grid grid-cols-2 gap-3">
               <StatCard label="งานทั้งหมด" value={summary.tasks.total} sub={`เสร็จแล้ว ${summary.tasks.done}`} color="blue" icon="งาน" />
-              <StatCard label="รอตรวจ" value={summary.tasks.under_review} sub="รอหัวหน้าตรวจ" color="amber" icon="ตรวจ" alert={summary.tasks.under_review > 0} />
+              <StatCard label="รอตรวจ" value={summary.tasks.under_review} sub="ควรเปิดดูก่อน" color="amber" icon="ตรวจ" alert={summary.tasks.under_review > 0} />
               <StatCard
                 label="โปรเจกต์"
                 value={summary.projects.active}
@@ -238,10 +245,33 @@ export default function Dashboard() {
                 icon="โปรเจกต์"
                 alert={summary.projects.overdue > 0}
               />
-              <StatCard label="พนักงาน" value={summary.staff.total} sub={`รอรับช่วงต่อ ${summary.tasks.waiting_pickup} งาน`} color="purple" icon="ทีม" />
+              <StatCard
+                label="พนักงาน"
+                value={summary.staff.total}
+                sub={`รอรับช่วงต่อ ${summary.tasks.waiting_pickup} งาน`}
+                color="purple"
+                icon="ทีม"
+              />
             </div>
 
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+            <div className="rounded-2xl border border-slate-700 bg-slate-900 p-4 panel-enter interactive-lift">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-white">สิ่งที่ควรดูต่อก่อน</p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    วันนี้มี {urgentItems} รายการที่ควรตัดสินใจเร็ว โดยเฉพาะงานรอตรวจและคำขอรับช่วงต่อ
+                  </p>
+                </div>
+                <button
+                  onClick={() => navigate('/tasks')}
+                  className="px-3 py-2 rounded-xl text-xs font-semibold text-slate-100 bg-slate-800 border border-slate-700 active:bg-slate-700 transition"
+                >
+                  เปิดหน้าจัดการงาน
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 panel-enter interactive-lift">
               <div className="flex justify-between items-center mb-3">
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">สถานะงานวันนี้</p>
                 <p className="text-xs text-slate-500">{summary.tasks.total} งาน</p>
@@ -266,7 +296,7 @@ export default function Dashboard() {
                   {pendingHandover.map((item) => {
                     const loadingAction = handoverActionId === item.id
                     return (
-                      <div key={item.id} className="bg-slate-900 border border-slate-700 rounded-2xl p-4">
+                      <div key={item.id} className="bg-slate-900 border border-slate-700 rounded-2xl p-4 panel-enter interactive-lift">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <p className="text-sm font-semibold text-white">{item.task?.name || 'งานไม่ระบุชื่อ'}</p>
@@ -275,13 +305,9 @@ export default function Dashboard() {
                             )}
                           </div>
                           {item.is_expired ? (
-                            <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-red-950/50 text-red-300 border border-red-800/60">
-                              หมดเวลาแล้ว
-                            </span>
+                            <StatusPill tone="red" text="หมดเวลาแล้ว" />
                           ) : (
-                            <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-950/50 text-amber-300 border border-amber-800/60">
-                              รออนุมัติ
-                            </span>
+                            <StatusPill tone="amber" text="รออนุมัติ" />
                           )}
                         </div>
 
@@ -303,14 +329,14 @@ export default function Dashboard() {
                           <button
                             onClick={() => void handleRejectHandover(item.id)}
                             disabled={loadingAction || item.is_expired}
-                            className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-red-300 bg-red-950/50 border border-red-800 active:bg-red-900 transition disabled:opacity-40"
+                          className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-red-300 bg-red-950/50 border border-red-800 active:bg-red-900 transition disabled:opacity-40 interactive-press"
                           >
                             {loadingAction ? 'กำลังทำรายการ...' : 'ปฏิเสธ'}
                           </button>
                           <button
                             onClick={() => void handleApproveHandover(item.id)}
                             disabled={loadingAction || item.is_expired}
-                            className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-green-600 active:bg-green-700 transition disabled:opacity-40"
+                          className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-green-600 active:bg-green-700 transition disabled:opacity-40 interactive-press"
                           >
                             {loadingAction ? 'กำลังทำรายการ...' : 'อนุมัติ'}
                           </button>
@@ -318,6 +344,78 @@ export default function Dashboard() {
                       </div>
                     )
                   })}
+                </div>
+              )}
+            </Section>
+
+            <Section title="งานรอตรวจ" badge={underReview.length} badgeColor="amber">
+              {underReview.length === 0 ? (
+                <EmptyState title="ยังไม่มีงานรอตรวจ" message="เมื่องานถูกส่งเข้าตรวจ รายการจะขึ้นที่ส่วนนี้" />
+              ) : (
+                <div className="space-y-3">
+                  {underReview.map((task) => (
+                    <div key={task.id} className="bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden panel-enter interactive-lift">
+                      {task.latest_proof?.image_url && (
+                        <img src={task.latest_proof.image_url} alt="proof" className="w-full object-cover max-h-48" />
+                      )}
+                      <div className="p-4">
+                        <p className="text-white font-semibold text-sm leading-snug">{task.name}</p>
+                        {task.current_owner && <p className="text-xs text-slate-400 mt-1">ผู้ส่ง: {task.current_owner.display_name}</p>}
+
+                        {task.latest_proof?.report_text && (
+                          <div className="bg-slate-800 rounded-xl px-3 py-2 mt-3">
+                            <p className="text-xs text-slate-300 leading-relaxed">{task.latest_proof.report_text}</p>
+                          </div>
+                        )}
+
+                        {rejectId === task.id ? (
+                          <div className="mt-3 space-y-2">
+                            <textarea
+                              value={rejectReason}
+                              onChange={(e) => setRejectReason(e.target.value)}
+                              placeholder="ระบุเหตุผลที่ส่งกลับ อย่างน้อย 5 ตัวอักษร"
+                              rows={2}
+                              className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-600 text-white placeholder-slate-500 outline-none focus:border-red-500 text-xs resize-none"
+                            />
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => {
+                                  setRejectId(null)
+                                  setRejectReason('')
+                                }}
+                                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-slate-400 bg-slate-800 active:bg-slate-700 transition"
+                              >
+                                ยกเลิก
+                              </button>
+                              <button
+                                onClick={() => void handleReject(task.id)}
+                                disabled={rejectReason.trim().length < 5 || actionLoading === task.id}
+                                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-red-600 active:bg-red-700 transition disabled:opacity-40"
+                              >
+                                {actionLoading === task.id ? 'กำลังส่ง...' : 'ส่งกลับ'}
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex gap-2 mt-3">
+                            <button
+                              onClick={() => setRejectId(task.id)}
+                              className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-red-300 bg-red-950/50 border border-red-800 active:bg-red-900 transition"
+                            >
+                              ส่งกลับ
+                            </button>
+                            <button
+                              onClick={() => void handleApprove(task.id)}
+                              disabled={actionLoading === task.id}
+                              className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-green-600 active:bg-green-700 transition disabled:opacity-40"
+                            >
+                              {actionLoading === task.id ? 'กำลังอนุมัติ...' : 'อนุมัติ'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </Section>
@@ -360,7 +458,9 @@ export default function Dashboard() {
                                     urgentHandover ? 'bg-amber-400' : item.is_read ? 'bg-slate-600' : 'bg-blue-500'
                                   }`}
                                 />
-                                <p className={`text-sm font-semibold ${urgentHandover ? 'text-amber-100' : 'text-white'}`}>{item.title}</p>
+                                <p className={`text-sm font-semibold ${urgentHandover ? 'text-amber-100' : 'text-white'}`}>
+                                  {item.title}
+                                </p>
                               </div>
                               <p className={`text-xs mt-1 whitespace-pre-line ${urgentHandover ? 'text-amber-100/90' : 'text-slate-300'}`}>
                                 {item.message}
@@ -375,83 +475,6 @@ export default function Dashboard() {
                       )
                     })}
                   </div>
-                </div>
-              )}
-            </Section>
-
-            <Section title="งานรอตรวจ" badge={underReview.length} badgeColor="amber">
-              {underReview.length === 0 ? (
-                <EmptyState title="ยังไม่มีงานรอตรวจ" message="เมื่องานถูกส่งเข้าตรวจ รายการจะแสดงที่ส่วนนี้" />
-              ) : (
-                <div className="space-y-3">
-                  {underReview.map((task) => (
-                    <div key={task.id} className="bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden">
-                      {task.latest_proof?.image_url && (
-                        <img src={task.latest_proof.image_url} alt="proof" className="w-full object-cover max-h-48" />
-                      )}
-                      <div className="p-4">
-                        <p className="text-white font-semibold text-sm leading-snug">{task.name}</p>
-                        {task.current_owner && <p className="text-xs text-slate-400 mt-1">ผู้ส่ง: {task.current_owner.display_name}</p>}
-
-                        {task.latest_proof?.report_text && (
-                          <div className="bg-slate-800 rounded-xl px-3 py-2 mt-3">
-                            <p className="text-xs text-slate-300 leading-relaxed">{task.latest_proof.report_text}</p>
-                          </div>
-                        )}
-
-                        {rejectId === task.id && (
-                          <div className="mt-3">
-                            <textarea
-                              value={rejectReason}
-                              onChange={(e) => setRejectReason(e.target.value)}
-                              placeholder="ระบุเหตุผลที่ส่งกลับ อย่างน้อย 5 ตัวอักษร"
-                              rows={2}
-                              className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-600 text-white placeholder-slate-500 outline-none focus:border-red-500 text-xs resize-none"
-                            />
-                          </div>
-                        )}
-
-                        <div className="flex gap-2 mt-3">
-                          {rejectId === task.id ? (
-                            <>
-                              <button
-                                onClick={() => {
-                                  setRejectId(null)
-                                  setRejectReason('')
-                                }}
-                                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-slate-400 bg-slate-800 active:bg-slate-700 transition"
-                              >
-                                ยกเลิก
-                              </button>
-                              <button
-                                onClick={() => void handleReject(task.id)}
-                                disabled={rejectReason.trim().length < 5 || actionLoading === task.id}
-                                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-red-600 active:bg-red-700 transition disabled:opacity-40"
-                              >
-                                {actionLoading === task.id ? 'กำลังส่ง...' : 'ส่งกลับ'}
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <button
-                                onClick={() => setRejectId(task.id)}
-                                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-red-300 bg-red-950/50 border border-red-800 active:bg-red-900 transition"
-                              >
-                                ส่งกลับ
-                              </button>
-                              <button
-                                onClick={() => void handleApprove(task.id)}
-                                disabled={actionLoading === task.id}
-                                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-green-600 active:bg-green-700 transition disabled:opacity-40"
-                              >
-                                {actionLoading === task.id ? 'กำลังอนุมัติ...' : 'อนุมัติ'}
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
                 </div>
               )}
             </Section>
@@ -558,6 +581,15 @@ function Section({ title, badge, badgeColor, children }: {
       {children}
     </div>
   )
+}
+
+function StatusPill({ tone, text }: { tone: 'red' | 'amber'; text: string }) {
+  const toneMap = {
+    red: 'bg-red-950/50 text-red-300 border-red-800/60',
+    amber: 'bg-amber-950/50 text-amber-300 border-amber-800/60',
+  } as const
+
+  return <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${toneMap[tone]}`}>{text}</span>
 }
 
 function NoticeBox({

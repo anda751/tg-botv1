@@ -14,3 +14,74 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+@keyframes fade-up-soft {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in-soft {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.page-enter {
+  animation: fade-up-soft 280ms ease-out both;
+}
+
+.panel-enter {
+  animation: fade-up-soft 240ms ease-out both;
+}
+
+.content-fade {
+  animation: fade-in-soft 220ms ease-out both;
+}
+
+.interactive-lift {
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    background-color 180ms ease,
+    box-shadow 180ms ease,
+    opacity 180ms ease;
+}
+
+.interactive-lift:hover {
+  transform: translateY(-1px);
+}
+
+.interactive-press {
+  transition: transform 140ms ease, opacity 140ms ease;
+}
+
+.interactive-press:active {
+  transform: scale(0.985);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-enter,
+  .panel-enter,
+  .content-fade {
+    animation: none;
+  }
+
+  .interactive-lift,
+  .interactive-press {
+    transition: none;
+  }
+
+  .interactive-lift:hover,
+  .interactive-press:active {
+    transform: none;
+  }
+}

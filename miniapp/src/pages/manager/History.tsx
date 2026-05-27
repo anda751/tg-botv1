@@ -29,6 +29,16 @@ type HistoryResponse = {
 
 const DAY_OPTIONS = [7, 14, 30, 60]
 
+const CATEGORY_OPTIONS: { key: 'all' | HistoryCategory | HistoryTone; label: string }[] = [
+  { key: 'all', label: 'ทั้งหมด' },
+  { key: 'task', label: 'ฝั่งงาน' },
+  { key: 'project', label: 'โปรเจกต์' },
+  { key: 'project_join', label: 'คำขอเข้าโปรเจกต์' },
+  { key: 'green', label: 'สำเร็จ' },
+  { key: 'amber', label: 'รอจัดการ' },
+  { key: 'red', label: 'ปฏิเสธ/ส่งกลับ' },
+]
+
 export default function History() {
   const [days, setDays] = useState(30)
   const [data, setData] = useState<HistoryResponse | null>(null)
@@ -50,10 +60,14 @@ export default function History() {
       const nextData = response.data as HistoryResponse
       setData(nextData)
       setOpenItemId((current) => (nextData.items.some((item) => item.id === current) ? current : null))
-    } catch (error: any) {
+    } catch (requestError: any) {
       setData(null)
       setOpenItemId(null)
-      setError(error?.response?.data?.error?.message || error?.response?.data?.message || 'โหลดประวัติการทำรายการไม่สำเร็จ')
+      setError(
+        requestError?.response?.data?.error?.message ||
+          requestError?.response?.data?.message ||
+          'โหลดประวัติการทำรายการไม่สำเร็จ',
+      )
     } finally {
       setLoading(false)
     }
@@ -90,14 +104,16 @@ export default function History() {
     [items],
   )
 
+  const activeFilterLabel = CATEGORY_OPTIONS.find((option) => option.key === filter)?.label || 'ทั้งหมด'
+
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col">
       <div className="bg-slate-900 border-b border-slate-800 px-4 pt-6 pb-4">
         <div className="flex items-start justify-between gap-3 mb-4">
           <div>
             <h1 className="text-xl font-bold text-white">ประวัติการทำรายการ</h1>
-            <p className="text-sm text-slate-400 mt-1">
-              ดูย้อนหลังว่าใครอนุมัติงาน ส่งกลับ ส่งต่อ สร้างโปรเจกต์ ปิดโปรเจกต์ หรือจัดการคำขอสำคัญอะไรไปบ้าง
+            <p className="text-sm text-slate-400 mt-1 leading-relaxed">
+              ใช้ดูย้อนหลังว่าใครอนุมัติ ส่งกลับ ส่งต่อ ปิดโปรเจกต์ หรือจัดการคำขอสำคัญอะไรไปบ้าง
             </p>
           </div>
           <button
@@ -111,65 +127,86 @@ export default function History() {
         </div>
 
         <ManagerNav />
-
-        <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
-          {DAY_OPTIONS.map((option) => (
-            <button
-              key={option}
-              onClick={() => setDays(option)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition ${
-                days === option ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300 active:bg-slate-700'
-              }`}
-            >
-              {option} วัน
-            </button>
-          ))}
-        </div>
       </div>
 
-      <div className="flex-1 px-4 py-5 space-y-4">
-        <div className="grid grid-cols-2 gap-3">
-          <SummaryCard title="ทั้งหมด" value={counts.all} tone="blue" />
+      <div className="flex-1 px-4 py-5 space-y-4 pb-8 page-enter">
+        <div className="grid grid-cols-2 gap-3 content-fade">
+          <SummaryCard title="รายการทั้งหมด" value={counts.all} tone="blue" />
           <SummaryCard
-            title="ต้องตามต่อ"
+            title="ยังควรตามต่อ"
             value={counts.red + counts.amber}
             tone={counts.red + counts.amber > 0 ? 'amber' : 'green'}
           />
         </div>
 
-        <div className="space-y-3">
-          <input
-            type="text"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="ค้นหาชื่องาน โปรเจกต์ หรือชื่อคน"
-            className="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white placeholder-slate-500 text-sm"
-          />
+        <section className="bg-slate-900 border border-slate-700 rounded-2xl p-4 space-y-3 panel-enter interactive-lift">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-white">ค้นหาและเลือกช่วงเวลา</p>
+              <p className="text-xs text-slate-400 mt-1">ช่วยให้หัวหน้ามองย้อนหลังเฉพาะเรื่องที่ต้องการได้เร็วขึ้น</p>
+            </div>
+            {(search || filter !== 'all') && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch('')
+                  setFilter('all')
+                }}
+                className="px-3 py-2 rounded-xl text-xs font-semibold text-slate-200 bg-slate-800 border border-slate-700 active:bg-slate-700 transition"
+              >
+                ล้างตัวกรอง
+              </button>
+            )}
+          </div>
 
           <div className="flex gap-2 overflow-x-auto pb-1">
-            {[
-              { key: 'all', label: 'ทั้งหมด' },
-              { key: 'task', label: 'ฝั่งงาน' },
-              { key: 'project', label: 'โปรเจกต์' },
-              { key: 'project_join', label: 'คำขอเข้าโปรเจกต์' },
-              { key: 'green', label: 'สำเร็จ' },
-              { key: 'amber', label: 'ส่งต่อ/รอจัดการ' },
-              { key: 'red', label: 'ตีกลับ/ปฏิเสธ' },
-            ].map((option) => (
+            {DAY_OPTIONS.map((option) => (
+              <button
+                key={option}
+                onClick={() => setDays(option)}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition whitespace-nowrap ${
+                  days === option ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300 active:bg-slate-700'
+                }`}
+              >
+                {option} วัน
+              </button>
+            ))}
+          </div>
+
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">ค้น</span>
+            <input
+              type="text"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="ค้นหาชื่องาน โปรเจกต์ หรือชื่อคน"
+              className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm"
+            />
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {CATEGORY_OPTIONS.map((option) => (
               <button
                 key={option.key}
-                onClick={() => setFilter(option.key as typeof filter)}
+                onClick={() => setFilter(option.key)}
                 className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition border ${
                   filter === option.key
                     ? 'bg-blue-600 border-blue-500 text-white'
-                    : 'bg-slate-900 border-slate-700 text-slate-300'
+                    : 'bg-slate-800 border-slate-700 text-slate-300'
                 }`}
               >
                 {option.label}
               </button>
             ))}
           </div>
-        </div>
+
+          <div className="rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2.5">
+            <p className="text-xs text-slate-300">
+              ตอนนี้กำลังแสดง <span className="font-semibold text-white">{filteredItems.length}</span> รายการ ในหมวด{' '}
+              <span className="font-semibold text-white">{activeFilterLabel}</span>
+            </p>
+          </div>
+        </section>
 
         {loading ? (
           <div className="space-y-3">
@@ -207,7 +244,7 @@ function SummaryCard({ title, value, tone }: { title: string; value: number; ton
   }
 
   return (
-    <div className={`rounded-2xl border p-4 ${toneMap[tone]}`}>
+    <div className={`rounded-2xl border p-4 panel-enter interactive-lift ${toneMap[tone]}`}>
       <p className="text-sm font-semibold">{title}</p>
       <p className="text-3xl font-bold mt-2">{value}</p>
     </div>
@@ -234,12 +271,12 @@ function HistoryRow({
     item.category === 'task' ? 'งาน' : item.category === 'project' ? 'โปรเจกต์' : 'คำขอเข้าโปรเจกต์'
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900 overflow-hidden">
+    <div className="rounded-2xl border border-slate-800 bg-slate-900 overflow-hidden panel-enter interactive-lift">
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={expanded}
-        className="w-full p-4 text-left active:bg-slate-800/60 transition"
+        className="w-full p-4 text-left active:bg-slate-800/60 transition interactive-press"
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -250,7 +287,10 @@ function HistoryRow({
               <span className="text-xs text-slate-500">{categoryLabel}</span>
             </div>
             <p className="text-sm text-white font-semibold mt-2 leading-relaxed">{item.summary}</p>
-            <p className="text-xs text-slate-500 mt-2">{formatRelativeTime(item.occurred_at)}</p>
+            <div className="flex items-center gap-2 flex-wrap mt-2 text-xs text-slate-500">
+              <span>{formatRelativeTime(item.occurred_at)}</span>
+              {item.actor && <span>โดย {item.actor}</span>}
+            </div>
           </div>
           <span className="w-8 h-8 rounded-full border border-slate-700 bg-slate-950 text-slate-300 flex items-center justify-center text-sm font-bold shrink-0">
             {expanded ? '−' : '+'}

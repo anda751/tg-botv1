@@ -277,18 +277,18 @@ export default function Projects() {
         <ManagerNav />
       </div>
 
-      <div className="px-4 py-4 space-y-4 pb-8">
+      <div className="px-4 py-4 space-y-4 pb-8 page-enter">
         {pageError && <InlineNotice tone="red" title="โหลดข้อมูลไม่สำเร็จ" message={pageError} />}
         {actionError && <InlineNotice tone="red" title="ทำรายการไม่สำเร็จ" message={actionError} />}
         {actionSuccess && <InlineNotice tone="green" title="ทำรายการสำเร็จ" message={actionSuccess} />}
 
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 gap-2 content-fade">
           <StatCard label="คำขอรออนุมัติ" value={String(requests.length)} />
           <StatCard label="โปรเจกต์ที่เปิด" value={String(activeCount)} />
           <StatCard label="โปรเจกต์ที่ปิดแล้ว" value={String(closedCount)} />
         </div>
 
-        <section className="bg-slate-900 border border-slate-700 rounded-2xl p-4">
+        <section className="bg-slate-900 border border-slate-700 rounded-2xl p-4 panel-enter interactive-lift">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
             <div>
               <p className="text-sm font-semibold text-white">รายการโปรเจกต์</p>
@@ -348,7 +348,7 @@ export default function Projects() {
           )}
         </section>
 
-        <section className="bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden">
+        <section className="bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden panel-enter interactive-lift">
           <button
             type="button"
             onClick={() => setOpenUtilityPanel((current) => (current === 'create' ? null : 'create'))}
@@ -471,7 +471,7 @@ export default function Projects() {
           )}
         </section>
 
-        <section className="bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden">
+        <section className="bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden panel-enter interactive-lift">
           <button
             type="button"
             onClick={() => setOpenUtilityPanel((current) => (current === 'requests' ? null : 'requests'))}
@@ -624,8 +624,8 @@ function ProjectCard({
   }, [filteredTasks])
 
   return (
-    <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
-      <button type="button" onClick={onToggle} className="w-full p-3 text-left active:bg-slate-700/60 transition">
+    <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden panel-enter interactive-lift">
+      <button type="button" onClick={onToggle} className="w-full p-3 text-left active:bg-slate-700/60 transition interactive-press">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
@@ -1009,7 +1009,7 @@ function OwnerGroupList({
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5">
+    <div className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 panel-enter interactive-lift">
       <p className="text-[11px] text-slate-400">{label}</p>
       <p className="text-lg font-bold text-white leading-tight">{value}</p>
     </div>

@@ -178,7 +178,7 @@ export default function Tasks() {
         <ManagerNav />
       </div>
 
-      <div className="flex-1 px-4 py-4 space-y-4 pb-8">
+      <div className="flex-1 px-4 py-4 space-y-4 pb-8 page-enter">
         {selectedTaskId > 0 && (
           <div className="rounded-2xl border border-blue-800/70 bg-blue-950/40 px-4 py-3 flex items-start justify-between gap-3">
             <div>
@@ -210,13 +210,13 @@ export default function Tasks() {
         {actionError && <InlineNotice tone="red" title="ทำรายการไม่สำเร็จ" message={actionError} />}
         {actionSuccess && <InlineNotice tone="green" title="ทำรายการสำเร็จ" message={actionSuccess} />}
 
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 content-fade">
           {FILTER_OPTIONS.map((item) => (
             <StatCard key={item.key} label={item.label} value={String(counts[item.key])} active={filter === item.key} />
           ))}
         </div>
 
-        <section className="bg-slate-900 border border-slate-700 rounded-2xl p-4 space-y-3">
+        <section className="bg-slate-900 border border-slate-700 rounded-2xl p-4 space-y-3 panel-enter interactive-lift">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-sm font-semibold text-white">ค้นหาและกรองงาน</p>
@@ -300,7 +300,7 @@ export default function Tasks() {
               <div
                 key={task.id}
                 ref={isHighlighted ? highlightedTaskRef : null}
-                className={`bg-slate-900 border rounded-2xl p-4 transition ${
+                className={`bg-slate-900 border rounded-2xl p-4 transition panel-enter interactive-lift ${
                   isHighlighted ? 'border-blue-500 shadow-[0_0_0_1px_rgba(59,130,246,0.4)]' : 'border-slate-700'
                 }`}
               >
@@ -402,7 +402,7 @@ export default function Tasks() {
 
 function StatCard({ label, value, active }: { label: string; value: string; active?: boolean }) {
   return (
-    <div className={`border rounded-xl px-3 py-2.5 ${active ? 'bg-blue-950/30 border-blue-800/60' : 'bg-slate-900 border-slate-700'}`}>
+    <div className={`border rounded-xl px-3 py-2.5 panel-enter interactive-lift ${active ? 'bg-blue-950/30 border-blue-800/60' : 'bg-slate-900 border-slate-700'}`}>
       <p className={`text-[11px] ${active ? 'text-blue-200' : 'text-slate-400'}`}>{label}</p>
       <p className={`text-lg font-bold leading-tight ${active ? 'text-white' : 'text-white'}`}>{value}</p>
     </div>
