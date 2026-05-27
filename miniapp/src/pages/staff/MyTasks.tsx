@@ -500,7 +500,7 @@ export default function MyTasks() {
               />
             </section>
 
-            <AccordionSection
+            <AnimatedAccordionSection
               title="งานรอตรวจ"
               count={underReviewTasks.length}
               description="ดูงานที่ส่งแล้วและกำลังรอหัวหน้าตรวจ"
@@ -527,9 +527,9 @@ export default function MyTasks() {
                   ))}
                 </div>
               )}
-            </AccordionSection>
+            </AnimatedAccordionSection>
 
-            <AccordionSection
+            <AnimatedAccordionSection
               title="งานเสร็จแล้ว"
               count={doneTasks.length}
               description="เปิดดูงานที่ปิดแล้ว หรือซ่อนออกจากหน้าหลักเมื่อไม่ต้องดูบ่อย"
@@ -556,7 +556,7 @@ export default function MyTasks() {
                   ))}
                 </div>
               )}
-            </AccordionSection>
+            </AnimatedAccordionSection>
 
             <section className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
               <div className="px-4 py-4 border-b border-slate-800 flex items-start justify-between gap-3">
@@ -630,7 +630,7 @@ export default function MyTasks() {
               </div>
             </section>
 
-            <AccordionSection
+            <AnimatedAccordionSection
               title="รายการที่ซ่อนไว้"
               count={hiddenCount}
               description="ซ่อนออกจากหน้าหลักได้ แต่ข้อมูลยังไม่หาย"
@@ -730,7 +730,7 @@ export default function MyTasks() {
                   )}
                 </div>
               )}
-            </AccordionSection>
+            </AnimatedAccordionSection>
           </>
         )}
       </div>
@@ -935,6 +935,50 @@ function AccordionSection({
   )
 }
 
+function AnimatedAccordionSection({
+  title,
+  description,
+  count,
+  open,
+  onToggle,
+  children,
+}: {
+  title: string
+  description: string
+  count: number
+  open: boolean
+  onToggle: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <section className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden panel-enter interactive-lift">
+      <button
+        onClick={onToggle}
+        className="w-full px-4 py-4 flex items-center justify-between text-left interactive-press"
+      >
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 className="text-base font-semibold text-white">{title}</h2>
+            <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-200 text-xs font-semibold">
+              {count}
+            </span>
+          </div>
+          <p className="text-sm text-slate-400 mt-1">{description}</p>
+        </div>
+        <span className={`accordion-chevron text-lg ${open ? 'open text-blue-300' : 'text-slate-500'}`}>⌄</span>
+      </button>
+
+      <div className={`accordion-shell ${open ? 'open' : ''}`}>
+        <div className="accordion-inner">
+          <div className="px-4 pb-4 border-t border-slate-800 pt-4 slide-down-enter">
+            {children}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 function NotificationCard({
   item,
   isOpening,
@@ -955,7 +999,7 @@ function NotificationCard({
 
   return (
     <div
-      className={`rounded-xl border p-4 transition ${
+      className={`rounded-xl border p-4 transition notification-card panel-enter ${!item.is_read ? 'unread' : ''} ${
         urgent
           ? item.is_read
             ? 'border-red-900/70 bg-red-950/30'
@@ -1035,7 +1079,7 @@ function NoticeBox({ message, tone }: { message: string; tone: 'green' | 'red' }
   } as const
 
   return (
-    <div className={`border text-sm px-4 py-3 rounded-xl ${tones[tone]}`}>
+    <div className={`border text-sm px-4 py-3 rounded-xl notice-enter ${tones[tone]}`}>
       {message}
     </div>
   )

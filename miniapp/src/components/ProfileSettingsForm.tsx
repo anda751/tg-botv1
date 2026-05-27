@@ -256,7 +256,7 @@ function NoticeBox({
     : 'border-red-800/70 bg-red-950/40 text-red-100';
 
   return (
-    <div className={`rounded-2xl border px-4 py-3 ${toneClass}`}>
+    <div className={`rounded-2xl border px-4 py-3 notice-enter ${toneClass}`}>
       <p className="text-sm font-semibold">{title}</p>
       <p className="text-xs mt-1 opacity-90">{message}</p>
     </div>

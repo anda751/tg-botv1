@@ -442,7 +442,7 @@ export default function Dashboard() {
                         <button
                           key={item.id}
                           onClick={() => void handleOpenNotification(item)}
-                          className={`w-full text-left px-4 py-3 transition ${
+                          className={`w-full text-left px-4 py-3 transition notification-card interactive-press ${!item.is_read ? 'unread' : ''} ${
                             urgentHandover
                               ? 'bg-amber-950/20'
                               : item.is_read
@@ -606,7 +606,7 @@ function NoticeBox({
     : 'border-blue-800/70 bg-blue-950/40 text-blue-100'
 
   return (
-    <div className={`rounded-2xl border p-4 ${toneClass}`}>
+    <div className={`rounded-2xl border p-4 notice-enter ${toneClass}`}>
       <p className="text-sm font-semibold">{title}</p>
       <p className="text-xs mt-1 opacity-90 whitespace-pre-line">{message}</p>
     </div>

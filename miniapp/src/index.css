@@ -35,6 +35,28 @@ body {
   }
 }
 
+@keyframes slide-down-soft {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes notice-in-soft {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .page-enter {
   animation: fade-up-soft 280ms ease-out both;
 }
@@ -45,6 +67,14 @@ body {
 
 .content-fade {
   animation: fade-in-soft 220ms ease-out both;
+}
+
+.notice-enter {
+  animation: notice-in-soft 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.slide-down-enter {
+  animation: slide-down-soft 220ms ease-out both;
 }
 
 .interactive-lift {
@@ -68,15 +98,64 @@ body {
   transform: scale(0.985);
 }
 
+.accordion-shell {
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: 0fr;
+  transition:
+    grid-template-rows 240ms ease,
+    opacity 220ms ease;
+  opacity: 0.75;
+}
+
+.accordion-shell.open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.accordion-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.accordion-chevron {
+  transition: transform 220ms ease, color 180ms ease;
+}
+
+.accordion-chevron.open {
+  transform: rotate(180deg);
+}
+
+.notification-card {
+  transition:
+    transform 180ms ease,
+    background-color 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.notification-card:hover {
+  transform: translateY(-2px);
+}
+
+.notification-card.unread {
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.18), 0 12px 24px rgba(15, 23, 42, 0.22);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .page-enter,
   .panel-enter,
-  .content-fade {
+  .content-fade,
+  .notice-enter,
+  .slide-down-enter {
     animation: none;
   }
 
   .interactive-lift,
-  .interactive-press {
+  .interactive-press,
+  .accordion-shell,
+  .accordion-chevron,
+  .notification-card {
     transition: none;
   }
 
