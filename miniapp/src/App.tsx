@@ -14,6 +14,7 @@ import Projects from './pages/manager/Projects'
 import Tasks from './pages/manager/Tasks'
 import Staff from './pages/manager/Staff'
 import Kpi from './pages/manager/Kpi'
+import History from './pages/manager/History'
 import Reports from './pages/manager/Reports'
 import Settings from './pages/manager/Settings'
 import Register from './pages/Register'
@@ -141,6 +142,7 @@ export default function App() {
                 <Route path="/tasks" element={<Tasks />} />
                 <Route path="/staff" element={<Staff />} />
                 <Route path="/kpi" element={<Kpi />} />
+                <Route path="/history" element={<History />} />
                 <Route path="/reports" element={<Reports />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/login" element={<Navigate to="/" replace />} />

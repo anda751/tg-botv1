@@ -7,31 +7,32 @@ const taskLogUid = 'api::task-log.task-log' as any;
 const projectUid = 'api::project.project' as any;
 const proofImageUid = 'api::proof-image.proof-image' as any;
 const notificationUid = 'api::notification.notification' as any;
+const joinRequestUid = 'api::project-join-request.project-join-request' as any;
 
 type TaskLog = {
-  id: number;
-  action: 'created' | 'submitted' | 'approved' | 'rejected' | 'handover' | 'picked_up' | 'progress_update';
-  note?: string;
-  createdAt?: string;
-  task?: { id: number } | null;
-};
+  id: number
+  action: 'created' | 'submitted' | 'approved' | 'rejected' | 'handover' | 'picked_up' | 'progress_update'
+  note?: string
+  createdAt?: string
+  task?: { id: number } | null
+}
 
 type TaskEntity = {
-  id: number;
-  name: string;
-  status_task: 'in_progress' | 'under_review' | 'waiting_pickup' | 'done';
-  createdAt?: string;
-  updatedAt?: string;
-  current_owner?: { id: number; display_name?: string; username?: string } | null;
-  project?: { id: number; name: string; deadline?: string | null; status_project?: string } | null;
-};
+  id: number
+  name: string
+  status_task: 'in_progress' | 'under_review' | 'waiting_pickup' | 'done'
+  createdAt?: string
+  updatedAt?: string
+  current_owner?: { id: number; display_name?: string; username?: string } | null
+  project?: { id: number; name: string; deadline?: string | null; status_project?: string } | null
+}
 
 type StaffEntity = {
-  id: number;
-  display_name?: string;
-  username?: string;
-  telegram_id?: string;
-};
+  id: number
+  display_name?: string
+  username?: string
+  telegram_id?: string
+}
 
 export default factories.createCoreController('api::task.task', ({ strapi }) => ({
   async home(ctx) {
@@ -233,6 +234,19 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
       staff: result,
     });
   },
+
+  async history(ctx) {
+    ensureManager(ctx);
+    const days = normalizeRangeDays(ctx.request.query?.days);
+    const items = await buildActionHistory(strapi, days);
+
+    return ctx.send({
+      window_days: days,
+      generated_at: new Date().toISOString(),
+      total: items.length,
+      items,
+    });
+  },
 }));
 
 function ensureManager(ctx: any) {
@@ -399,10 +413,177 @@ async function buildNotifications(strapi: any, userId: number) {
   }));
 }
 
+async function buildActionHistory(strapi: any, days: number) {
+  const now = new Date();
+  const windowStart = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+
+  const [taskLogs, joinRequests] = await Promise.all([
+    strapi.db.query(taskLogUid).findMany({
+      where: {
+        action: {
+          $in: ['approved', 'rejected', 'handover', 'picked_up', 'submitted', 'progress_update'],
+        },
+        createdAt: { $gte: windowStart.toISOString() },
+      },
+      select: ['id', 'action', 'note', 'createdAt'],
+      populate: {
+        actor: { select: ['id', 'display_name', 'username'] },
+        task: {
+          select: ['id', 'name', 'status_task'],
+          populate: {
+            project: { select: ['id', 'name'] },
+            current_owner: { select: ['id', 'display_name', 'username'] },
+          },
+        },
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      limit: 200,
+    }) as Promise<any[]>,
+    strapi.db.query(joinRequestUid).findMany({
+      where: {
+        status_request: { $in: ['approved', 'rejected'] },
+        updatedAt: { $gte: windowStart.toISOString() },
+      },
+      select: ['id', 'status_request', 'note', 'review_note', 'createdAt', 'updatedAt'],
+      populate: {
+        project: { select: ['id', 'name'] },
+        requested_by: { select: ['id', 'display_name', 'username'] },
+        reviewed_by: { select: ['id', 'display_name', 'username'] },
+      },
+      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+      limit: 200,
+    }) as Promise<any[]>,
+  ]);
+
+  const taskItems = taskLogs.map((log) => {
+    const action = String(log.action || '');
+    const actorName = getUserLabel(log.actor);
+    const ownerName = getUserLabel(log.task?.current_owner);
+    const taskName = log.task?.name || 'งานไม่ระบุชื่อ';
+    const projectName = log.task?.project?.name || '';
+
+    return {
+      id: `task-log-${log.id}`,
+      category: 'task',
+      action,
+      tone: getHistoryTone(action),
+      occurred_at: log.createdAt,
+      title: getTaskHistoryTitle(action),
+      summary: getTaskHistorySummary(action, taskName, actorName, ownerName),
+      detail: log.note || '',
+      actor: actorName,
+      subject_user: ownerName,
+      task: log.task
+        ? {
+            id: log.task.id,
+            name: taskName,
+            status_task: log.task.status_task,
+          }
+        : null,
+      project: log.task?.project
+        ? {
+            id: log.task.project.id,
+            name: projectName,
+          }
+        : null,
+    };
+  });
+
+  const requestItems = joinRequests.map((request) => {
+    const approved = request.status_request === 'approved';
+    const actorName = getUserLabel(request.reviewed_by);
+    const requesterName = getUserLabel(request.requested_by);
+    const projectName = request.project?.name || 'โปรเจกต์ไม่ระบุชื่อ';
+
+    return {
+      id: `join-request-${request.id}`,
+      category: 'project_join',
+      action: request.status_request,
+      tone: approved ? 'green' : 'red',
+      occurred_at: request.updatedAt || request.createdAt,
+      title: approved ? 'อนุมัติคำขอเข้าโปรเจกต์' : 'ปฏิเสธคำขอเข้าโปรเจกต์',
+      summary: approved
+        ? `${actorName} อนุมัติให้ ${requesterName} เข้าโปรเจกต์ ${projectName}`
+        : `${actorName} ปฏิเสธคำขอของ ${requesterName} สำหรับโปรเจกต์ ${projectName}`,
+      detail: request.review_note || request.note || '',
+      actor: actorName,
+      subject_user: requesterName,
+      task: null,
+      project: request.project
+        ? {
+            id: request.project.id,
+            name: projectName,
+          }
+        : null,
+    };
+  });
+
+  return [...taskItems, ...requestItems]
+    .sort((a, b) => toTime(b.occurred_at) - toTime(a.occurred_at))
+    .slice(0, 200);
+}
+
 function normalizeRangeDays(value: unknown) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return 30;
   return Math.min(90, Math.max(7, Math.round(parsed)));
+}
+
+function getUserLabel(user: any) {
+  if (!user) return 'ไม่ระบุผู้ใช้';
+  return user.display_name || user.username || `User #${user.id}`;
+}
+
+function getTaskHistoryTitle(action: string) {
+  switch (action) {
+    case 'approved':
+      return 'อนุมัติงาน';
+    case 'rejected':
+      return 'ส่งงานกลับ';
+    case 'handover':
+      return 'ส่งต่องาน';
+    case 'picked_up':
+      return 'รับงานช่วงต่อ';
+    case 'submitted':
+      return 'ส่งงานเข้าตรวจ';
+    case 'progress_update':
+      return 'อัปเดตความคืบหน้า';
+    default:
+      return 'อัปเดตงาน';
+  }
+}
+
+function getTaskHistorySummary(action: string, taskName: string, actorName: string, ownerName: string) {
+  switch (action) {
+    case 'approved':
+      return `${actorName} อนุมัติงาน ${taskName} ของ ${ownerName}`;
+    case 'rejected':
+      return `${actorName} ส่งงาน ${taskName} กลับไปให้ ${ownerName} แก้ไข`;
+    case 'handover':
+      return `${actorName} ส่งต่องาน ${taskName}`;
+    case 'picked_up':
+      return `${actorName} รับช่วงต่องาน ${taskName}`;
+    case 'submitted':
+      return `${actorName} ส่งงาน ${taskName} เข้าตรวจ`;
+    case 'progress_update':
+      return `${actorName} อัปเดตความคืบหน้าของงาน ${taskName}`;
+    default:
+      return `${actorName} อัปเดตงาน ${taskName}`;
+  }
+}
+
+function getHistoryTone(action: string) {
+  switch (action) {
+    case 'approved':
+    case 'picked_up':
+      return 'green';
+    case 'rejected':
+      return 'red';
+    case 'handover':
+      return 'amber';
+    default:
+      return 'blue';
+  }
 }
 
 function toTime(value?: string) {
@@ -553,14 +734,14 @@ function getKpiStatus(totalScore: number) {
 }
 
 function buildFocusNote(input: {
-  rejectionRate: number;
-  onTimeRate: number | null;
-  avgCompletionHours: number | null;
-  updateRate: number;
-  activeTasks: number;
-  staleActiveTasks: number;
-  completedTasks: number;
-  outputTarget: number;
+  rejectionRate: number
+  onTimeRate: number | null
+  avgCompletionHours: number | null
+  updateRate: number
+  activeTasks: number
+  staleActiveTasks: number
+  completedTasks: number
+  outputTarget: number
 }) {
   if (input.rejectionRate > 20) return 'งานถูกส่งกลับค่อนข้างบ่อย ควรช่วยดูคุณภาพก่อนส่ง';
   if (input.onTimeRate !== null && input.onTimeRate < 75) return 'งานเสร็จไม่ค่อยทันเวลา ควรช่วยจัดลำดับความสำคัญ';
@@ -579,7 +760,7 @@ function buildFormulaGuide(days: number, outputTarget: number) {
       { key: 'quality', label: 'คุณภาพงาน', weight: 30, formula: '100 - อัตรางานตีกลับตามช่วง threshold' },
       { key: 'on_time', label: 'ตรงเวลา', weight: 20, formula: 'งานที่อนุมัติก่อน deadline / งานที่มี deadline' },
       { key: 'speed', label: 'ความเร็วเฉลี่ย', weight: 15, formula: 'เวลาตั้งแต่สร้างงานจนอนุมัติ (ชั่วโมงเฉลี่ย)' },
-      { key: 'update', label: 'ความสม่ำเสมอในการอัปเดต', weight: 15, formula: 'งานที่ยัง active และมีความเคลื่อนไหวใน 7 วัน / งาน active ทั้งหมด' },
+      { key: 'update', label: 'ความสม่ำเสมอในการอัปเดต', weight: 15, formula: 'งาน active ที่มีความเคลื่อนไหวใน 7 วัน / งาน active ทั้งหมด' },
     ],
     thresholds: {
       quality: [
