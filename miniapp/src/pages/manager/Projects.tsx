@@ -410,6 +410,7 @@ function ProjectCard({
 }) {
   const [taskSearch, setTaskSearch] = useState('')
   const [ownerFilter, setOwnerFilter] = useState<'all' | string>('all')
+  const [detailView, setDetailView] = useState<'status' | 'owner'>('status')
   const overdue = isOverdue(project)
   const titleColor = overdue ? 'text-red-400' : 'text-green-400'
   const ownerOptions = useMemo(() => {
@@ -442,6 +443,33 @@ function ProjectCard({
   const inProgressTasks = sortProjectTasks(filteredTasks.filter((task) => task.status_task === 'in_progress'))
   const waitingPickupTasks = sortProjectTasks(filteredTasks.filter((task) => task.status_task === 'waiting_pickup'))
   const doneTasks = sortProjectTasks(filteredTasks.filter((task) => task.status_task === 'done'))
+  const ownerGroups = useMemo(() => {
+    const groups = new Map<
+      string,
+      {
+        id: string
+        name: string
+        tasks: ProjectTask[]
+      }
+    >()
+
+    for (const task of sortProjectTasks(filteredTasks)) {
+      const key = String(task.current_owner?.id ?? 'unassigned')
+      const name = displayName(task.current_owner) || 'ยังไม่ได้ระบุ'
+      const current = groups.get(key)
+
+      if (current) {
+        current.tasks.push(task)
+      } else {
+        groups.set(key, { id: key, name, tasks: [task] })
+      }
+    }
+
+    return [...groups.values()].sort((left, right) => {
+      if (right.tasks.length !== left.tasks.length) return right.tasks.length - left.tasks.length
+      return left.name.localeCompare(right.name, 'th')
+    })
+  }, [filteredTasks])
 
   return (
     <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
@@ -544,6 +572,27 @@ function ProjectCard({
                     ))}
                   </select>
                 </div>
+
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setDetailView('status')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                      detailView === 'status' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300'
+                    }`}
+                  >
+                    ดูตามสถานะ
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDetailView('owner')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                      detailView === 'owner' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300'
+                    }`}
+                  >
+                    ดูตามคน
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
@@ -562,42 +611,52 @@ function ProjectCard({
                 </div>
               )}
 
-              <TaskGroup
-                title="งานที่ควรเปิดดูก่อน"
-                description="รวมงานที่รอหัวหน้าตรวจ เพื่อให้รู้ทันทีว่าต้องตัดสินใจอะไรบ้าง"
-                tone="amber"
-                tasks={underReviewTasks}
-                emptyText="ยังไม่มีงานรอตรวจในโปรเจกต์นี้"
-                highlightedTaskId={highlightedTaskId}
-                onOpenTask={onOpenTask}
-              />
-              <TaskGroup
-                title="งานที่กำลังเดินอยู่"
-                description="ดูว่าใครกำลังทำอะไรอยู่ และงานไหนเพิ่งมีความเคลื่อนไหวล่าสุด"
-                tone="blue"
-                tasks={inProgressTasks}
-                emptyText="ยังไม่มีงานที่กำลังทำในโปรเจกต์นี้"
-                highlightedTaskId={highlightedTaskId}
-                onOpenTask={onOpenTask}
-              />
-              <TaskGroup
-                title="งานรอรับช่วงต่อ"
-                description="ใช้ตามงานที่ถูกส่งต่อและยังรอคนรับผิดชอบคนถัดไป"
-                tone="orange"
-                tasks={waitingPickupTasks}
-                emptyText="ยังไม่มีงานรอรับช่วงต่อ"
-                highlightedTaskId={highlightedTaskId}
-                onOpenTask={onOpenTask}
-              />
-              <TaskGroup
-                title="งานที่เสร็จแล้ว"
-                description="สรุปงานที่ปิดเรียบร้อยแล้วในโปรเจกต์นี้"
-                tone="green"
-                tasks={doneTasks}
-                emptyText="ยังไม่มีงานที่เสร็จแล้ว"
-                highlightedTaskId={highlightedTaskId}
-                onOpenTask={onOpenTask}
-              />
+              {detailView === 'status' ? (
+                <>
+                  <TaskGroup
+                    title="งานที่ควรเปิดดูก่อน"
+                    description="รวมงานที่รอหัวหน้าตรวจ เพื่อให้รู้ทันทีว่าต้องตัดสินใจอะไรบ้าง"
+                    tone="amber"
+                    tasks={underReviewTasks}
+                    emptyText="ยังไม่มีงานรอตรวจในโปรเจกต์นี้"
+                    highlightedTaskId={highlightedTaskId}
+                    onOpenTask={onOpenTask}
+                  />
+                  <TaskGroup
+                    title="งานที่กำลังเดินอยู่"
+                    description="ดูว่าใครกำลังทำอะไรอยู่ และงานไหนเพิ่งมีความเคลื่อนไหวล่าสุด"
+                    tone="blue"
+                    tasks={inProgressTasks}
+                    emptyText="ยังไม่มีงานที่กำลังทำในโปรเจกต์นี้"
+                    highlightedTaskId={highlightedTaskId}
+                    onOpenTask={onOpenTask}
+                  />
+                  <TaskGroup
+                    title="งานรอรับช่วงต่อ"
+                    description="ใช้ตามงานที่ถูกส่งต่อและยังรอคนรับผิดชอบคนถัดไป"
+                    tone="orange"
+                    tasks={waitingPickupTasks}
+                    emptyText="ยังไม่มีงานรอรับช่วงต่อ"
+                    highlightedTaskId={highlightedTaskId}
+                    onOpenTask={onOpenTask}
+                  />
+                  <TaskGroup
+                    title="งานที่เสร็จแล้ว"
+                    description="สรุปงานที่ปิดเรียบร้อยแล้วในโปรเจกต์นี้"
+                    tone="green"
+                    tasks={doneTasks}
+                    emptyText="ยังไม่มีงานที่เสร็จแล้ว"
+                    highlightedTaskId={highlightedTaskId}
+                    onOpenTask={onOpenTask}
+                  />
+                </>
+              ) : (
+                <OwnerGroupList
+                  groups={ownerGroups}
+                  highlightedTaskId={highlightedTaskId}
+                  onOpenTask={onOpenTask}
+                />
+              )}
             </>
           )}
         </div>
@@ -694,6 +753,104 @@ function TaskGroup({
           })}
         </div>
       )}
+    </div>
+  )
+}
+
+function OwnerGroupList({
+  groups,
+  highlightedTaskId,
+  onOpenTask,
+}: {
+  groups: { id: string; name: string; tasks: ProjectTask[] }[]
+  highlightedTaskId?: number
+  onOpenTask: (task: ProjectTask) => void
+}) {
+  if (groups.length === 0) {
+    return (
+      <PanelState
+        title="ยังไม่มีงานตามเงื่อนไขที่เลือก"
+        message="ลองล้างตัวกรองหรือเปลี่ยนคำค้นหา แล้วดูงานตามคนอีกครั้ง"
+      />
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      {groups.map((group) => {
+        const counts = {
+          under_review: group.tasks.filter((task) => task.status_task === 'under_review').length,
+          in_progress: group.tasks.filter((task) => task.status_task === 'in_progress').length,
+          waiting_pickup: group.tasks.filter((task) => task.status_task === 'waiting_pickup').length,
+          done: group.tasks.filter((task) => task.status_task === 'done').length,
+        }
+
+        return (
+          <div key={group.id} className="rounded-xl border border-slate-700 bg-slate-950 overflow-hidden">
+            <div className="px-3 py-3 border-b border-slate-800">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-white">{group.name}</p>
+                  <p className="text-xs text-slate-400 mt-1">{group.tasks.length} งานในมุมมองปัจจุบัน</p>
+                </div>
+                <div className="flex flex-wrap gap-1.5 justify-end">
+                  {counts.under_review > 0 && <MiniBadge tone="amber" text={`รอตรวจ ${counts.under_review}`} />}
+                  {counts.in_progress > 0 && <MiniBadge tone="blue" text={`กำลังทำ ${counts.in_progress}`} />}
+                  {counts.waiting_pickup > 0 && <MiniBadge tone="orange" text={`รอรับช่วงต่อ ${counts.waiting_pickup}`} />}
+                  {counts.done > 0 && <MiniBadge tone="green" text={`เสร็จแล้ว ${counts.done}`} />}
+                </div>
+              </div>
+            </div>
+
+            <div className="divide-y divide-slate-800">
+              {group.tasks.map((task) => {
+                const status = TASK_STATUS[task.status_task]
+                const isHighlighted = task.id === highlightedTaskId
+
+                return (
+                  <button
+                    key={task.id}
+                    type="button"
+                    onClick={() => onOpenTask(task)}
+                    className={`w-full px-3 py-3 text-left transition ${
+                      isHighlighted
+                        ? 'bg-blue-950/30 ring-1 ring-inset ring-blue-500/60'
+                        : 'active:bg-slate-900/80'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span
+                            className={`inline-flex h-6 w-6 items-center justify-center rounded-full border text-xs font-bold ${statusIconClass(
+                              status.tone,
+                            )}`}
+                            title={status.label}
+                            aria-label={status.label}
+                          >
+                            {status.icon}
+                          </span>
+                          <p className="text-sm font-semibold text-white leading-snug">{task.name}</p>
+                          {isHighlighted && (
+                            <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-950/70 text-blue-200 border border-blue-800/70">
+                              งานล่าสุด
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-2">
+                          อัปเดตล่าสุด {task.updatedAt ? formatDateTime(task.updatedAt) : '-'}
+                        </p>
+                        <p className="text-[11px] text-blue-300 mt-2">กดเพื่อไปหน้าจัดการงานนี้</p>
+                      </div>
+                      <MiniBadge tone={status.tone} text={status.label} />
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }
