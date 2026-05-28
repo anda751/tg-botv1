@@ -45,7 +45,14 @@ export default factories.createCoreController('api::handover-request.handover-re
     });
 
     await strapi.service('api::task.task').notifyGroup({
-      message: `งานรอรับช่วงต่อ: *${task.name}*\nส่งต่อโดย: ${user.username}\nเหตุผล: ${reason.trim()}\n\nเข้า Mini App เพื่อขอรับงานต่อได้เลย`,
+      message: [
+        '🔁 *มีงานรอรับช่วงต่อ*',
+        `งาน: *${task.name}*`,
+        `ผู้ส่งต่องาน: ${user.username}`,
+        `เหตุผล: ${reason.trim()}`,
+        '',
+        'เข้า Mini App เพื่อขอรับงานต่อได้เลย',
+      ].join('\n'),
     });
 
     return ctx.send({ message: 'ส่งต่องานเรียบร้อย', handoverId: handover.id });
@@ -146,7 +153,7 @@ export default factories.createCoreController('api::handover-request.handover-re
     });
 
     await strapi.service('api::task.task').notifyGroup({
-      message: `งาน *${handover.task.name}* ส่งต่อให้ ${handover.picked_up_by.username} เรียบร้อย`,
+      message: `✅ *อนุมัติการรับช่วงต่องานแล้ว*\nงาน: *${handover.task.name}*\nผู้รับงาน: ${handover.picked_up_by.username}`,
     });
 
     return ctx.send({ message: 'อนุมัติการส่งต่องานเรียบร้อย' });
@@ -230,7 +237,7 @@ export default factories.createCoreController('api::handover-request.handover-re
     });
 
     await strapi.service('api::task.task').notifyGroup({
-      message: `${user.username} ยกเลิกการส่งต่องาน *${handover.task.name}*\nงานกลับไปอยู่กับ ${user.username} แล้ว`,
+      message: `↩️ *ยกเลิกการส่งต่องาน*\nงาน: *${handover.task.name}*\nงานกลับไปอยู่กับ ${user.username} แล้ว`,
     });
 
     return ctx.send({ message: 'ยกเลิกคำขอเรียบร้อย งานกลับมาเป็นของคุณแล้ว' });

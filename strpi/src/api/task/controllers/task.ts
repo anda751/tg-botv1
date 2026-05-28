@@ -92,7 +92,7 @@ export default factories.createCoreController(taskUid, ({ strapi }) => ({
     });
 
     await strapi.service('api::task.task').notifyGroup({
-      message: `งานใหม่: *${name}*\nผู้รับผิดชอบ: ${user.username}`,
+      message: `🆕 *มีงานใหม่*\nงาน: *${name}*\nผู้รับผิดชอบ: ${user.username}`,
     });
 
     return ctx.send(created);
@@ -150,6 +150,7 @@ export default factories.createCoreController(taskUid, ({ strapi }) => ({
       imageBuffer: fileBuffer,
       imageFilename: file.name || file.filename || file.originalFilename || 'proof',
       imageMimeType: file.type,
+      mode: 'review',
     });
 
     return ctx.send({ message: 'ส่งงานเรียบร้อย รอหัวหน้าตรวจสอบ' });
@@ -201,11 +202,12 @@ export default factories.createCoreController(taskUid, ({ strapi }) => ({
       taskId: String(taskId),
       taskName: task.name,
       submittedBy: user.username,
-      reportText: `อัปเดตความคืบหน้า:\n${reportText}`,
+      reportText,
       imageUrl: resolvedImageUrl,
       imageBuffer: fileBuffer ?? undefined,
       imageFilename: file?.name || file?.filename || file?.originalFilename || 'progress',
       imageMimeType: file?.type,
+      mode: 'info',
     });
 
     return ctx.send({ message: 'อัปเดตความคืบหน้าเรียบร้อย' });
@@ -235,7 +237,7 @@ export default factories.createCoreController(taskUid, ({ strapi }) => ({
     });
 
     await strapi.service('api::task.task').notifyGroup({
-      message: `งานเสร็จสมบูรณ์: *${task.name}*\nโดย: ${task.current_owner.username}`,
+      message: `✅ *งานเสร็จสมบูรณ์*\nงาน: *${task.name}*\nผู้รับผิดชอบ: ${task.current_owner.username}`,
     });
 
     await strapi.service('api::task.task').notifyStaff({

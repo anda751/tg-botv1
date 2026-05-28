@@ -29,6 +29,7 @@ export default factories.createCoreService('api::task.task', ({ strapi }) => ({
     imageFilename,
     imageMimeType,
     userId,
+    mode = 'review',
   }: {
     taskId: string;
     taskName: string;
@@ -39,6 +40,7 @@ export default factories.createCoreService('api::task.task', ({ strapi }) => ({
     imageFilename?: string;
     imageMimeType?: string;
     userId?: string;
+    mode?: 'review' | 'info' | 'user_approval';
   }) {
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     const managerChatId = process.env.TELEGRAM_MANAGER_CHAT_ID;
@@ -46,23 +48,21 @@ export default factories.createCoreService('api::task.task', ({ strapi }) => ({
 
     const trimmedReport = reportText?.trim() || '-';
     const reviewCaption = [
-      'มีงานรอตรวจ',
+      mode === 'info' ? 'อัปเดตความคืบหน้าของงาน' : 'มีงานรอตรวจ',
       `งาน: ${taskName}`,
-      `ผู้ส่ง: ${submittedBy}`,
+      `ผู้แจ้ง: ${submittedBy}`,
       '',
-      'สรุปงาน:',
+      mode === 'info' ? 'รายละเอียด:' : 'สรุปงาน:',
       trimmedReport,
     ].join('\n');
 
     const reviewMessage = [
-      '📋 *มีงานรอตรวจ*',
+      mode === 'info' ? '🔔 *มีอัปเดตความคืบหน้า*' : '📋 *มีงานรอตรวจ*',
       `งาน: *${taskName}*`,
-      `ผู้ส่ง: *${submittedBy}*`,
+      `ผู้แจ้ง: *${submittedBy}*`,
       '',
-      '*สรุปงาน*',
+      mode === 'info' ? '*รายละเอียด*' : '*สรุปงาน*',
       trimmedReport,
-      '',
-      'กรุณาเลือก `อนุมัติ` หรือ `ส่งกลับ`',
     ].join('\n');
 
     const userApprovalMessage = [
@@ -146,7 +146,7 @@ export default factories.createCoreService('api::task.task', ({ strapi }) => ({
           { text: 'ปฏิเสธ', callback_data: `reject_user:${userId}` },
         ]],
       };
-    } else if (taskId) {
+    } else if (taskId && mode === 'review') {
       messageBody.reply_markup = {
         inline_keyboard: [[
           { text: 'อนุมัติ', callback_data: `approve:${taskId}` },
