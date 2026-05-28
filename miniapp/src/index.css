@@ -20,6 +20,11 @@ body.theme-light {
   color: #0f172a;
 }
 
+body.theme-dark {
+  background-color: #020617;
+  color: #e2e8f0;
+}
+
 @keyframes fade-up-soft {
   from {
     opacity: 0;
@@ -145,6 +150,96 @@ body.theme-light {
 
 .notification-card.unread {
   box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.18), 0 12px 24px rgba(15, 23, 42, 0.22);
+}
+
+/* Dark mode text tuning */
+body.theme-dark .text-white,
+body.theme-dark .text-slate-100 {
+  color: #f8fafc !important;
+}
+
+body.theme-dark .text-slate-200 {
+  color: #e2e8f0 !important;
+}
+
+body.theme-dark .text-slate-300 {
+  color: #cbd5e1 !important;
+}
+
+body.theme-dark .text-slate-400 {
+  color: #94a3b8 !important;
+}
+
+body.theme-dark .text-slate-500,
+body.theme-dark .text-slate-600 {
+  color: #a3b1c6 !important;
+}
+
+body.theme-dark .text-blue-100,
+body.theme-dark .text-blue-200 {
+  color: #dbeafe !important;
+}
+
+body.theme-dark .text-blue-300,
+body.theme-dark .text-blue-400 {
+  color: #93c5fd !important;
+}
+
+body.theme-dark .text-blue-100\/90,
+body.theme-dark .text-blue-200\/90 {
+  color: #bfdbfe !important;
+  opacity: 1 !important;
+}
+
+body.theme-dark .text-green-100,
+body.theme-dark .text-green-200 {
+  color: #dcfce7 !important;
+}
+
+body.theme-dark .text-green-300,
+body.theme-dark .text-green-400 {
+  color: #86efac !important;
+}
+
+body.theme-dark .text-amber-100,
+body.theme-dark .text-amber-200 {
+  color: #fef3c7 !important;
+}
+
+body.theme-dark .text-amber-300,
+body.theme-dark .text-amber-400 {
+  color: #fcd34d !important;
+}
+
+body.theme-dark .text-amber-100\/90,
+body.theme-dark .text-amber-200\/90 {
+  color: #fde68a !important;
+  opacity: 1 !important;
+}
+
+body.theme-dark .text-orange-100,
+body.theme-dark .text-orange-200 {
+  color: #ffedd5 !important;
+}
+
+body.theme-dark .text-orange-300,
+body.theme-dark .text-orange-400 {
+  color: #fdba74 !important;
+}
+
+body.theme-dark .text-red-100,
+body.theme-dark .text-red-200 {
+  color: #fee2e2 !important;
+}
+
+body.theme-dark .text-red-300,
+body.theme-dark .text-red-400 {
+  color: #fca5a5 !important;
+}
+
+body.theme-dark .placeholder-slate-500::placeholder,
+body.theme-dark .placeholder-slate-600::placeholder {
+  color: #94a3b8 !important;
 }
 
 /* Light mode overrides for common Tailwind utility classes used in the app */
