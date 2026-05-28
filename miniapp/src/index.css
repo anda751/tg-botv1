@@ -608,6 +608,21 @@ body.theme-light .auth-input {
   -webkit-text-fill-color: #0f172a !important;
 }
 
+body.theme-light input,
+body.theme-light textarea,
+body.theme-light select {
+  color: #0f172a !important;
+  caret-color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+body.theme-light input::placeholder,
+body.theme-light textarea::placeholder,
+body.theme-light select::placeholder {
+  color: #64748b !important;
+  opacity: 1 !important;
+}
+
 body.theme-light .auth-input::placeholder {
   color: #64748b !important;
 }
