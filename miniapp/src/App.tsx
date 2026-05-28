@@ -101,7 +101,7 @@ export default function App() {
             <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
               <div className="min-w-0">
                 <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">
-                  Task Tracker
+                  ระบบติดตามงาน
                 </p>
                 <p className="truncate text-sm font-semibold text-slate-100">
                   {user.display_name || user.username} · {roleLabel}

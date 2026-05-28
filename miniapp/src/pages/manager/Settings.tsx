@@ -9,7 +9,7 @@ export default function Settings() {
       </div>
 
       <ProfileSettingsForm
-        title="Settings"
+        title="ตั้งค่า"
         subtitle="แก้ไขข้อมูลหัวหน้า รหัสผ่าน และ Telegram"
         showTelegramFields
       />

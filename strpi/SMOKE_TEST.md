@@ -2,37 +2,52 @@
 
 Use this after backend or frontend deploys.
 
-## Auth
+## 1. Auth and routing
 
-1. Register a manager
-2. Login as manager
-3. Logout and login again
-4. Register or login as staff
-5. Logout and login again
+1. Open `/login`
+2. Open `/register`
+3. Login as manager
+4. Logout
+5. Login as staff
+6. Confirm direct routes do not 404 after deploy:
+   - `/history`
+   - `/projects`
+   - `/settings`
+   - `/logout`
 
-## Manager flow
+## 2. Manager flow
 
 1. Open dashboard
-2. Open projects
-3. Create a project
-4. Open KPI and switch between:
+2. Confirm dashboard summary cards load
+3. Confirm in-app notifications load
+4. Open projects
+5. Create a project
+6. Open one project and confirm:
+   - grouped by status works
+   - grouped by owner works
+   - member filter works
+   - search works
+7. Click a task from a project and confirm manager task review opens
+8. Return to the same project and confirm the last task is highlighted
+9. Open KPI and switch between:
    - 14 days
    - 30 days
    - 60 days
-5. Open reports
-6. Open settings and save a harmless profile edit
+10. Open reports
+11. Open history and confirm filters/search work
+12. Open settings and save a harmless profile edit
 
-## Staff flow
+## 3. Staff flow
 
 1. Open staff home
-2. Confirm only one of these can stay open at a time:
+2. Confirm only one of these panels stays open at a time:
    - งานรอตรวจ
    - งานเสร็จแล้ว
    - รายการที่ซ่อนไว้
 3. Confirm refresh button reloads data
 4. Open settings and save a harmless profile edit
 
-## Task flow
+## 4. Task flow
 
 1. Create a task
 2. Update progress with image
@@ -42,13 +57,13 @@ Use this after backend or frontend deploys.
 6. Reject the task once
 7. Confirm staff sees:
    - returned note
-   - notification in app
+   - in-app notification
 8. Re-submit task
 9. Approve task
 10. Confirm staff sees approved notification
 11. Confirm task appears under done tasks
 
-## Hide / restore flow
+## 5. Hide / restore flow
 
 1. Hide a done task
 2. Restore that task
@@ -56,20 +71,46 @@ Use this after backend or frontend deploys.
 4. Restore that notification
 5. Use restore-all in hidden items
 
-## Handover / pickup flow
+## 6. Handover / pickup flow
 
 1. Send a task to handover
 2. Open pickup page
 3. Request pickup
-4. Confirm manager can review the handover state correctly
+4. Confirm manager sees the request in dashboard
+5. Approve or reject the request in-app
+6. Confirm Telegram manager alert still works if enabled
 
-## Media Library / deployment
+## 7. Project history flow
+
+1. Create a project
+2. Add a member
+3. Remove a member
+4. Close the project
+5. Open manager history
+6. Confirm these actions appear in history:
+   - create project
+   - add member
+   - remove member
+   - close project
+
+## 8. Media Library / deployment
 
 1. Upload a Media Library file if that flow matters
 2. Redeploy Railway
 3. Confirm the file still exists
 
-## Regression watch
+## 9. Visual QA watch list
+
+Watch for:
+
+- Thai text corruption or mojibake
+- duplicated sections
+- panels opening at the same time when they should be exclusive
+- wrong badge colors or status labels
+- buttons that float over content
+- route refresh causing navigation loss
+
+## 10. Regression watch in logs
 
 Watch logs for:
 

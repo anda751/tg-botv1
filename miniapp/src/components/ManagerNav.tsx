@@ -1,14 +1,14 @@
 import { useNavigate, useLocation } from 'react-router-dom'
 
 const TABS = [
-  { label: 'Dashboard', path: '/' },
-  { label: 'Projects', path: '/projects' },
-  { label: 'Tasks', path: '/tasks' },
-  { label: 'Staff', path: '/staff' },
+  { label: 'ภาพรวม', path: '/' },
+  { label: 'โปรเจกต์', path: '/projects' },
+  { label: 'งานรอตรวจ', path: '/tasks' },
+  { label: 'ทีมงาน', path: '/staff' },
   { label: 'KPI', path: '/kpi' },
-  { label: 'History', path: '/history' },
-  { label: 'Reports', path: '/reports' },
-  { label: 'Settings', path: '/settings' },
+  { label: 'ประวัติ', path: '/history' },
+  { label: 'รายงาน', path: '/reports' },
+  { label: 'ตั้งค่า', path: '/settings' },
 ]
 
 export default function ManagerNav() {

@@ -132,8 +132,8 @@ export default function ProfileSettingsForm({
           <div className="bg-slate-900 border border-slate-700 rounded-2xl p-4 space-y-3">
             <p className="text-sm font-semibold text-white">ข้อมูลบัญชี</p>
             <div className="grid gap-3">
-              <ReadOnlyField label="Username" value={profile?.username || '-'} />
-              <ReadOnlyField label="Email" value={profile?.email || '-'} />
+              <ReadOnlyField label="ชื่อผู้ใช้" value={profile?.username || '-'} />
+              <ReadOnlyField label="อีเมล" value={profile?.email || '-'} />
             </div>
           </div>
 

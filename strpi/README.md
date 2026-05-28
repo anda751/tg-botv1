@@ -1,32 +1,33 @@
 # Task Tracking System - Current State
 
-This README is for the next engineer or AI that picks up work in this repository.
+This README is for the next engineer or AI taking over this repository.
 
-It reflects the current state of the project as of May 27, 2026.
+Last reviewed: May 28, 2026
 
 ## Overview
 
-This repository contains the backend for a task tracking system.
+This repo contains:
 
-Current stack:
-
-- Backend: Strapi 5 + TypeScript
-- Frontend: React + Vite + Tailwind in `../miniapp`
+- Backend: Strapi 5 + TypeScript in `strpi`
+- Frontend: React + Vite + Tailwind in `miniapp`
 - Database: PostgreSQL
-- Task proof image storage: Supabase Storage
-- Hosting: Railway
-- Manager notifications: Telegram
-- Staff notifications: in-app notifications
+- Hosting:
+  - Backend on Railway
+  - Frontend on Vercel
+- File storage:
+  - Task proof images in Supabase Storage
+  - Strapi Media Library on local uploads with Railway volume persistence
 
-## Current Product Direction
+## Product Direction
 
-The system has moved away from Telegram-first daily usage.
+The product is no longer Telegram-first for daily work.
 
-Current intended flow:
+Current usage model:
 
-- Normal login uses `username/password + JWT`
-- Telegram remains in the system mainly for manager-side notification use
-- Staff users now rely on in-app notifications instead of Telegram
+- Login uses `username/password + JWT`
+- Staff work inside the app
+- Manager works inside the app and may also receive Telegram notifications
+- Telegram is still part of the system, but mainly for manager-side alerts and legacy callback flows
 
 ## Auth Model
 
@@ -34,38 +35,46 @@ Main auth middleware:
 
 - `src/middlewares/telegram-auth.ts`
 
-Runtime behavior:
+Runtime order:
 
 1. If a bearer token exists, verify JWT and load the user
 2. If `TEST_MODE` is enabled, allow test-user fallback
-3. Otherwise, fall back to Telegram init data validation
+3. Otherwise, validate Telegram init data
 
-Important design note:
+Important note:
 
-- Most Strapi routes intentionally use `auth: false`
-- This does **not** mean the routes are public by design
-- Real access control is performed by `global::telegram-auth`
-- This avoids the default Strapi users-permissions layer blocking custom auth too early
+- Many Strapi routes intentionally use `auth: false`
+- Actual access control is enforced by `global::telegram-auth`
+- Do not switch these routes back to default Strapi auth unless you redesign the auth flow as a whole
 
-## Current Frontend App Shape
-
-Main frontend entry:
-
-- `../miniapp/src/App.tsx`
-
-Frontend now supports two role-based app shells:
+## Roles
 
 ### Manager
+
+Can use:
 
 - Dashboard
 - Projects
 - Tasks
 - Staff
 - KPI
+- History
 - Reports
 - Settings
 
+Can:
+
+- Create and close projects
+- Add or remove project members
+- Review submitted tasks
+- Reject or approve tasks
+- Review pickup / handover requests
+- View KPI and history logs
+- Receive manager notifications in-app and through Telegram
+
 ### Staff
+
+Can use:
 
 - My Tasks
 - Create Task
@@ -75,13 +84,37 @@ Frontend now supports two role-based app shells:
 - Pickup Task
 - Settings
 
-JWT token storage:
+Can:
 
-- `localStorage['auth-token']`
+- Create tasks
+- Update progress with proof images
+- Submit tasks for review
+- Handover tasks
+- Request pickup of waiting tasks
+- Use in-app notifications
+- Hide and restore done items and notifications
 
-## Major Changes Already Implemented
+## Current Frontend App Shape
 
-### 1. Login and registration were rebuilt
+Main entry:
+
+- `../miniapp/src/App.tsx`
+
+Important frontend behavior:
+
+- JWT stored in `localStorage['auth-token']`
+- `/logout` and `/test/logout` exist for fast logout and smoke testing
+- Vercel SPA fallback is configured in `../miniapp/vercel.json`
+- Login/register now support temporary query-string prefilling for browser-based smoke tests
+
+Examples:
+
+- `/login?identifier=anda&password=112224336a&autologin=1`
+- `/register?...&autoregister=1`
+
+## Major Implemented Changes
+
+### 1. Login and registration rebuilt around JWT
 
 Current endpoints:
 
@@ -90,12 +123,12 @@ Current endpoints:
 - `GET /profile/me`
 - `PUT /profile/me`
 
-Current behavior:
+Behavior:
 
-- user registers with username, email, password, display name, role
-- account is auto-approved immediately
-- JWT is returned after register/login
-- frontend stores token and loads `/profile/me`
+- User registers with username, email, password, display name, and role
+- Account is auto-approved immediately
+- JWT is returned on register/login
+- Frontend stores token and loads `/profile/me`
 
 Relevant files:
 
@@ -104,13 +137,13 @@ Relevant files:
 - `../miniapp/src/pages/Login.tsx`
 - `../miniapp/src/pages/Register.tsx`
 
-### 2. Telegram was narrowed down to manager-side use
+### 2. Telegram narrowed down to manager-side use
 
-Current intended behavior:
+Behavior:
 
-- manager accounts may store `telegram_id` and `telegram_chat_id`
-- staff accounts do not need Telegram for the normal app flow
-- manager fields can be edited later in settings
+- Manager may store `telegram_id` and `telegram_chat_id`
+- Staff do not need Telegram for normal work
+- Manager can edit Telegram fields later in settings
 
 Relevant files:
 
@@ -120,11 +153,11 @@ Relevant files:
 
 ### 3. Staff notifications moved into the app
 
-Current behavior:
+Behavior:
 
-- staff notification events are stored in the `notification` collection
-- frontend shows them in the staff app
-- notifications support:
+- Staff notification events are stored in the `notification` collection
+- Frontend shows them in `My Tasks`
+- Notifications support:
   - read
   - read all
   - hide
@@ -140,18 +173,18 @@ Relevant files:
 - `src/api/task/services/task.ts`
 - `../miniapp/src/pages/staff/MyTasks.tsx`
 
-### 4. Staff home was simplified
+### 4. Staff home simplified into one main endpoint
 
-Current behavior:
+Behavior:
 
-- staff home now loads from a unified endpoint instead of many parallel requests
-- the page is organized around:
+- Staff home loads from `GET /tasks/home`
+- Page is organized around:
   - current tasks
   - under review
   - done tasks
   - recent activity
   - hidden items
-- under-review, done, and hidden sections use a single accordion state so only one opens at a time
+- Under-review, done, and hidden sections share one accordion state so only one stays open at a time
 
 Relevant files:
 
@@ -159,13 +192,14 @@ Relevant files:
 - `src/api/task/routes/task.ts`
 - `../miniapp/src/pages/staff/MyTasks.tsx`
 
-### 5. Manager pages were simplified to reduce heavy multi-request flows
+### 5. Manager pages simplified to reduce heavy multi-request flows
 
-Unified or reduced-flow endpoints now exist for:
+Current unified or reduced-flow endpoints:
 
 - `GET /dashboard/home`
 - `GET /dashboard/reports`
 - `GET /dashboard/staff-kpi`
+- `GET /dashboard/history`
 - `GET /projects/home`
 
 Relevant files:
@@ -174,39 +208,91 @@ Relevant files:
 - `src/api/dashboard/routes/dashboard.ts`
 - `src/api/project/controllers/project.ts`
 - `src/api/project/routes/project.ts`
-- `../miniapp/src/pages/manager/Dashboard.tsx`
-- `../miniapp/src/pages/manager/Reports.tsx`
-- `../miniapp/src/pages/manager/Kpi.tsx`
-- `../miniapp/src/pages/manager/Projects.tsx`
 
 ### 6. KPI page exists for manager
 
-Current KPI behavior:
+Behavior:
 
-- time window options: 14 / 30 / 60 days
-- summary cards
-- watch list
-- formula guide
-- searchable / filterable staff list
-- staff list now uses accordion behavior to reduce clutter
+- Time window options: 14 / 30 / 60 days
+- Summary cards
+- Watch list
+- Formula guide
+- Search and filters
+- Accordion per staff member to reduce clutter
 
 Relevant files:
 
 - `src/api/dashboard/controllers/dashboard.ts`
 - `../miniapp/src/pages/manager/Kpi.tsx`
 
-### 7. Profile settings now exist for both roles
+### 7. Manager action history exists
 
-Current behavior:
+History includes:
 
-- manager can edit:
-  - display name
-  - password
-  - Telegram ID
-  - Telegram Chat ID
-- staff can edit:
-  - display name
-  - password
+- task approval
+- task rejection
+- task submission
+- progress update
+- pickup / handover actions
+- project join request approval or rejection
+- project create / close
+- project member add / remove
+
+Relevant files:
+
+- `src/api/dashboard/controllers/dashboard.ts`
+- `src/api/project/controllers/project.ts`
+- `src/api/project-log/content-types/project-log/schema.json`
+- `../miniapp/src/pages/manager/History.tsx`
+
+### 8. Project page now supports drill-down workflow
+
+Behavior:
+
+- Manager can open one project at a time
+- Tasks inside a project can be viewed:
+  - grouped by status
+  - grouped by owner
+- Manager can search within a project and filter by member
+- Clicking a task jumps to manager task review
+- Returning from task review reopens the original project and highlights the selected task
+
+Relevant files:
+
+- `src/api/project/controllers/project.ts`
+- `../miniapp/src/pages/manager/Projects.tsx`
+- `../miniapp/src/pages/manager/Tasks.tsx`
+
+### 9. Handover / pickup flow is now manager-reviewable in-app
+
+Behavior:
+
+- Staff can request pickup
+- Manager gets:
+  - Telegram alert
+  - in-app dashboard alert
+- Manager can approve or reject pickup requests in the app
+
+Relevant files:
+
+- `src/api/handover-request/controllers/handover-request.ts`
+- `src/api/handover-request/routes/handover-request.ts`
+- `src/api/task/services/task.ts`
+- `../miniapp/src/pages/manager/Dashboard.tsx`
+
+### 10. Profile settings exist for both roles
+
+Manager can edit:
+
+- display name
+- password
+- Telegram ID
+- Telegram Chat ID
+
+Staff can edit:
+
+- display name
+- password
 
 Relevant files:
 
@@ -215,13 +301,13 @@ Relevant files:
 - `../miniapp/src/pages/staff/Settings.tsx`
 - `src/api/user/controllers/user.ts`
 
-### 8. Hide / restore UX exists without deleting database records
+### 11. Hide / restore UX exists without deleting DB records
 
-Current behavior:
+Behavior:
 
-- hidden notifications stay in DB
-- hidden done tasks stay in DB
-- users can restore items later
+- Hidden notifications stay in DB
+- Hidden done tasks stay in DB
+- Users can restore items later
 
 Relevant fields:
 
@@ -232,16 +318,9 @@ Relevant fields:
   - `is_hidden_for_owner`
   - `hidden_for_owner_at`
 
-Relevant files:
+## Storage Model
 
-- `src/api/notification/content-types/notification/schema.json`
-- `src/api/task/content-types/task/schema.json`
-- `src/api/notification/controllers/notification.ts`
-- `src/api/task/controllers/task.ts`
-
-## Current Storage Model
-
-### 1. Task proof images
+### Task proof images
 
 Task proof images are uploaded to Supabase Storage.
 
@@ -250,11 +329,9 @@ Relevant files:
 - `src/services/supabase.ts`
 - `src/api/task/controllers/task.ts`
 
-This is the primary storage path used in the task flow.
+### Strapi Media Library
 
-### 2. Strapi Media Library
-
-Strapi Media Library still uses local uploads unless changed at the platform level.
+Strapi Media Library still uses local uploads unless an upload provider is added later.
 
 Current deployment note:
 
@@ -262,9 +339,9 @@ Current deployment note:
 
 Important note:
 
-- proof-image storage and Media Library storage are still different systems
+- Proof-image storage and Media Library storage are still separate systems
 
-## Current Environment Variables
+## Environment Variables
 
 Observed runtime variables in code:
 
@@ -325,6 +402,7 @@ Observed runtime variables in code:
 - `src/api/project/controllers/project.ts`
 - `src/api/project/routes/project.ts`
 - `src/api/project/content-types/project/schema.json`
+- `src/api/project-log/content-types/project-log/schema.json`
 - `src/api/project-join-request/content-types/project-join-request/schema.json`
 
 ### Handover flow
@@ -354,14 +432,15 @@ Observed runtime variables in code:
 
 - `../miniapp/src/App.tsx`
 - `../miniapp/src/api/index.ts`
-- `../miniapp/src/components/ProfileSettingsForm.tsx`
 - `../miniapp/src/components/ManagerNav.tsx`
+- `../miniapp/src/components/ProfileSettingsForm.tsx`
 - `../miniapp/src/pages/Login.tsx`
 - `../miniapp/src/pages/Register.tsx`
 - `../miniapp/src/pages/staff/MyTasks.tsx`
 - `../miniapp/src/pages/staff/CreateTask.tsx`
 - `../miniapp/src/pages/staff/SubmitTask.tsx`
 - `../miniapp/src/pages/staff/ProgressTask.tsx`
+- `../miniapp/src/pages/staff/HandoverTask.tsx`
 - `../miniapp/src/pages/staff/PickupTask.tsx`
 - `../miniapp/src/pages/staff/Settings.tsx`
 - `../miniapp/src/pages/manager/Dashboard.tsx`
@@ -369,71 +448,51 @@ Observed runtime variables in code:
 - `../miniapp/src/pages/manager/Tasks.tsx`
 - `../miniapp/src/pages/manager/Staff.tsx`
 - `../miniapp/src/pages/manager/Kpi.tsx`
+- `../miniapp/src/pages/manager/History.tsx`
 - `../miniapp/src/pages/manager/Reports.tsx`
 - `../miniapp/src/pages/manager/Settings.tsx`
 
 ## Current Known Issues / Follow-ups
 
-### 1. Some UI/backend Thai strings still need cleanup
+### 1. Final UI polish is still possible
 
-The system is much better than before, but a few pages or responses may still have older or garbled strings.
+The product is functionally broad now. Remaining work is mostly refinement:
 
-### 2. Strapi structure is still healthy, but some service scaffolds are mostly placeholders
+- spacing consistency
+- label consistency
+- micro-interactions
+- final visual QA after deploy
 
-Several Strapi API modules keep the default `services/` shape even when most runtime logic now sits in controllers or helper code.
+### 2. Smoke testing still matters after deploy
 
-This is not broken, but it should be reviewed later for cleanup.
+Build and typecheck pass, but major deploy verification should still cover:
 
-### 3. README drift used to be a problem
+- manager routes
+- staff routes
+- task submit/progress
+- notifications
+- handover / pickup
+- project history
 
-This file was behind the real system state before this update. Keep it current after future architecture changes.
+### 3. Media Library still depends on deployment behavior
 
-### 4. Media Library still depends on deployment behavior
-
-If Railway volume or upload-provider setup changes, re-check Media Library persistence.
+If Railway volume or provider setup changes, re-check Media Library persistence.
 
 ## Recommended Next Work
 
 Priority order:
 
-1. Clean remaining Thai/encoding inconsistencies in frontend and backend responses
-2. Add a lightweight `SMOKE_TEST.md` or keep the checklist below updated
-3. Add manager-side audit/history view for key actions
-4. Add search/filter improvements for staff task browsing when task volume grows
-5. Consider splitting large controllers further if manager reporting expands again
-
-## Smoke Test Checklist
-
-Use this after deploy:
-
-1. Register manager
-2. Login as manager
-3. Open dashboard
-4. Open projects
-5. Open KPI and switch 14 / 30 / 60 day windows
-6. Open reports
-7. Register or login as staff
-8. Open staff home
-9. Create task
-10. Update progress with image
-11. Submit task with proof image
-12. Confirm task appears in manager review flow
-13. Reject task once and confirm staff sees:
-    - returned note
-    - in-app notification
-14. Re-submit and approve task
-15. Confirm staff sees approved notification
-16. Hide and restore:
-    - done task
-    - notification
-17. Test pickup / handover flow
-18. If using Media Library, upload a file and verify persistence after redeploy
+1. Run final smoke test after each deploy
+2. Keep README and `SMOKE_TEST.md` aligned with the real product flow
+3. Continue small UI consistency cleanup when new screens are touched
+4. Revisit controller/service boundaries later if backend logic grows again
 
 ## Notes for the Next AI
 
-- Do not switch routes back to default Strapi auth unless you redesign the custom middleware flow too
-- The current app intentionally treats `global::telegram-auth` as the main gatekeeper
-- Staff in-app notifications are now part of the product, not a temporary fallback
-- Manager pages were simplified to reduce multi-request and heavy populate behavior
-- Staff home was recently reorganized to reduce duplicated blocks and clutter
+- `global::telegram-auth` is still the main gatekeeper
+- Staff in-app notifications are part of the product now, not a temporary fallback
+- Manager pages were simplified to reduce heavy multi-request and populate behavior
+- Staff home was reorganized to reduce duplicated blocks and clutter
+- Project review flow now supports project → task → back to project navigation
+- Visual smoke testing is easier now because login/register can be prefilled by query string
 - Proof image storage and Media Library storage are still separate concerns
