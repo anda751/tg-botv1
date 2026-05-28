@@ -87,11 +87,11 @@ export default function SubmitTask() {
   const isValid = !!imageFile && reportText.trim().length >= 5;
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col">
-      <div className="bg-slate-900 border-b border-slate-800 px-4 pt-6 pb-4 flex items-center gap-3">
+    <div className="panel-shell min-h-screen bg-slate-950 flex flex-col transition-colors">
+      <div className="panel-header bg-slate-900 border-b border-slate-800 px-4 pt-6 pb-4 flex items-center gap-3 transition-colors">
         <button
           onClick={() => navigate('/')}
-          className="w-9 h-9 rounded-full flex items-center justify-center text-slate-400 bg-slate-800 active:bg-slate-700 transition"
+          className="panel-icon-button w-9 h-9 rounded-full flex items-center justify-center text-slate-400 bg-slate-800 active:bg-slate-700 transition"
           title="ย้อนกลับ"
           aria-label="ย้อนกลับ"
         >

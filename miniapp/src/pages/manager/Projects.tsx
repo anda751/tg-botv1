@@ -256,8 +256,8 @@ export default function Projects() {
   const closedCount = projects.filter((project) => project.status_project === 'closed').length
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col">
-      <div className="bg-slate-900 border-b border-slate-800 px-4 pt-6 pb-4">
+    <div className="projects-shell min-h-screen bg-slate-950 flex flex-col">
+      <div className="projects-header bg-slate-900 border-b border-slate-800 px-4 pt-6 pb-4">
         <div className="flex items-start justify-between gap-3 mb-4">
           <div>
             <h1 className="text-xl font-bold text-white">โปรเจกต์</h1>
@@ -267,7 +267,7 @@ export default function Projects() {
           </div>
           <button
             onClick={() => void loadAll()}
-            className="w-9 h-9 rounded-full flex items-center justify-center text-slate-300 bg-slate-800 active:bg-slate-700 transition shrink-0"
+            className="projects-icon-button w-9 h-9 rounded-full flex items-center justify-center text-slate-300 bg-slate-800 active:bg-slate-700 transition shrink-0"
             title="รีเฟรช"
             aria-label="รีเฟรช"
           >
@@ -288,7 +288,7 @@ export default function Projects() {
           <StatCard label="โปรเจกต์ที่ปิดแล้ว" value={String(closedCount)} />
         </div>
 
-        <section className="bg-slate-900 border border-slate-700 rounded-2xl p-4 panel-enter interactive-lift">
+        <section className="projects-surface bg-slate-900 border border-slate-700 rounded-2xl p-4 panel-enter interactive-lift">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
             <div>
               <p className="text-sm font-semibold text-white">รายการโปรเจกต์</p>
@@ -348,7 +348,7 @@ export default function Projects() {
           )}
         </section>
 
-        <section className="bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden panel-enter interactive-lift">
+        <section className="projects-surface bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden panel-enter interactive-lift">
           <button
             type="button"
             onClick={() => setOpenUtilityPanel((current) => (current === 'create' ? null : 'create'))}
@@ -471,7 +471,7 @@ export default function Projects() {
           )}
         </section>
 
-        <section className="bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden panel-enter interactive-lift">
+        <section className="projects-surface bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden panel-enter interactive-lift">
           <button
             type="button"
             onClick={() => setOpenUtilityPanel((current) => (current === 'requests' ? null : 'requests'))}
@@ -624,7 +624,7 @@ function ProjectCard({
   }, [filteredTasks])
 
   return (
-    <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden panel-enter interactive-lift">
+    <div className="projects-card bg-slate-800 border border-slate-700 rounded-xl overflow-hidden panel-enter interactive-lift">
       <button type="button" onClick={onToggle} className="w-full p-3 text-left active:bg-slate-700/60 transition interactive-press">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -683,7 +683,7 @@ function ProjectCard({
             <PanelState title="ยังไม่มีข้อมูลโปรเจกต์" message="ลองปิดแล้วเปิดรายละเอียดอีกครั้ง" />
           ) : (
             <>
-              <div className="rounded-xl border border-slate-700 bg-slate-950 p-3 space-y-3">
+              <div className="projects-detail-surface rounded-xl border border-slate-700 bg-slate-950 p-3 space-y-3">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold text-white">ค้นหาในโปรเจกต์นี้</p>

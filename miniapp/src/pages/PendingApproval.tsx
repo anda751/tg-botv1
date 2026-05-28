@@ -6,8 +6,8 @@ export default function PendingApproval({
   onSwitchRole: () => void
 }) {
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center px-6">
-      <div className="text-center max-w-xs">
+    <div className="pending-shell min-h-screen bg-slate-950 flex flex-col items-center justify-center px-6 transition-colors">
+      <div className="pending-card text-center max-w-xs rounded-3xl border border-slate-800 px-6 py-7 transition-colors">
         <div className="w-20 h-20 rounded-3xl mx-auto mb-6 flex items-center justify-center text-4xl bg-slate-900 border border-slate-700">
           ...
         </div>
@@ -55,7 +55,7 @@ function Step({ label, done, active }: { label: string; done?: boolean; active?:
           ? 'bg-green-500 text-white'
           : active
             ? 'bg-blue-500 text-white animate-pulse'
-            : 'bg-slate-800 text-slate-600'
+            : 'pending-step-idle bg-slate-800 text-slate-600'
       }`}
       >
         {done ? 'OK' : '.'}

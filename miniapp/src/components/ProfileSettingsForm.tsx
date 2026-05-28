@@ -110,7 +110,7 @@ export default function ProfileSettingsForm({
   }
 
   return (
-    <div className="flex-1 px-4 py-5 space-y-4">
+    <div className="settings-surface flex-1 px-4 py-5 space-y-4 transition-colors">
       <div>
         <h1 className="text-xl font-bold text-white">{title}</h1>
         <p className="text-sm text-slate-400 mt-1">{subtitle}</p>

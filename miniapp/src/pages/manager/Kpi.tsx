@@ -101,8 +101,8 @@ export default function Kpi() {
   }, [filter, search, team])
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col">
-      <div className="bg-slate-900 border-b border-slate-800 px-4 pt-6 pb-4">
+    <div className="panel-shell min-h-screen bg-slate-950 flex flex-col transition-colors">
+      <div className="panel-header bg-slate-900 border-b border-slate-800 px-4 pt-6 pb-4 transition-colors">
         <div className="flex items-start justify-between gap-3 mb-4">
           <div>
             <h1 className="text-xl font-bold text-white">KPI รายคน</h1>
@@ -110,7 +110,7 @@ export default function Kpi() {
           </div>
           <button
             onClick={() => void loadKpi(days)}
-            className="w-9 h-9 rounded-full flex items-center justify-center text-slate-300 bg-slate-800 active:bg-slate-700 transition"
+            className="panel-icon-button w-9 h-9 rounded-full flex items-center justify-center text-slate-300 bg-slate-800 active:bg-slate-700 transition"
             title="รีเฟรช"
             aria-label="รีเฟรช"
           >

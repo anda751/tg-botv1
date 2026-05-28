@@ -381,8 +381,8 @@ export default function MyTasks() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950">
-      <div className="bg-slate-900 px-4 pt-6 pb-4 border-b border-slate-800">
+    <div className="staff-shell min-h-screen bg-slate-950">
+      <div className="staff-header bg-slate-900 px-4 pt-6 pb-4 border-b border-slate-800">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold text-white">งานของฉัน</h1>
@@ -392,7 +392,7 @@ export default function MyTasks() {
             <button
               onClick={() => void handleRefresh()}
               disabled={refreshing}
-              className="w-10 h-10 rounded-full text-lg font-medium bg-slate-800 text-slate-300 flex items-center justify-center active:bg-slate-700 transition disabled:opacity-50"
+              className="staff-icon-button w-10 h-10 rounded-full text-lg font-medium bg-slate-800 text-slate-300 flex items-center justify-center active:bg-slate-700 transition disabled:opacity-50"
               title="รีเฟรช"
               aria-label="รีเฟรช"
             >
@@ -400,7 +400,7 @@ export default function MyTasks() {
             </button>
             <button
               onClick={() => navigate('/settings')}
-              className="w-10 h-10 rounded-full text-lg font-medium bg-slate-800 text-slate-300 flex items-center justify-center active:bg-slate-700 transition"
+              className="staff-icon-button w-10 h-10 rounded-full text-lg font-medium bg-slate-800 text-slate-300 flex items-center justify-center active:bg-slate-700 transition"
               title="ตั้งค่าโปรไฟล์"
               aria-label="ตั้งค่าโปรไฟล์"
             >
@@ -425,7 +425,7 @@ export default function MyTasks() {
           <StateBox title="โหลดงานไม่สำเร็จ" message={error} actionLabel="ลองใหม่" onAction={loadTasks} />
         ) : (
           <>
-            <section className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
+            <section className="staff-surface bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
               <div className="px-4 py-4 border-b border-slate-800 flex items-center justify-between gap-3">
                 <div>
                   <h2 className="text-base font-semibold text-white">งานที่ต้องทำตอนนี้</h2>
@@ -558,7 +558,7 @@ export default function MyTasks() {
               )}
             </AnimatedAccordionSection>
 
-            <section className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
+            <section className="staff-surface bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
               <div className="px-4 py-4 border-b border-slate-800 flex items-start justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2">
@@ -909,7 +909,7 @@ function AccordionSection({
   children: React.ReactNode
 }) {
   return (
-    <section className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
+    <section className="staff-surface bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
       <button
         onClick={onToggle}
         className="w-full px-4 py-4 flex items-center justify-between text-left"
@@ -951,7 +951,7 @@ function AnimatedAccordionSection({
   children: React.ReactNode
 }) {
   return (
-    <section className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden panel-enter interactive-lift">
+    <section className="staff-surface bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden panel-enter interactive-lift">
       <button
         onClick={onToggle}
         className="w-full px-4 py-4 flex items-center justify-between text-left interactive-press"
@@ -1097,7 +1097,7 @@ function StateBox({
   onAction?: () => void
 }) {
   return (
-    <div className="bg-slate-900 rounded-xl border border-slate-800 p-5 text-center">
+    <div className="staff-surface bg-slate-900 rounded-xl border border-slate-800 p-5 text-center">
       <p className="font-semibold text-white">{title}</p>
       <p className="text-sm text-slate-400 mt-2">{message}</p>
       {actionLabel && onAction && (

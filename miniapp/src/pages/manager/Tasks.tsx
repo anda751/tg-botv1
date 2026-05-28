@@ -156,8 +156,8 @@ export default function Tasks() {
   const activeFilterLabel = FILTER_OPTIONS.find((item) => item.key === filter)?.label || 'ทั้งหมด'
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col">
-      <div className="bg-slate-900 border-b border-slate-800 px-4 pt-6 pb-4">
+    <div className="panel-shell min-h-screen bg-slate-950 flex flex-col transition-colors">
+      <div className="panel-header bg-slate-900 border-b border-slate-800 px-4 pt-6 pb-4 transition-colors">
         <div className="flex items-start justify-between gap-3 mb-4">
           <div>
             <h1 className="text-xl font-bold text-white">งานทั้งหมด</h1>
@@ -167,7 +167,7 @@ export default function Tasks() {
           </div>
           <button
             onClick={() => void loadTasks()}
-            className="w-9 h-9 rounded-full flex items-center justify-center text-slate-300 bg-slate-800 active:bg-slate-700 transition shrink-0"
+            className="panel-icon-button w-9 h-9 rounded-full flex items-center justify-center text-slate-300 bg-slate-800 active:bg-slate-700 transition shrink-0"
             title="รีเฟรช"
             aria-label="รีเฟรช"
           >

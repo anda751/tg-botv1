@@ -189,8 +189,8 @@ export default function Dashboard() {
   const urgentItems = pendingHandover.length + (summary?.tasks.under_review ?? 0)
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col">
-      <div className="bg-slate-900 border-b border-slate-800 px-4 pt-6 pb-4">
+    <div className="dashboard-shell min-h-screen bg-slate-950 flex flex-col">
+      <div className="dashboard-header bg-slate-900 border-b border-slate-800 px-4 pt-6 pb-4">
         <div className="flex items-start justify-between gap-3 mb-4">
           <div>
             <h1 className="text-xl font-bold text-white">แดชบอร์ด</h1>
@@ -200,7 +200,7 @@ export default function Dashboard() {
           </div>
           <button
             onClick={() => void loadAll()}
-            className="w-9 h-9 rounded-full flex items-center justify-center text-slate-300 bg-slate-800 active:bg-slate-700 transition"
+            className="dashboard-icon-button w-9 h-9 rounded-full flex items-center justify-center text-slate-300 bg-slate-800 active:bg-slate-700 transition"
             title="รีเฟรช"
             aria-label="รีเฟรช"
           >
@@ -254,7 +254,7 @@ export default function Dashboard() {
               />
             </div>
 
-            <div className="rounded-2xl border border-slate-700 bg-slate-900 p-4 panel-enter interactive-lift">
+            <div className="dashboard-surface rounded-2xl border border-slate-700 bg-slate-900 p-4 panel-enter interactive-lift">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-sm font-semibold text-white">สิ่งที่ควรดูต่อก่อน</p>
@@ -271,7 +271,7 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 panel-enter interactive-lift">
+            <div className="dashboard-surface bg-slate-900 border border-slate-800 rounded-2xl p-4 panel-enter interactive-lift">
               <div className="flex justify-between items-center mb-3">
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">สถานะงานวันนี้</p>
                 <p className="text-xs text-slate-500">{summary.tasks.total} งาน</p>
@@ -296,7 +296,7 @@ export default function Dashboard() {
                   {pendingHandover.map((item) => {
                     const loadingAction = handoverActionId === item.id
                     return (
-                      <div key={item.id} className="bg-slate-900 border border-slate-700 rounded-2xl p-4 panel-enter interactive-lift">
+                      <div key={item.id} className="dashboard-surface bg-slate-900 border border-slate-700 rounded-2xl p-4 panel-enter interactive-lift">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <p className="text-sm font-semibold text-white">{item.task?.name || 'งานไม่ระบุชื่อ'}</p>
@@ -354,7 +354,7 @@ export default function Dashboard() {
               ) : (
                 <div className="space-y-3">
                   {underReview.map((task) => (
-                    <div key={task.id} className="bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden panel-enter interactive-lift">
+                    <div key={task.id} className="dashboard-surface bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden panel-enter interactive-lift">
                       {task.latest_proof?.image_url && (
                         <img src={task.latest_proof.image_url} alt="proof" className="w-full object-cover max-h-48" />
                       )}
@@ -424,7 +424,7 @@ export default function Dashboard() {
               {notifications.length === 0 ? (
                 <EmptyState title="ยังไม่มีการแจ้งเตือน" message="เมื่อมีอัปเดตสำคัญ ระบบจะแสดงที่ส่วนนี้" />
               ) : (
-                <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+                <div className="dashboard-surface bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
                   <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between gap-3">
                     <p className="text-sm font-semibold text-white">ติดตามอัปเดตในแอป</p>
                     <button

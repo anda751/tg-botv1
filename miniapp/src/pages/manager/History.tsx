@@ -146,8 +146,8 @@ export default function History() {
   const activeFilterLabel = CATEGORY_OPTIONS.find((option) => option.key === filter)?.label || TEXT.all
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col">
-      <div className="bg-slate-900 border-b border-slate-800 px-4 pt-6 pb-4">
+    <div className="history-shell min-h-screen bg-slate-950 flex flex-col">
+      <div className="history-header bg-slate-900 border-b border-slate-800 px-4 pt-6 pb-4">
         <div className="flex items-start justify-between gap-3 mb-4">
           <div>
             <h1 className="text-xl font-bold text-white">{TEXT.pageTitle}</h1>
@@ -155,7 +155,7 @@ export default function History() {
           </div>
           <button
             onClick={() => void loadHistory(days)}
-            className="w-9 h-9 rounded-full flex items-center justify-center text-slate-300 bg-slate-800 active:bg-slate-700 transition"
+            className="history-icon-button w-9 h-9 rounded-full flex items-center justify-center text-slate-300 bg-slate-800 active:bg-slate-700 transition"
             title={TEXT.refresh}
             aria-label={TEXT.refresh}
           >
@@ -176,7 +176,7 @@ export default function History() {
           />
         </div>
 
-        <section className="bg-slate-900 border border-slate-700 rounded-2xl p-4 space-y-3 panel-enter interactive-lift">
+        <section className="history-surface bg-slate-900 border border-slate-700 rounded-2xl p-4 space-y-3 panel-enter interactive-lift">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-sm font-semibold text-white">{TEXT.searchAndRange}</p>
@@ -308,7 +308,7 @@ function AnimatedHistoryRow({
     item.category === 'task' ? TEXT.task : item.category === 'project' ? TEXT.project : TEXT.join
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900 overflow-hidden panel-enter interactive-lift">
+    <div className="history-surface rounded-2xl border border-slate-800 bg-slate-900 overflow-hidden panel-enter interactive-lift">
       <button
         type="button"
         onClick={onToggle}
@@ -396,7 +396,7 @@ function StateBox({
   onAction?: () => void
 }) {
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 text-center">
+    <div className="history-surface bg-slate-900 border border-slate-800 rounded-2xl p-5 text-center">
       <p className="text-white font-semibold">{title}</p>
       <p className="text-sm text-slate-400 mt-2">{message}</p>
       {actionLabel && onAction && (

@@ -21,9 +21,9 @@ export default function ManagerNav() {
         <button
           key={tab.path}
           onClick={() => navigate(tab.path)}
-          className={`px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition ${
+          className={`manager-tab px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition ${
             pathname === tab.path
-              ? 'bg-blue-600 text-white'
+              ? 'manager-tab-active bg-blue-600 text-white'
               : 'bg-slate-800 text-slate-400 active:bg-slate-700'
           }`}
         >

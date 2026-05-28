@@ -115,10 +115,10 @@ export default function Register({ onRegistered }: { onRegistered: (token: strin
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-950">
+    <div className="auth-shell min-h-screen flex flex-col bg-slate-950 transition-colors">
       <div className="h-1 w-full bg-gradient-to-r from-blue-500 to-indigo-500" />
       <div className="flex-1 flex items-center justify-center px-6">
-        <div className="w-full max-w-sm space-y-4">
+        <div className="auth-card w-full max-w-sm space-y-4 rounded-3xl border border-slate-800 px-5 py-6 transition-colors">
           <h1 className="text-2xl font-bold text-white">{TEXT.title}</h1>
 
           <input
@@ -126,28 +126,28 @@ export default function Register({ onRegistered }: { onRegistered: (token: strin
             placeholder={TEXT.usernamePlaceholder}
             value={form.username}
             onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
-            className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white"
+            className="auth-input w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white transition-colors"
           />
           <input
             type="email"
             placeholder={TEXT.emailPlaceholder}
             value={form.email}
             onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-            className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white"
+            className="auth-input w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white transition-colors"
           />
           <input
             type="text"
             placeholder={TEXT.displayNamePlaceholder}
             value={form.display_name}
             onChange={(e) => setForm((f) => ({ ...f, display_name: e.target.value }))}
-            className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white"
+            className="auth-input w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white transition-colors"
           />
           <input
             type="password"
             placeholder={TEXT.passwordPlaceholder}
             value={form.password}
             onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-            className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white"
+            className="auth-input w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white transition-colors"
           />
 
           <div className="grid grid-cols-2 gap-2">
