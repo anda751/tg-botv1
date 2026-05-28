@@ -1,10 +1,9 @@
 import { factories } from '@strapi/strapi';
 
-// ใช้ Map แทน cache สำหรับเก็บสถานะรอพิมพ์เหตุผลจาก Telegram
+// ใช้ Map เก็บสถานะรอเหตุผลจากการกดปุ่มใน Telegram
 // key = telegram_user_id, value = taskId/userId + เวลาหมดอายุ
 const rejectPendingMap = new Map<string, { taskId: string; expiresAt: number }>();
 
-// ล้างรายการหมดอายุทุก 10 นาที
 setInterval(() => {
   const now = Date.now();
   for (const [key, val] of rejectPendingMap.entries()) {
@@ -48,7 +47,7 @@ async function handleCallbackQuery(query: TelegramCallbackQuery, strapi: any) {
   ) as any[];
 
   if (!managers.length) {
-    await sendMessage(botToken, from.id, 'คุณไม่มีสิทธิ์ดำเนินการนี้');
+    await sendMessage(botToken, from.id, 'คุณไม่มีสิทธิ์ดำเนินการรายการนี้');
     return;
   }
 
@@ -61,7 +60,7 @@ async function handleCallbackQuery(query: TelegramCallbackQuery, strapi: any) {
       taskId: targetId,
       expiresAt: Date.now() + 5 * 60 * 1000,
     });
-    await sendMessage(botToken, from.id, 'กรุณาพิมพ์เหตุผลการตีกลับงานอย่างน้อย 5 ตัวอักษร');
+    await sendMessage(botToken, from.id, 'กรุณาพิมพ์เหตุผลสำหรับการส่งกลับงาน อย่างน้อย 5 ตัวอักษร');
   } else if (action === 'approve_handover') {
     await approveHandover(targetId, manager, strapi, botToken, from.id, message);
   } else if (action === 'reject_handover') {
@@ -73,7 +72,7 @@ async function handleCallbackQuery(query: TelegramCallbackQuery, strapi: any) {
       taskId: `user:${targetId}`,
       expiresAt: Date.now() + 5 * 60 * 1000,
     });
-    await sendMessage(botToken, from.id, 'กรุณาพิมพ์เหตุผลการปฏิเสธพนักงานอย่างน้อย 5 ตัวอักษร');
+    await sendMessage(botToken, from.id, 'กรุณาพิมพ์เหตุผลสำหรับการปฏิเสธพนักงาน อย่างน้อย 5 ตัวอักษร');
   }
 }
 
@@ -118,7 +117,11 @@ async function handleMessage(message: TelegramMessage, strapi: any) {
     await sendMessage(
       botToken,
       chat.id,
-      `สวัสดีครับ ${from.first_name}\nใช้ Mini App เพื่อจัดการงานได้เลย`,
+      [
+        `สวัสดีครับ ${from.first_name}`,
+        'บอตนี้ใช้แจ้งเตือนงานและอนุมัติรายการสำคัญให้หัวหน้า',
+        'หากต้องการจัดการงานทั้งหมด สามารถเข้า Mini App ได้เลย',
+      ].join('\n'),
     );
   }
 }
@@ -140,7 +143,7 @@ async function approveTask(
     return;
   }
   if (task.status_task !== 'under_review') {
-    await sendMessage(botToken, chatId, `งาน *${task.name}* ไม่ได้รอการตรวจอยู่แล้ว`);
+    await sendMessage(botToken, chatId, `งาน *${task.name}* ไม่ได้อยู่ในสถานะรอตรวจแล้ว`);
     return;
   }
 
@@ -153,13 +156,18 @@ async function approveTask(
     await editMessageReplyMarkup(botToken, chatId, originalMessage.message_id, null);
   }
 
-  await sendMessage(botToken, chatId, `อนุมัติงาน *${task.name}* เรียบร้อย`);
+  await sendMessage(botToken, chatId, [
+    'อนุมัติงานเรียบร้อย',
+    `งาน: *${task.name}*`,
+    `ผู้ส่งงาน: *${task.current_owner.username}*`,
+  ].join('\n'));
   await strapi.service('api::task.task').notifyStaff({
     userId: task.current_owner.id,
-    message: `หัวหน้าอนุมัติงาน *${task.name}* แล้ว`,
+    title: 'งานเสร็จแล้ว',
+    message: `หัวหน้าอนุมัติงาน "${task.name}" แล้ว`,
   });
   await strapi.service('api::task.task').notifyGroup({
-    message: `งานเสร็จสมบูรณ์: *${task.name}*\nโดย: ${task.current_owner.username}`,
+    message: `งานเสร็จสมบูรณ์: *${task.name}*\nผู้รับผิดชอบ: ${task.current_owner.username}`,
   });
 }
 
@@ -185,10 +193,16 @@ async function rejectTask(
     data: { task: taskId, action: 'rejected', actor: manager.id, note: reason },
   });
 
-  await sendMessage(botToken, chatId, `ส่งกลับงาน *${task.name}* เรียบร้อย`);
+  await sendMessage(botToken, chatId, [
+    'ส่งกลับงานเรียบร้อย',
+    `งาน: *${task.name}*`,
+    '',
+    `เหตุผล: ${reason}`,
+  ].join('\n'));
   await strapi.service('api::task.task').notifyStaff({
     userId: task.current_owner.id,
-    message: `งาน *${task.name}* ถูกส่งกลับ\nเหตุผล: ${reason}`,
+    title: 'งานถูกส่งกลับ',
+    message: `งาน "${task.name}" ถูกส่งกลับ\nเหตุผล: ${reason}`,
   });
 }
 
@@ -234,10 +248,15 @@ async function approveHandover(
     await editMessageReplyMarkup(botToken, chatId, originalMessage.message_id, null);
   }
 
-  await sendMessage(botToken, chatId, `อนุมัติการส่งต่อของงาน *${handover.task.name}* เรียบร้อย`);
+  await sendMessage(botToken, chatId, [
+    'อนุมัติคำขอรับช่วงต่องานเรียบร้อย',
+    `งาน: *${handover.task.name}*`,
+    `ผู้รับงาน: *${handover.picked_up_by.username}*`,
+  ].join('\n'));
   await strapi.service('api::task.task').notifyStaff({
     userId: handover.picked_up_by.id,
-    message: `หัวหน้าอนุมัติแล้ว งาน *${handover.task.name}* เป็นของคุณแล้ว`,
+    title: 'ได้รับงานต่อแล้ว',
+    message: `หัวหน้าอนุมัติแล้ว งาน "${handover.task.name}" เป็นของคุณแล้ว`,
   });
   await strapi.service('api::task.task').notifyGroup({
     message: `งาน *${handover.task.name}* ส่งต่อให้ ${handover.picked_up_by.username} เรียบร้อย`,
@@ -283,11 +302,15 @@ async function rejectHandover(
     await editMessageReplyMarkup(botToken, chatId, originalMessage.message_id, null);
   }
 
-  await sendMessage(botToken, chatId, `ปฏิเสธการรับช่วงต่อของงาน *${handover.task.name}* เรียบร้อย`);
+  await sendMessage(botToken, chatId, [
+    'ปฏิเสธคำขอรับช่วงต่องานเรียบร้อย',
+    `งาน: *${handover.task.name}*`,
+    `ผู้ขอรับงาน: *${handover.picked_up_by.username}*`,
+  ].join('\n'));
   await strapi.service('api::task.task').notifyStaff({
     userId: handover.picked_up_by.id,
     title: 'คำขอรับช่วงต่องานยังไม่ผ่าน',
-    message: `หัวหน้ายังไม่อนุมัติคำขอรับช่วงต่องาน *${handover.task.name}*`,
+    message: `หัวหน้ายังไม่อนุมัติคำขอรับช่วงต่องาน "${handover.task.name}"`,
     type: 'handover',
     link: '/pickup',
   });
@@ -311,7 +334,7 @@ async function approveUserFromTelegram(
     return;
   }
   if (target.is_approved) {
-    await sendMessage(botToken, chatId, `พนักงาน *${target.display_name}* ได้รับอนุมัติอยู่แล้ว`);
+    await sendMessage(botToken, chatId, `พนักงาน *${target.display_name}* ได้รับอนุมัติแล้ว`);
     return;
   }
 
@@ -323,9 +346,13 @@ async function approveUserFromTelegram(
     await editMessageReplyMarkup(botToken, chatId, originalMessage.message_id, null);
   }
 
-  await sendMessage(botToken, chatId, `อนุมัติพนักงาน *${target.display_name}* เรียบร้อย`);
+  await sendMessage(botToken, chatId, [
+    'อนุมัติพนักงานเรียบร้อย',
+    `ชื่อ: *${target.display_name}*`,
+  ].join('\n'));
   await strapi.service('api::task.task').notifyStaff({
     userId,
+    title: 'เข้าใช้งานได้แล้ว',
     message: 'หัวหน้าอนุมัติแล้ว คุณสามารถเข้าใช้งานระบบได้เลย',
   });
 }
@@ -349,12 +376,18 @@ async function rejectUserFromTelegram(
 
   await strapi.service('api::task.task').notifyStaff({
     userId,
-    message: `ขออภัย คำขอเข้าระบบถูกปฏิเสธ\nเหตุผล: ${reason}`,
+    title: 'คำขอเข้าใช้งานไม่ผ่าน',
+    message: `คำขอเข้าใช้งานถูกปฏิเสธ\nเหตุผล: ${reason}`,
   });
 
   await strapi.entityService.delete('plugin::users-permissions.user', userId);
 
-  await sendMessage(botToken, chatId, `ปฏิเสธคำขอและลบพนักงาน *${target.display_name}* เรียบร้อย`);
+  await sendMessage(botToken, chatId, [
+    'ปฏิเสธคำขอพนักงานเรียบร้อย',
+    `ชื่อ: *${target.display_name}*`,
+    '',
+    `เหตุผล: ${reason}`,
+  ].join('\n'));
 }
 
 async function sendMessage(botToken: string, chatId: number, text: string) {

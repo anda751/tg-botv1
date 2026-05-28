@@ -44,6 +44,35 @@ export default factories.createCoreService('api::task.task', ({ strapi }) => ({
     const managerChatId = process.env.TELEGRAM_MANAGER_CHAT_ID;
     if (!botToken || !managerChatId) return;
 
+    const trimmedReport = reportText?.trim() || '-';
+    const reviewCaption = [
+      'มีงานรอตรวจ',
+      `งาน: ${taskName}`,
+      `ผู้ส่ง: ${submittedBy}`,
+      '',
+      'สรุปงาน:',
+      trimmedReport,
+    ].join('\n');
+
+    const reviewMessage = [
+      '📋 *มีงานรอตรวจ*',
+      `งาน: *${taskName}*`,
+      `ผู้ส่ง: *${submittedBy}*`,
+      '',
+      '*สรุปงาน*',
+      trimmedReport,
+      '',
+      'กรุณาเลือก `อนุมัติ` หรือ `ส่งกลับ`',
+    ].join('\n');
+
+    const userApprovalMessage = [
+      '👤 *มีคำขอเข้าระบบใหม่*',
+      '',
+      trimmedReport,
+      '',
+      'กรุณาเลือก `อนุมัติพนักงาน` หรือ `ปฏิเสธ`',
+    ].join('\n');
+
     const hasImageBuffer = !!imageBuffer && (
       ((imageBuffer as any).length ?? 0) > 0 ||
       ((imageBuffer as any).byteLength ?? 0) > 0
@@ -57,7 +86,7 @@ export default factories.createCoreService('api::task.task', ({ strapi }) => ({
         const safeType = (imageMimeType || 'application/octet-stream').split(';')[0].trim();
         const filename = imageFilename || 'proof.jpg';
         form.append('chat_id', String(managerChatId || ''));
-        form.append('caption', `งานรอตรวจ: ${taskName}\nโดย: ${submittedBy}\n\nรายงาน:\n${reportText}`);
+        form.append('caption', reviewCaption);
         form.append('photo', new BlobCtor([imageBuffer], { type: safeType }), filename);
 
         const photoResp = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
@@ -70,7 +99,7 @@ export default factories.createCoreService('api::task.task', ({ strapi }) => ({
 
           const docForm: any = new FormDataCtor();
           docForm.append('chat_id', String(managerChatId || ''));
-          docForm.append('caption', `งานรอตรวจ: ${taskName}\nโดย: ${submittedBy}\n\nรายงาน:\n${reportText}`);
+          docForm.append('caption', reviewCaption);
           docForm.append('document', new BlobCtor([imageBuffer], { type: safeType }), filename);
           const docResp = await fetch(`https://api.telegram.org/bot${botToken}/sendDocument`, {
             method: 'POST',
@@ -92,7 +121,7 @@ export default factories.createCoreService('api::task.task', ({ strapi }) => ({
           body: JSON.stringify({
             chat_id: managerChatId,
             photo: imageUrl,
-            caption: `งานรอตรวจ: ${taskName}\nโดย: ${submittedBy}\n\nรายงาน:\n${reportText}`,
+            caption: reviewCaption,
           }),
         });
         const photoBody: any = await photoResp.json().catch(() => ({}));
@@ -106,7 +135,7 @@ export default factories.createCoreService('api::task.task', ({ strapi }) => ({
 
     const messageBody: any = {
       chat_id: managerChatId,
-      text: taskName ? `📬 *${taskName}*\nจาก: ${submittedBy}\n\n${reportText}` : reportText,
+      text: userId ? userApprovalMessage : reviewMessage,
       parse_mode: 'Markdown',
     };
 
@@ -121,7 +150,7 @@ export default factories.createCoreService('api::task.task', ({ strapi }) => ({
       messageBody.reply_markup = {
         inline_keyboard: [[
           { text: 'อนุมัติ', callback_data: `approve:${taskId}` },
-          { text: 'ปฏิเสธ', callback_data: `reject:${taskId}` },
+          { text: 'ส่งกลับ', callback_data: `reject:${taskId}` },
         ]],
       };
     }
@@ -155,7 +184,13 @@ export default factories.createCoreService('api::task.task', ({ strapi }) => ({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         chat_id: managerChatId,
-        text: `🤝 *ขอรับงานต่อ*\nงาน: *${taskName}*\nผู้ขอรับ: ${pickedUpBy}\n\nกรุณาอนุมัติหรือปฏิเสธ`,
+        text: [
+          '🤝 *มีคำขอรับช่วงต่องาน*',
+          `งาน: *${taskName}*`,
+          `ผู้ขอรับงาน: *${pickedUpBy}*`,
+          '',
+          'กรุณาเลือก `อนุมัติ` หรือ `ปฏิเสธ`',
+        ].join('\n'),
         parse_mode: 'Markdown',
         reply_markup: {
           inline_keyboard: [[
@@ -220,9 +255,6 @@ export default factories.createCoreService('api::task.task', ({ strapi }) => ({
     const recipientId = Number(userId);
     if (!Number.isFinite(recipientId) || recipientId <= 0) return;
 
-    // Notification policy:
-    // - Telegram is used for manager notifications only.
-    // - Staff updates are stored as in-app notifications.
     await strapi.db.query(notificationUid).create({
       data: {
         recipient: recipientId,
