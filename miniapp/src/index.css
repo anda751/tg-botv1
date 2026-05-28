@@ -404,6 +404,8 @@ body.theme-light .auth-input {
   background-color: #ffffff !important;
   border-color: #cbd5e1 !important;
   color: #0f172a !important;
+  caret-color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
 }
 
 body.theme-light .auth-input::placeholder {
