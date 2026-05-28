@@ -271,6 +271,40 @@ body.theme-light .text-red-200 {
   color: #b91c1c !important;
 }
 
+body.theme-light .text-red-100,
+body.theme-light .text-red-300,
+body.theme-light .text-red-400 {
+  color: #b91c1c !important;
+}
+
+body.theme-light .text-blue-100,
+body.theme-light .text-blue-200,
+body.theme-light .text-blue-300,
+body.theme-light .text-blue-400 {
+  color: #1d4ed8 !important;
+}
+
+body.theme-light .text-green-100,
+body.theme-light .text-green-200,
+body.theme-light .text-green-300,
+body.theme-light .text-green-400 {
+  color: #166534 !important;
+}
+
+body.theme-light .text-amber-100,
+body.theme-light .text-amber-200,
+body.theme-light .text-amber-300,
+body.theme-light .text-amber-400 {
+  color: #b45309 !important;
+}
+
+body.theme-light .text-orange-100,
+body.theme-light .text-orange-200,
+body.theme-light .text-orange-300,
+body.theme-light .text-orange-400 {
+  color: #c2410c !important;
+}
+
 body.theme-light .text-white {
   color: #0f172a !important;
 }
