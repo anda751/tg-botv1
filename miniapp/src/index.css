@@ -271,6 +271,32 @@ body.theme-light .text-red-200 {
   color: #b91c1c !important;
 }
 
+body.theme-light .text-white {
+  color: #0f172a !important;
+}
+
+body.theme-light .text-slate-200 {
+  color: #1e293b !important;
+}
+
+body.theme-light .text-slate-300 {
+  color: #334155 !important;
+}
+
+body.theme-light .text-slate-400 {
+  color: #475569 !important;
+}
+
+body.theme-light .text-slate-500,
+body.theme-light .text-slate-600 {
+  color: #64748b !important;
+}
+
+body.theme-light .placeholder-slate-600::placeholder,
+body.theme-light .placeholder-slate-500::placeholder {
+  color: #64748b !important;
+}
+
 body.theme-light .manager-tab {
   box-shadow: inset 0 0 0 1px rgba(203, 213, 225, 0.9);
 }
@@ -353,6 +379,31 @@ body.theme-light .auth-input::placeholder {
 body.theme-light .pending-step-idle {
   background-color: #e2e8f0 !important;
   color: #64748b !important;
+}
+
+body.theme-light .bg-blue-600.text-white,
+body.theme-light .bg-blue-700.text-white,
+body.theme-light .bg-indigo-600.text-white,
+body.theme-light .bg-green-600.text-white,
+body.theme-light .bg-red-600.text-white,
+body.theme-light .bg-amber-500.text-white,
+body.theme-light .bg-orange-500.text-white,
+body.theme-light .bg-slate-900.text-white,
+body.theme-light .bg-slate-800.text-white,
+body.theme-light .bg-slate-700.text-white {
+  color: #ffffff !important;
+}
+
+body.theme-light .staff-shell .bg-slate-900,
+body.theme-light .staff-shell .bg-slate-800,
+body.theme-light .staff-shell .bg-slate-700,
+body.theme-light .panel-shell .bg-slate-900,
+body.theme-light .panel-shell .bg-slate-800,
+body.theme-light .panel-shell .bg-slate-700,
+body.theme-light .settings-shell .bg-slate-900,
+body.theme-light .settings-shell .bg-slate-800,
+body.theme-light .settings-shell .bg-slate-700 {
+  box-shadow: 0 12px 24px rgba(148, 163, 184, 0.08);
 }
 
 body.theme-light .notification-card.unread {
