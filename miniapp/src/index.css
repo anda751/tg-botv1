@@ -600,6 +600,30 @@ body.theme-light .settings-icon-button:active {
   background-color: #e2e8f0 !important;
 }
 
+body.theme-light .projects-create-panel {
+  background-color: rgba(248, 250, 252, 0.98) !important;
+}
+
+body.theme-light .projects-create-card {
+  background-color: #eef4ff !important;
+  border-color: #bfdbfe !important;
+  box-shadow: 0 10px 24px rgba(148, 163, 184, 0.08);
+}
+
+body.theme-light .projects-preset-button {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #334155 !important;
+}
+
+body.theme-light .projects-preset-button:active {
+  background-color: #e2e8f0 !important;
+}
+
+body.theme-light .projects-preview-card {
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.08);
+}
+
 body.theme-light .auth-input {
   background-color: #ffffff !important;
   border-color: #cbd5e1 !important;
