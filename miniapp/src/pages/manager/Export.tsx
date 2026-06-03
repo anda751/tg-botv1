@@ -99,6 +99,7 @@ type ProjectDetail = {
 type GeneratedFile = {
   name: string
   url: string
+  content: string
 }
 
 const DAY_OPTIONS = [7, 14, 30, 60]
@@ -153,11 +154,16 @@ export default function ExportPage() {
         previous.forEach((file) => URL.revokeObjectURL(file.url))
         return files
       })
-      files.forEach(triggerDownload)
+      files.forEach((file) => {
+        const didDownload = triggerDownload(file)
+        if (!didDownload) {
+          openFilePreview(file)
+        }
+      })
       setActionSuccess(
         files.length > 1
-          ? `เตรียมไฟล์ส่งออก ${files.length} ไฟล์แล้ว ถ้าเบราว์เซอร์ไม่เริ่มดาวน์โหลดอัตโนมัติ ให้กดปุ่มดาวน์โหลดด้านล่าง`
-          : 'เตรียมไฟล์ส่งออกเรียบร้อยแล้ว ถ้าเบราว์เซอร์ไม่เริ่มดาวน์โหลดอัตโนมัติ ให้กดปุ่มดาวน์โหลดด้านล่าง',
+          ? `เตรียมไฟล์ส่งออก ${files.length} ไฟล์แล้ว ถ้าดาวน์โหลดไม่เริ่มเอง ให้กด ดาวน์โหลด เปิดดู หรือ คัดลอก CSV จากรายการด้านล่าง`
+          : 'เตรียมไฟล์ส่งออกเรียบร้อยแล้ว ถ้าดาวน์โหลดไม่เริ่มเอง ให้กด ดาวน์โหลด เปิดดู หรือ คัดลอก CSV จากรายการด้านล่าง',
       )
     } catch (error) {
       setActionError(extractMessage(error, 'ส่งออกข้อมูลไม่สำเร็จ'))
@@ -242,6 +248,16 @@ export default function ExportPage() {
     })
   }
 
+  async function copyCsv(file: GeneratedFile) {
+    try {
+      await navigator.clipboard.writeText(file.content)
+      setActionError('')
+      setActionSuccess(`คัดลอก ${file.name} ไปยังคลิปบอร์ดแล้ว`)
+    } catch {
+      setActionError('คัดลอกข้อมูลไม่สำเร็จ ลองใช้ปุ่มเปิดดูแล้วคัดลอกจากแท็บที่เปิดแทน')
+    }
+  }
+
   return (
     <div className="panel-shell min-h-screen bg-slate-950 flex flex-col transition-colors">
       <div className="panel-header bg-slate-900 border-b border-slate-800 px-4 pt-6 pb-4 transition-colors">
@@ -257,14 +273,16 @@ export default function ExportPage() {
       <div className="flex-1 px-4 py-5 space-y-4 pb-8 page-enter">
         {pageError && <NoticeBox tone="red" title="โหลดข้อมูลไม่สำเร็จ" message={pageError} />}
         {actionError && <NoticeBox tone="red" title="ส่งออกไม่สำเร็จ" message={actionError} />}
-        {actionSuccess && <NoticeBox tone="blue" title="ไฟล์พร้อมดาวน์โหลด" message={actionSuccess} />}
+        {actionSuccess && <NoticeBox tone="blue" title="ไฟล์พร้อมใช้งาน" message={actionSuccess} />}
 
         {generatedFiles.length > 0 && (
           <section className="panel-surface bg-slate-900 border border-slate-700 rounded-2xl p-4 space-y-3 panel-enter interactive-lift">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold text-white">ไฟล์ที่พร้อมดาวน์โหลด</p>
-                <p className="text-xs text-slate-400 mt-1">ถ้าเบราว์เซอร์ไม่เริ่มดาวน์โหลดอัตโนมัติ ให้กดปุ่มดาวน์โหลดจากรายการนี้ได้เลย</p>
+                <p className="text-sm font-semibold text-white">ไฟล์ที่พร้อมใช้งาน</p>
+                <p className="text-xs text-slate-400 mt-1">
+                  ถ้าใน Telegram หรือ webview ไม่ยอมดาวน์โหลด ให้ใช้ปุ่ม เปิดดู หรือ คัดลอก CSV แทนได้ทันที
+                </p>
               </div>
               <button
                 onClick={clearGeneratedFiles}
@@ -282,7 +300,7 @@ export default function ExportPage() {
                 >
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-white break-all">{file.name}</p>
-                    <p className="text-xs text-slate-400 mt-1">ไฟล์ CSV พร้อมเปิดด้วย Excel</p>
+                    <p className="text-xs text-slate-400 mt-1">ไฟล์ CSV พร้อมเปิดด้วย Excel หรือคัดลอกไปใช้งานต่อ</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <button
@@ -291,13 +309,18 @@ export default function ExportPage() {
                     >
                       ดาวน์โหลด
                     </button>
-                    <a
-                      href={file.url}
-                      download={file.name}
+                    <button
+                      onClick={() => openFilePreview(file)}
                       className="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-200 active:bg-slate-700 transition"
                     >
-                      ลิงก์สำรอง
-                    </a>
+                      เปิดดู
+                    </button>
+                    <button
+                      onClick={() => void copyCsv(file)}
+                      className="px-3 py-2 rounded-xl text-xs font-semibold bg-emerald-600 text-white active:bg-emerald-700 transition"
+                    >
+                      คัดลอก CSV
+                    </button>
                   </div>
                 </div>
               ))}
@@ -586,21 +609,41 @@ function reportsSafeArray(value: unknown) {
 }
 
 function createCsvDownload(filename: string, rows: string[][]): GeneratedFile {
-  const csv = rows.map((row) => row.map(escapeCsvCell).join(',')).join('\r\n')
-  const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' })
+  const content = rows.map((row) => row.map(escapeCsvCell).join(',')).join('\r\n')
+  const blob = new Blob([`\uFEFF${content}`], { type: 'text/csv;charset=utf-8;' })
   return {
     name: filename,
     url: URL.createObjectURL(blob),
+    content,
   }
 }
 
 function triggerDownload(file: GeneratedFile) {
-  const link = document.createElement('a')
-  link.href = file.url
-  link.download = file.name
-  document.body.appendChild(link)
-  link.click()
-  link.remove()
+  try {
+    const link = document.createElement('a')
+    link.href = file.url
+    link.download = file.name
+    link.rel = 'noopener'
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    return true
+  } catch {
+    return false
+  }
+}
+
+function openFilePreview(file: GeneratedFile) {
+  const opened = window.open(file.url, '_blank', 'noopener,noreferrer')
+  if (!opened) {
+    const fallback = document.createElement('a')
+    fallback.href = file.url
+    fallback.target = '_blank'
+    fallback.rel = 'noopener noreferrer'
+    document.body.appendChild(fallback)
+    fallback.click()
+    fallback.remove()
+  }
 }
 
 function escapeCsvCell(value: string | undefined) {
