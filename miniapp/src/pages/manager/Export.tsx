@@ -96,6 +96,11 @@ type ProjectDetail = {
   }>
 }
 
+type GeneratedFile = {
+  name: string
+  url: string
+}
+
 const DAY_OPTIONS = [7, 14, 30, 60]
 
 export default function ExportPage() {
@@ -107,10 +112,17 @@ export default function ExportPage() {
   const [actionError, setActionError] = useState('')
   const [actionSuccess, setActionSuccess] = useState('')
   const [busyKey, setBusyKey] = useState<string | null>(null)
+  const [generatedFiles, setGeneratedFiles] = useState<GeneratedFile[]>([])
 
   useEffect(() => {
     void loadProjects()
   }, [])
+
+  useEffect(() => {
+    return () => {
+      generatedFiles.forEach((file) => URL.revokeObjectURL(file.url))
+    }
+  }, [generatedFiles])
 
   async function loadProjects() {
     setLoadingProjects(true)
@@ -131,13 +143,22 @@ export default function ExportPage() {
     [projects, selectedProjectId],
   )
 
-  async function runExport(key: string, work: () => Promise<void>) {
+  async function runExport(key: string, work: () => Promise<GeneratedFile[]>) {
     setBusyKey(key)
     setActionError('')
     setActionSuccess('')
     try {
-      await work()
-      setActionSuccess('เตรียมไฟล์ส่งออกเรียบร้อยแล้ว')
+      const files = await work()
+      setGeneratedFiles((previous) => {
+        previous.forEach((file) => URL.revokeObjectURL(file.url))
+        return files
+      })
+      files.forEach(triggerDownload)
+      setActionSuccess(
+        files.length > 1
+          ? `เตรียมไฟล์ส่งออก ${files.length} ไฟล์แล้ว ถ้าเบราว์เซอร์ไม่เริ่มดาวน์โหลดอัตโนมัติ ให้กดปุ่มดาวน์โหลดด้านล่าง`
+          : 'เตรียมไฟล์ส่งออกเรียบร้อยแล้ว ถ้าเบราว์เซอร์ไม่เริ่มดาวน์โหลดอัตโนมัติ ให้กดปุ่มดาวน์โหลดด้านล่าง',
+      )
     } catch (error) {
       setActionError(extractMessage(error, 'ส่งออกข้อมูลไม่สำเร็จ'))
     } finally {
@@ -154,44 +175,46 @@ export default function ExportPage() {
         dashboardApi.pendingTasks(),
       ])
 
-      downloadCsv(`reports-summary-${dateStamp()}.csv`, buildReportsRows(reportsRes.data as ReportsResponse))
-      downloadCsv(`kpi-${days}d-${dateStamp()}.csv`, buildKpiRows(kpiRes.data as KpiResponse))
-      downloadCsv(`history-${days}d-${dateStamp()}.csv`, buildHistoryRows(historyRes.data as HistoryResponse))
-      downloadCsv(`tasks-open-${dateStamp()}.csv`, buildPendingTaskRows(reportsSafeArray(tasksRes.data)))
+      return [
+        createCsvDownload(`reports-summary-${dateStamp()}.csv`, buildReportsRows(reportsRes.data as ReportsResponse)),
+        createCsvDownload(`kpi-${days}d-${dateStamp()}.csv`, buildKpiRows(kpiRes.data as KpiResponse)),
+        createCsvDownload(`history-${days}d-${dateStamp()}.csv`, buildHistoryRows(historyRes.data as HistoryResponse)),
+        createCsvDownload(`tasks-open-${dateStamp()}.csv`, buildPendingTaskRows(reportsSafeArray(tasksRes.data))),
+      ]
     })
   }
 
   async function exportReports() {
     await runExport('reports', async () => {
       const { data } = await dashboardApi.reports()
-      downloadCsv(`reports-summary-${dateStamp()}.csv`, buildReportsRows(data as ReportsResponse))
+      return [createCsvDownload(`reports-summary-${dateStamp()}.csv`, buildReportsRows(data as ReportsResponse))]
     })
   }
 
   async function exportKpi() {
     await runExport('kpi', async () => {
       const { data } = await dashboardApi.staffKpi(days)
-      downloadCsv(`kpi-${days}d-${dateStamp()}.csv`, buildKpiRows(data as KpiResponse))
+      return [createCsvDownload(`kpi-${days}d-${dateStamp()}.csv`, buildKpiRows(data as KpiResponse))]
     })
   }
 
   async function exportHistory() {
     await runExport('history', async () => {
       const { data } = await dashboardApi.history(days)
-      downloadCsv(`history-${days}d-${dateStamp()}.csv`, buildHistoryRows(data as HistoryResponse))
+      return [createCsvDownload(`history-${days}d-${dateStamp()}.csv`, buildHistoryRows(data as HistoryResponse))]
     })
   }
 
   async function exportTasks() {
     await runExport('tasks', async () => {
       const { data } = await dashboardApi.pendingTasks()
-      downloadCsv(`tasks-open-${dateStamp()}.csv`, buildPendingTaskRows(reportsSafeArray(data)))
+      return [createCsvDownload(`tasks-open-${dateStamp()}.csv`, buildPendingTaskRows(reportsSafeArray(data)))]
     })
   }
 
   async function exportProjects() {
     await runExport('projects', async () => {
-      downloadCsv(`projects-${dateStamp()}.csv`, buildProjectRows(projects))
+      return [createCsvDownload(`projects-${dateStamp()}.csv`, buildProjectRows(projects))]
     })
   }
 
@@ -203,10 +226,19 @@ export default function ExportPage() {
 
     await runExport('project-detail', async () => {
       const { data } = await projectApi.getDetail(Number(selectedProjectId))
-      downloadCsv(
-        `project-${slugify(selectedProject?.name || String(selectedProjectId))}-${dateStamp()}.csv`,
-        buildProjectDetailRows(data as ProjectDetail),
-      )
+      return [
+        createCsvDownload(
+          `project-${slugify(selectedProject?.name || String(selectedProjectId))}-${dateStamp()}.csv`,
+          buildProjectDetailRows(data as ProjectDetail),
+        ),
+      ]
+    })
+  }
+
+  function clearGeneratedFiles() {
+    setGeneratedFiles((previous) => {
+      previous.forEach((file) => URL.revokeObjectURL(file.url))
+      return []
     })
   }
 
@@ -216,7 +248,7 @@ export default function ExportPage() {
         <div className="mb-4">
           <h1 className="text-xl font-bold text-white">ศูนย์ส่งออกรายงาน</h1>
           <p className="text-sm text-slate-400 mt-1">
-            รวมปุ่มส่งออกไว้หน้าเดียว เลือกใช้ได้ทั้งรายงาน, KPI, ประวัติ, งาน และโปรเจกต์
+            รวมปุ่มส่งออกไว้หน้าเดียว เลือกใช้ได้ทั้งรายงาน KPI ประวัติ งาน และโปรเจกต์
           </p>
         </div>
         <ManagerNav />
@@ -225,7 +257,53 @@ export default function ExportPage() {
       <div className="flex-1 px-4 py-5 space-y-4 pb-8 page-enter">
         {pageError && <NoticeBox tone="red" title="โหลดข้อมูลไม่สำเร็จ" message={pageError} />}
         {actionError && <NoticeBox tone="red" title="ส่งออกไม่สำเร็จ" message={actionError} />}
-        {actionSuccess && <NoticeBox tone="blue" title="ส่งออกสำเร็จ" message={actionSuccess} />}
+        {actionSuccess && <NoticeBox tone="blue" title="ไฟล์พร้อมดาวน์โหลด" message={actionSuccess} />}
+
+        {generatedFiles.length > 0 && (
+          <section className="panel-surface bg-slate-900 border border-slate-700 rounded-2xl p-4 space-y-3 panel-enter interactive-lift">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-white">ไฟล์ที่พร้อมดาวน์โหลด</p>
+                <p className="text-xs text-slate-400 mt-1">ถ้าเบราว์เซอร์ไม่เริ่มดาวน์โหลดอัตโนมัติ ให้กดปุ่มดาวน์โหลดจากรายการนี้ได้เลย</p>
+              </div>
+              <button
+                onClick={clearGeneratedFiles}
+                className="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-200 active:bg-slate-700 transition"
+              >
+                ล้างรายการ
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {generatedFiles.map((file) => (
+                <div
+                  key={file.url}
+                  className="rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-3 flex flex-wrap items-center justify-between gap-3"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-white break-all">{file.name}</p>
+                    <p className="text-xs text-slate-400 mt-1">ไฟล์ CSV พร้อมเปิดด้วย Excel</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => triggerDownload(file)}
+                      className="px-3 py-2 rounded-xl text-xs font-semibold bg-blue-600 text-white active:bg-blue-700 transition"
+                    >
+                      ดาวน์โหลด
+                    </button>
+                    <a
+                      href={file.url}
+                      download={file.name}
+                      className="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-200 active:bg-slate-700 transition"
+                    >
+                      ลิงก์สำรอง
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         <section className="panel-surface bg-slate-900 border border-slate-700 rounded-2xl p-4 space-y-4 panel-enter interactive-lift">
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -260,7 +338,8 @@ export default function ExportPage() {
 
           <div className="rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2.5">
             <p className="text-xs text-slate-300">
-              ช่วงเวลานี้จะใช้กับ <span className="font-semibold text-white">KPI</span> และ <span className="font-semibold text-white">ประวัติการทำรายการ</span>
+              ช่วงเวลานี้จะใช้กับ <span className="font-semibold text-white">KPI</span> และ{' '}
+              <span className="font-semibold text-white">ประวัติการทำรายการ</span>
             </p>
           </div>
         </section>
@@ -367,9 +446,10 @@ function ExportCard({
 }
 
 function NoticeBox({ tone, title, message }: { tone: 'blue' | 'red'; title: string; message: string }) {
-  const toneClass = tone === 'blue'
-    ? 'border-blue-800/70 bg-blue-950/40 text-blue-100'
-    : 'border-red-800/70 bg-red-950/40 text-red-100'
+  const toneClass =
+    tone === 'blue'
+      ? 'border-blue-800/70 bg-blue-950/40 text-blue-100'
+      : 'border-red-800/70 bg-red-950/40 text-red-100'
   return (
     <div className={`notice-enter rounded-2xl border px-4 py-3 ${toneClass}`}>
       <p className="text-sm font-semibold">{title}</p>
@@ -472,10 +552,7 @@ function buildPendingTaskRows(tasks: PendingTask[]): string[][] {
 }
 
 function buildProjectRows(projects: Project[]): string[][] {
-  return [
-    ['ชื่อโปรเจกต์', 'สถานะ', 'กำหนดส่ง'],
-    ...projects.map((project) => [project.name, project.status_project, project.deadline]),
-  ]
+  return [['ชื่อโปรเจกต์', 'สถานะ', 'กำหนดส่ง'], ...projects.map((project) => [project.name, project.status_project, project.deadline])]
 }
 
 function buildProjectDetailRows(detail: ProjectDetail): string[][] {
@@ -508,17 +585,22 @@ function reportsSafeArray(value: unknown) {
   return Array.isArray(value) ? (value as PendingTask[]) : []
 }
 
-function downloadCsv(filename: string, rows: string[][]) {
+function createCsvDownload(filename: string, rows: string[][]): GeneratedFile {
   const csv = rows.map((row) => row.map(escapeCsvCell).join(',')).join('\r\n')
   const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
+  return {
+    name: filename,
+    url: URL.createObjectURL(blob),
+  }
+}
+
+function triggerDownload(file: GeneratedFile) {
   const link = document.createElement('a')
-  link.href = url
-  link.download = filename
+  link.href = file.url
+  link.download = file.name
   document.body.appendChild(link)
   link.click()
   link.remove()
-  URL.revokeObjectURL(url)
 }
 
 function escapeCsvCell(value: string | undefined) {
