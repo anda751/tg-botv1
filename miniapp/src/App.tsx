@@ -16,6 +16,7 @@ import Staff from './pages/manager/Staff'
 import Kpi from './pages/manager/Kpi'
 import History from './pages/manager/History'
 import Reports from './pages/manager/Reports'
+import ExportPage from './pages/manager/Export'
 import Settings from './pages/manager/Settings'
 import Register from './pages/Register'
 import Loading from './components/Loading'
@@ -196,6 +197,7 @@ export default function App() {
                 <Route path="/staff" element={<Staff />} />
                 <Route path="/kpi" element={<Kpi />} />
                 <Route path="/history" element={<History />} />
+                <Route path="/export" element={<ExportPage />} />
                 <Route path="/reports" element={<Reports />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/logout" element={<LogoutRoute onLogout={handleLogout} />} />

@@ -1,4 +1,4 @@
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 
 const TABS = [
   { label: 'ภาพรวม', path: '/' },
@@ -7,6 +7,7 @@ const TABS = [
   { label: 'ทีมงาน', path: '/staff' },
   { label: 'KPI', path: '/kpi' },
   { label: 'ประวัติ', path: '/history' },
+  { label: 'Export', path: '/export' },
   { label: 'รายงาน', path: '/reports' },
   { label: 'ตั้งค่า', path: '/settings' },
 ]
