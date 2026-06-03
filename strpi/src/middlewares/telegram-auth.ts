@@ -12,7 +12,7 @@ export default (config, { strapi }) => {
     ];
     if (skipPaths.some((p) => ctx.path.startsWith(p))) return next();
 
-    const bearerToken = getBearerToken(ctx.headers.authorization);
+    const bearerToken = getBearerToken(ctx.headers.authorization) ?? getExportQueryToken(ctx);
     if (bearerToken) {
       try {
         const payload = await strapi.plugin('users-permissions').service('jwt').verify(bearerToken) as any;
@@ -148,6 +148,14 @@ function getBearerToken(authorization: unknown): string | null {
   if (!scheme || !token) return null;
   if (scheme.toLowerCase() !== 'bearer') return null;
   return token.trim() || null;
+}
+
+function getExportQueryToken(ctx: any): string | null {
+  if (!ctx.path.includes('/export')) return null;
+  const token = ctx.request?.query?.export_token;
+  if (typeof token !== 'string') return null;
+  const normalized = token.trim();
+  return normalized || null;
 }
 
 function normalizeRoleHeader(value: unknown): RoleApp | undefined {

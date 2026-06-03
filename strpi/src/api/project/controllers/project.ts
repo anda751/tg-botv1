@@ -22,6 +22,12 @@ export default factories.createCoreController(projectUid, ({ strapi }) => ({
     return ctx.send(await buildAllProjects(strapi))
   },
 
+  async exportList(ctx) {
+    ensureManager(ctx)
+    const projects = await buildAllProjects(strapi)
+    return sendCsv(ctx, `projects-${dateStamp()}.csv`, buildProjectRows(projects))
+  },
+
   async detail(ctx) {
     ensureManager(ctx)
     const projectId = Number(ctx.params.id)
@@ -57,6 +63,47 @@ export default factories.createCoreController(projectUid, ({ strapi }) => ({
       },
       tasks,
     })
+  },
+
+  async exportDetail(ctx) {
+    ensureManager(ctx)
+    const projectId = Number(ctx.params.id)
+    if (!Number.isFinite(projectId)) return ctx.badRequest('รูปแบบโปรเจกต์ไม่ถูกต้อง')
+
+    const project = await strapi.db.query(projectUid).findOne({
+      where: { id: projectId },
+      populate: {
+        creator: { select: ['id', 'display_name', 'username'] },
+        members: { select: ['id', 'display_name', 'username'] },
+      },
+    }) as any
+
+    if (!project) return ctx.notFound('ไม่พบโปรเจกต์นี้')
+
+    const tasks = await strapi.db.query(taskUid).findMany({
+      where: { project: projectId },
+      select: ['id', 'name', 'status_task', 'createdAt', 'updatedAt'],
+      populate: {
+        current_owner: { select: ['id', 'display_name', 'username'] },
+      },
+      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+    }) as any[]
+
+    return sendCsv(
+      ctx,
+      `project-${slugify(project.name || String(projectId))}-${dateStamp()}.csv`,
+      buildProjectDetailRows({
+        project,
+        summary: {
+          total: tasks.length,
+          in_progress: tasks.filter((task) => task.status_task === 'in_progress').length,
+          under_review: tasks.filter((task) => task.status_task === 'under_review').length,
+          waiting_pickup: tasks.filter((task) => task.status_task === 'waiting_pickup').length,
+          done: tasks.filter((task) => task.status_task === 'done').length,
+        },
+        tasks,
+      }),
+    )
   },
 
   async create(ctx) {
@@ -431,4 +478,65 @@ async function buildPendingJoinRequests(strapi: any) {
 
 function getUserName(user: any) {
   return user?.display_name || user?.username || `User #${user?.id ?? '-'}`
+}
+
+function buildProjectRows(projects: any[]): string[][] {
+  return [
+    ['ชื่อโปรเจกต์', 'สถานะ', 'กำหนดส่ง'],
+    ...projects.map((project) => [project.name || '-', project.status_project || '-', project.deadline || '-']),
+  ]
+}
+
+function buildProjectDetailRows(detail: { project: any; summary: any; tasks: any[] }): string[][] {
+  const rows: string[][] = [
+    ['ชื่อโปรเจกต์', detail.project?.name || '-'],
+    ['สถานะ', detail.project?.status_project || '-'],
+    ['กำหนดส่ง', detail.project?.deadline || '-'],
+    ['งานทั้งหมด', String(detail.summary?.total ?? 0)],
+    ['กำลังทำ', String(detail.summary?.in_progress ?? 0)],
+    ['รอตรวจ', String(detail.summary?.under_review ?? 0)],
+    ['รอรับช่วงต่อ', String(detail.summary?.waiting_pickup ?? 0)],
+    ['เสร็จแล้ว', String(detail.summary?.done ?? 0)],
+    [],
+    ['ชื่องาน', 'สถานะ', 'ผู้รับผิดชอบ', 'อัปเดตล่าสุด'],
+  ]
+
+  for (const task of detail.tasks ?? []) {
+    rows.push([
+      task.name || '-',
+      task.status_task || '-',
+      task.current_owner?.display_name || task.current_owner?.username || '-',
+      task.updatedAt || '-',
+    ])
+  }
+
+  return rows
+}
+
+function sendCsv(ctx: any, filename: string, rows: string[][]) {
+  const csv = rows.map((row) => row.map(escapeCsvCell).join(',')).join('\r\n')
+  ctx.set('Content-Type', 'text/csv; charset=utf-8')
+  ctx.set('Content-Disposition', `attachment; filename="${filename}"`)
+  ctx.body = `\uFEFF${csv}`
+  return ctx
+}
+
+function escapeCsvCell(value: unknown) {
+  const normalized = String(value ?? '')
+  if (/[",\n\r]/.test(normalized)) {
+    return `"${normalized.replace(/"/g, '""')}"`
+  }
+  return normalized
+}
+
+function dateStamp() {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+}
+
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9ก-๙-]/g, '')
 }

@@ -48,5 +48,29 @@ export default {
       handler: 'dashboard.history',
       config: { auth: false },
     },
+    {
+      method: 'GET',
+      path: '/dashboard/export/reports',
+      handler: 'dashboard.exportReportsCsv',
+      config: { auth: false },
+    },
+    {
+      method: 'GET',
+      path: '/dashboard/export/kpi',
+      handler: 'dashboard.exportKpiCsv',
+      config: { auth: false },
+    },
+    {
+      method: 'GET',
+      path: '/dashboard/export/history',
+      handler: 'dashboard.exportHistoryCsv',
+      config: { auth: false },
+    },
+    {
+      method: 'GET',
+      path: '/dashboard/export/tasks',
+      handler: 'dashboard.exportTasksCsv',
+      config: { auth: false },
+    },
   ],
 };

@@ -76,36 +76,7 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
 
   async pendingTasks(ctx) {
     ensureManager(ctx);
-
-    const tasks = await strapi.db.query(taskUid).findMany({
-      where: { status_task: { $ne: 'done' } },
-      populate: {
-        current_owner: {
-          select: ['id', 'display_name', 'username'],
-        },
-        task_log: {
-          select: ['id'],
-        },
-      },
-      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-    }) as any[];
-
-    return ctx.send(
-      tasks.map((task) => ({
-        id: task.id,
-        name: task.name,
-        status_task: task.status_task,
-        current_owner: task.current_owner
-          ? {
-              id: task.current_owner.id,
-              display_name: task.current_owner.display_name,
-              username: task.current_owner.username,
-            }
-          : null,
-        created_at: task.createdAt,
-        log_count: task.task_log?.length ?? 0,
-      })),
-    );
+    return ctx.send(await buildPendingTaskItems(strapi));
   },
 
   async underReview(ctx) {
@@ -120,123 +91,8 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
 
   async staffKpi(ctx) {
     ensureManager(ctx);
-
     const days = normalizeRangeDays(ctx.request.query?.days);
-    const now = new Date();
-    const windowStart = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-    const recentActivityStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-
-    const staffList = await strapi.db.query(userUid).findMany({
-      where: { role_app: 'staff', is_approved: true },
-      select: ['id', 'display_name', 'username', 'telegram_id'],
-      orderBy: [{ display_name: 'asc' }, { username: 'asc' }],
-    }) as StaffEntity[];
-
-    const tasks = await strapi.db.query(taskUid).findMany({
-      select: ['id', 'name', 'status_task', 'createdAt', 'updatedAt'],
-      populate: {
-        current_owner: {
-          select: ['id', 'display_name', 'username'],
-        },
-        project: {
-          select: ['id', 'name', 'deadline', 'status_project'],
-        },
-      },
-      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
-    }) as TaskEntity[];
-
-    const taskLogs = await strapi.db.query(taskLogUid).findMany({
-      select: ['id', 'action', 'note', 'createdAt'],
-      populate: {
-        task: {
-          select: ['id'],
-        },
-      },
-      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-    }) as TaskLog[];
-
-    const logsByTaskId = new Map<number, TaskLog[]>();
-    for (const log of taskLogs) {
-      const taskId = Number(log.task?.id);
-      if (!Number.isFinite(taskId)) continue;
-      const bucket = logsByTaskId.get(taskId) ?? [];
-      bucket.push(log);
-      logsByTaskId.set(taskId, bucket);
-    }
-
-    const staffMap = new Map<number, ReturnType<typeof createEmptyKpi>>();
-    for (const member of staffList) {
-      staffMap.set(member.id, createEmptyKpi(member));
-    }
-
-    for (const task of tasks) {
-      const ownerId = Number(task.current_owner?.id);
-      if (!staffMap.has(ownerId)) continue;
-
-      const entry = staffMap.get(ownerId)!;
-      entry.tasks_total += 1;
-
-      const logs = logsByTaskId.get(task.id) ?? [];
-
-      if (task.status_task === 'in_progress') entry.active_in_progress += 1;
-      if (task.status_task === 'under_review') entry.active_under_review += 1;
-      if (task.status_task === 'waiting_pickup') entry.active_waiting_pickup += 1;
-      if (task.status_task !== 'done') entry.active_tasks += 1;
-
-      const lastActivityAt = getLastActivityAt(task, logs);
-      if (task.status_task !== 'done') {
-        if (lastActivityAt && lastActivityAt >= recentActivityStart) {
-          entry.active_updated_recently += 1;
-        } else {
-          entry.stale_active_tasks += 1;
-        }
-      }
-
-      const progressUpdates = logs.filter(
-        (log) => log.action === 'progress_update' && isWithinRange(log.createdAt, windowStart, now),
-      );
-      entry.progress_updates += progressUpdates.length;
-
-      const approvedLogs = logs.filter(
-        (log) => log.action === 'approved' && isWithinRange(log.createdAt, windowStart, now),
-      );
-      const rejectedLogs = logs.filter(
-        (log) => log.action === 'rejected' && isWithinRange(log.createdAt, windowStart, now),
-      );
-
-      entry.review_cycles += approvedLogs.length + rejectedLogs.length;
-      entry.rejected_cycles += rejectedLogs.length;
-      entry.completed_tasks += approvedLogs.length;
-
-      for (const approvedLog of approvedLogs) {
-        const approvedAt = new Date(String(approvedLog.createdAt));
-        const createdAt = new Date(String(task.createdAt || approvedLog.createdAt));
-        if (!Number.isNaN(createdAt.getTime()) && !Number.isNaN(approvedAt.getTime())) {
-          entry.total_completion_hours += Math.max(0, (approvedAt.getTime() - createdAt.getTime()) / 36e5);
-          entry.completion_samples += 1;
-        }
-
-        const deadline = task.project?.deadline ? new Date(task.project.deadline) : null;
-        if (deadline && !Number.isNaN(deadline.getTime())) {
-          entry.deadline_tracked_completed += 1;
-          if (approvedAt.getTime() <= deadline.getTime()) {
-            entry.on_time_completed += 1;
-          }
-        }
-      }
-    }
-
-    const outputTarget = Math.max(2, Math.round((days / 30) * 8));
-    const result = Array.from(staffMap.values())
-      .map((entry) => finalizeKpi(entry, { outputTarget }))
-      .sort((a, b) => b.total_score - a.total_score || a.display_name.localeCompare(b.display_name, 'th'));
-
-    return ctx.send({
-      window_days: days,
-      generated_at: now.toISOString(),
-      formula_guide: buildFormulaGuide(days, outputTarget),
-      staff: result,
-    });
+    return ctx.send(await buildStaffKpiPayload(strapi, days));
   },
 
   async history(ctx) {
@@ -250,6 +106,40 @@ export default factories.createCoreController('api::task.task', ({ strapi }) => 
       total: items.length,
       items,
     });
+  },
+
+  async exportReportsCsv(ctx) {
+    ensureManager(ctx);
+    const [summary, staff] = await Promise.all([buildSummary(strapi), buildStaffOverview(strapi)]);
+    return sendCsv(ctx, `reports-summary-${dateStamp()}.csv`, buildReportsRows({ summary, staff }));
+  },
+
+  async exportKpiCsv(ctx) {
+    ensureManager(ctx);
+    const days = normalizeRangeDays(ctx.request.query?.days);
+    const payload = await buildStaffKpiPayload(strapi, days);
+    return sendCsv(ctx, `kpi-${days}d-${dateStamp()}.csv`, buildKpiRows(payload));
+  },
+
+  async exportHistoryCsv(ctx) {
+    ensureManager(ctx);
+    const days = normalizeRangeDays(ctx.request.query?.days);
+    const items = await buildActionHistory(strapi, days);
+    return sendCsv(
+      ctx,
+      `history-${days}d-${dateStamp()}.csv`,
+      buildHistoryRows({
+        window_days: days,
+        generated_at: new Date().toISOString(),
+        items,
+      }),
+    );
+  },
+
+  async exportTasksCsv(ctx) {
+    ensureManager(ctx);
+    const tasks = await buildPendingTaskItems(strapi);
+    return sendCsv(ctx, `tasks-open-${dateStamp()}.csv`, buildPendingTaskRows(tasks));
   },
 }));
 
@@ -416,6 +306,154 @@ async function buildNotifications(strapi: any, userId: number) {
     is_read: !!notification.is_read,
     createdAt: notification.createdAt,
   }));
+}
+
+async function buildPendingTaskItems(strapi: any) {
+  const tasks = await strapi.db.query(taskUid).findMany({
+    where: { status_task: { $ne: 'done' } },
+    populate: {
+      current_owner: {
+        select: ['id', 'display_name', 'username'],
+      },
+      task_log: {
+        select: ['id'],
+      },
+    },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+  }) as any[];
+
+  return tasks.map((task) => ({
+    id: task.id,
+    name: task.name,
+    status_task: task.status_task,
+    current_owner: task.current_owner
+      ? {
+          id: task.current_owner.id,
+          display_name: task.current_owner.display_name,
+          username: task.current_owner.username,
+        }
+      : null,
+    created_at: task.createdAt,
+    log_count: task.task_log?.length ?? 0,
+  }));
+}
+
+async function buildStaffKpiPayload(strapi: any, days: number) {
+  const now = new Date();
+  const windowStart = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+  const recentActivityStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  const staffList = await strapi.db.query(userUid).findMany({
+    where: { role_app: 'staff', is_approved: true },
+    select: ['id', 'display_name', 'username', 'telegram_id'],
+    orderBy: [{ display_name: 'asc' }, { username: 'asc' }],
+  }) as StaffEntity[];
+
+  const tasks = await strapi.db.query(taskUid).findMany({
+    select: ['id', 'name', 'status_task', 'createdAt', 'updatedAt'],
+    populate: {
+      current_owner: {
+        select: ['id', 'display_name', 'username'],
+      },
+      project: {
+        select: ['id', 'name', 'deadline', 'status_project'],
+      },
+    },
+    orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+  }) as TaskEntity[];
+
+  const taskLogs = await strapi.db.query(taskLogUid).findMany({
+    select: ['id', 'action', 'note', 'createdAt'],
+    populate: {
+      task: {
+        select: ['id'],
+      },
+    },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+  }) as TaskLog[];
+
+  const logsByTaskId = new Map<number, TaskLog[]>();
+  for (const log of taskLogs) {
+    const taskId = Number(log.task?.id);
+    if (!Number.isFinite(taskId)) continue;
+    const bucket = logsByTaskId.get(taskId) ?? [];
+    bucket.push(log);
+    logsByTaskId.set(taskId, bucket);
+  }
+
+  const staffMap = new Map<number, ReturnType<typeof createEmptyKpi>>();
+  for (const member of staffList) {
+    staffMap.set(member.id, createEmptyKpi(member));
+  }
+
+  for (const task of tasks) {
+    const ownerId = Number(task.current_owner?.id);
+    if (!staffMap.has(ownerId)) continue;
+
+    const entry = staffMap.get(ownerId)!;
+    entry.tasks_total += 1;
+
+    const logs = logsByTaskId.get(task.id) ?? [];
+
+    if (task.status_task === 'in_progress') entry.active_in_progress += 1;
+    if (task.status_task === 'under_review') entry.active_under_review += 1;
+    if (task.status_task === 'waiting_pickup') entry.active_waiting_pickup += 1;
+    if (task.status_task !== 'done') entry.active_tasks += 1;
+
+    const lastActivityAt = getLastActivityAt(task, logs);
+    if (task.status_task !== 'done') {
+      if (lastActivityAt && lastActivityAt >= recentActivityStart) {
+        entry.active_updated_recently += 1;
+      } else {
+        entry.stale_active_tasks += 1;
+      }
+    }
+
+    const progressUpdates = logs.filter(
+      (log) => log.action === 'progress_update' && isWithinRange(log.createdAt, windowStart, now),
+    );
+    entry.progress_updates += progressUpdates.length;
+
+    const approvedLogs = logs.filter(
+      (log) => log.action === 'approved' && isWithinRange(log.createdAt, windowStart, now),
+    );
+    const rejectedLogs = logs.filter(
+      (log) => log.action === 'rejected' && isWithinRange(log.createdAt, windowStart, now),
+    );
+
+    entry.review_cycles += approvedLogs.length + rejectedLogs.length;
+    entry.rejected_cycles += rejectedLogs.length;
+    entry.completed_tasks += approvedLogs.length;
+
+    for (const approvedLog of approvedLogs) {
+      const approvedAt = new Date(String(approvedLog.createdAt));
+      const createdAt = new Date(String(task.createdAt || approvedLog.createdAt));
+      if (!Number.isNaN(createdAt.getTime()) && !Number.isNaN(approvedAt.getTime())) {
+        entry.total_completion_hours += Math.max(0, (approvedAt.getTime() - createdAt.getTime()) / 36e5);
+        entry.completion_samples += 1;
+      }
+
+      const deadline = task.project?.deadline ? new Date(task.project.deadline) : null;
+      if (deadline && !Number.isNaN(deadline.getTime())) {
+        entry.deadline_tracked_completed += 1;
+        if (approvedAt.getTime() <= deadline.getTime()) {
+          entry.on_time_completed += 1;
+        }
+      }
+    }
+  }
+
+  const outputTarget = Math.max(2, Math.round((days / 30) * 8));
+  const result = Array.from(staffMap.values())
+    .map((entry) => finalizeKpi(entry, { outputTarget }))
+    .sort((a, b) => b.total_score - a.total_score || a.display_name.localeCompare(b.display_name, 'th'));
+
+  return {
+    window_days: days,
+    generated_at: now.toISOString(),
+    formula_guide: buildFormulaGuide(days, outputTarget),
+    staff: result,
+  };
 }
 
 async function buildPendingHandovers(strapi: any) {
@@ -946,4 +984,118 @@ function buildFormulaGuide(days: number, outputTarget: number) {
 
 function round(value: number) {
   return Math.round(value * 10) / 10;
+}
+
+function buildReportsRows(data: any): string[][] {
+  const rows: string[][] = [
+    ['หมวด', 'รายการ', 'ค่า'],
+    ['สรุปงาน', 'งานทั้งหมด', String(data.summary.tasks.total)],
+    ['สรุปงาน', 'กำลังทำ', String(data.summary.tasks.in_progress)],
+    ['สรุปงาน', 'รอตรวจ', String(data.summary.tasks.under_review)],
+    ['สรุปงาน', 'รอรับช่วงต่อ', String(data.summary.tasks.waiting_pickup)],
+    ['สรุปงาน', 'เสร็จแล้ว', String(data.summary.tasks.done)],
+    ['สรุปโปรเจกต์', 'โปรเจกต์ทั้งหมด', String(data.summary.projects.total)],
+    ['สรุปโปรเจกต์', 'โปรเจกต์ที่เปิดอยู่', String(data.summary.projects.active)],
+    ['สรุปโปรเจกต์', 'โปรเจกต์เกินกำหนด', String(data.summary.projects.overdue)],
+    ['สรุปทีม', 'พนักงานทั้งหมด', String(data.summary.staff.total)],
+    [],
+    ['พนักงาน', 'ชื่อแสดง', 'ชื่อผู้ใช้', 'งานที่เปิดอยู่'],
+  ];
+
+  for (const member of data.staff) {
+    rows.push(['พนักงาน', member.display_name || '-', member.username || '-', String(member.active_tasks)]);
+  }
+
+  return rows;
+}
+
+function buildKpiRows(data: any): string[][] {
+  return [
+    [
+      'ชื่อแสดง',
+      'ชื่อผู้ใช้',
+      'สถานะ',
+      'คะแนนรวม',
+      'งานที่เสร็จแล้ว',
+      'งานที่กำลังทำ',
+      'กำลังทำ',
+      'รอตรวจ',
+      'รอรับช่วงต่อ',
+      'งานค้างนิ่ง',
+      'อัตราตีกลับ (%)',
+      'อัตราตรงเวลา (%)',
+      'เวลาปิดเฉลี่ย (ชม.)',
+      'อัตราอัปเดต (%)',
+      'ข้อสังเกต',
+    ],
+    ...data.staff.map((member: any) => [
+      member.display_name,
+      member.username,
+      member.status.label,
+      String(member.total_score),
+      String(member.completed_tasks),
+      String(member.active_tasks),
+      String(member.active_in_progress),
+      String(member.active_under_review),
+      String(member.active_waiting_pickup),
+      String(member.stale_active_tasks),
+      String(member.rejection_rate),
+      member.on_time_rate == null ? '-' : String(member.on_time_rate),
+      member.avg_completion_hours == null ? '-' : String(member.avg_completion_hours),
+      String(member.update_rate),
+      member.focus_note,
+    ]),
+  ];
+}
+
+function buildHistoryRows(data: any): string[][] {
+  return [
+    ['วันที่', 'หมวด', 'การกระทำ', 'หัวข้อ', 'สรุป', 'รายละเอียด', 'ผู้ดำเนินการ', 'ผู้เกี่ยวข้อง', 'งาน', 'โปรเจกต์'],
+    ...data.items.map((item: any) => [
+      item.occurred_at,
+      item.category,
+      item.action,
+      item.title,
+      item.summary,
+      item.detail,
+      item.actor,
+      item.subject_user,
+      item.task?.name || '-',
+      item.project?.name || '-',
+    ]),
+  ];
+}
+
+function buildPendingTaskRows(tasks: any[]): string[][] {
+  return [
+    ['ชื่องาน', 'สถานะ', 'ผู้รับผิดชอบ', 'สร้างเมื่อ', 'จำนวนความเคลื่อนไหว'],
+    ...tasks.map((task) => [
+      task.name,
+      task.status_task,
+      task.current_owner?.display_name || task.current_owner?.username || '-',
+      task.created_at,
+      String(task.log_count),
+    ]),
+  ];
+}
+
+function sendCsv(ctx: any, filename: string, rows: string[][]) {
+  const csv = rows.map((row) => row.map(escapeCsvCell).join(',')).join('\r\n');
+  ctx.set('Content-Type', 'text/csv; charset=utf-8');
+  ctx.set('Content-Disposition', `attachment; filename="${filename}"`);
+  ctx.body = `\uFEFF${csv}`;
+  return ctx;
+}
+
+function escapeCsvCell(value: unknown) {
+  const normalized = String(value ?? '');
+  if (/[",\n\r]/.test(normalized)) {
+    return `"${normalized.replace(/"/g, '""')}"`;
+  }
+  return normalized;
+}
+
+function dateStamp() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
